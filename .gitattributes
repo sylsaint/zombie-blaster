@@ -1,0 +1,43 @@
+# Text files use LF. Godot resources are text and must not be CRLF-converted.
+* text=auto eol=lf
+
+*.gd text eol=lf linguist-language=GDScript
+*.gdshader text eol=lf
+*.shader text eol=lf
+*.tscn text eol=lf
+*.tres text eol=lf
+*.godot text eol=lf
+*.cfg text eol=lf
+*.import text eol=lf
+*.uid text eol=lf
+*.svg text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+
+# Binary assets. Marked binary so Git does not diff or rewrite them.
+# Git LFS is not required for the skeleton; enable it before large art lands.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.bmp binary
+*.tga binary
+*.exr binary
+*.hdr binary
+*.wav binary
+*.ogg binary
+*.mp3 binary
+*.flac binary
+*.glb binary
+*.gltf binary
+*.fbx binary
+*.obj binary
+*.blend binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary

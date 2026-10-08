@@ -1,0 +1,46 @@
+# Godot 4+ generated cache. Export credentials (keystore passwords,
+# script encryption keys) live in .godot/export_credentials.cfg.
+.godot/
+.nomedia
+
+# Legacy Godot 3 import folder
+.import/
+
+# Local export overrides. export_presets.cfg is tracked on purpose:
+# it has the Android preset and must not contain secrets. Passwords
+# belong in .godot/export_credentials.cfg or GODOT_ANDROID_KEYSTORE_* env vars.
+export.cfg
+export_credentials.cfg
+*.tmp
+
+# Imported translations (generated from CSV)
+*.translation
+
+# Mono / C# (not used; ignored so a local .NET editor cannot leak build output)
+.mono/
+data_*/
+mono_crash.*.json
+~*.dll
+
+# Android Gradle build tree (created if "Use Gradle Build" is turned on)
+/android/
+
+# Signing material. Never commit these.
+*.keystore
+*.jks
+*.idsig
+
+# Export artifacts
+/build/
+/builds/
+*.apk
+*.aab
+*.pck
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.directory
+*~
+*.swp
+.idea/

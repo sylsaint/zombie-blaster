@@ -1,0 +1,105 @@
+[gd_scene load_steps=15 format=3 uid="uid://wqou8s4c6lv2"]
+
+[ext_resource type="Script" uid="uid://dhwvaar3y7h4k" path="res://scripts/greybox_stage.gd" id="1_stage"]
+[ext_resource type="Script" uid="uid://csexw6ucuej7e" path="res://scripts/player.gd" id="2_player"]
+[ext_resource type="Shader" uid="uid://1yl1rhhkxtqc" path="res://assets/vfx/blob_shadow.gdshader" id="3_blob"]
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 1
+background_color = Color(0.45, 0.52, 0.56, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.8, 0.83, 0.86, 1)
+ambient_light_energy = 0.85
+
+[sub_resource type="BoxMesh" id="BoxMesh_ground"]
+size = Vector3(8, 0.2, 100)
+
+[sub_resource type="StandardMaterial3D" id="Mat_ground"]
+specular_mode = 2
+albedo_color = Color(0.34, 0.37, 0.4, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_stripe"]
+size = Vector3(0.12, 0.02, 100)
+
+[sub_resource type="StandardMaterial3D" id="Mat_stripe"]
+specular_mode = 2
+albedo_color = Color(0.55, 0.58, 0.6, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_rail"]
+size = Vector3(0.35, 0.5, 100)
+
+[sub_resource type="StandardMaterial3D" id="Mat_rail"]
+specular_mode = 2
+albedo_color = Color(0.2, 0.22, 0.24, 1)
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]
+radius = 0.38
+height = 1.7
+
+[sub_resource type="StandardMaterial3D" id="Mat_player"]
+specular_mode = 2
+albedo_color = Color(0.78, 0.82, 0.86, 1)
+
+[sub_resource type="QuadMesh" id="QuadMesh_blob"]
+size = Vector2(1.6, 1.6)
+
+[sub_resource type="ShaderMaterial" id="Mat_blob"]
+render_priority = 0
+shader = ExtResource("3_blob")
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_stage")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+shadow_enabled = false
+light_energy = 1.15
+
+[node name="ChaseCamera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.5, 12)
+current = true
+fov = 52.0
+near = 0.05
+far = 200.0
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, -20)
+mesh = SubResource("BoxMesh_ground")
+surface_material_override/0 = SubResource("Mat_ground")
+cast_shadow = 0
+
+[node name="CenterStripe" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, -20)
+mesh = SubResource("BoxMesh_stripe")
+surface_material_override/0 = SubResource("Mat_stripe")
+cast_shadow = 0
+
+[node name="RailLeft" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.75, 0.25, -20)
+mesh = SubResource("BoxMesh_rail")
+surface_material_override/0 = SubResource("Mat_rail")
+cast_shadow = 0
+
+[node name="RailRight" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.75, 0.25, -20)
+mesh = SubResource("BoxMesh_rail")
+surface_material_override/0 = SubResource("Mat_rail")
+cast_shadow = 0
+
+[node name="Player" type="Node3D" parent="."]
+script = ExtResource("2_player")
+lane_half_width = 3.0
+
+[node name="Body" type="MeshInstance3D" parent="Player"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
+mesh = SubResource("CapsuleMesh_player")
+surface_material_override/0 = SubResource("Mat_player")
+cast_shadow = 0
+
+[node name="BlobShadow" type="MeshInstance3D" parent="Player"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 0)
+mesh = SubResource("QuadMesh_blob")
+surface_material_override/0 = SubResource("Mat_blob")
+cast_shadow = 0
