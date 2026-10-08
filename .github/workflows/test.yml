@@ -38,7 +38,8 @@ jobs:
           echo "GODOT=${{ runner.temp }}/godot/godot" >> "$GITHUB_ENV"
 
       - name: Import project
-        run: "$GODOT" --headless --path . --import
+        run: |
+          "$GODOT" --headless --path . --import
 
       - name: Smoke main scene
         run: ./tools/smoke_main.sh
