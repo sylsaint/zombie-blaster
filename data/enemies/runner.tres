@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="EnemyArchetype" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_archetype.gd" id="1_arch"]
+
+[resource]
+script = ExtResource("1_arch")
+enemy_id = "enm_runner_a"
+display_name = "快跑僵尸"
+kind = 0
+base_hp = 12.0
+move_speed = 3.5
+weight = 1
+contact_loss = 1
+contact_interval = 0.5
+collision_radius = 0.4
+offset_x = 0.0
+offset_z = 0.0

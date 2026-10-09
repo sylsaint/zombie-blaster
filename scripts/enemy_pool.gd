@@ -29,6 +29,9 @@ var flash_left := PackedFloat32Array()
 var dissolve_left := PackedFloat32Array()
 var variant := PackedFloat32Array()
 var vat_frame := PackedFloat32Array()
+var offset_x := PackedFloat32Array()
+var offset_z := PackedFloat32Array()
+var kill_count: int = 0
 var active_count: int = 0
 var active_ids := PackedInt32Array()
 var active_n: int = 0
@@ -51,6 +54,8 @@ func _init(cap: int = 320) -> void:
 	dissolve_left.resize(capacity)
 	variant.resize(capacity)
 	vat_frame.resize(capacity)
+	offset_x.resize(capacity)
+	offset_z.resize(capacity)
 	active_ids.resize(capacity)
 	_active_index.resize(capacity)
 	_active_index.fill(-1)
@@ -61,7 +66,7 @@ func _init(cap: int = 320) -> void:
 		_free[i] = capacity - 1 - i
 
 
-func spawn(kind: int, px: float, pz: float, hit_points: float, move_speed: float, body_radius: float, color_variant: float) -> int:
+func spawn(kind: int, px: float, pz: float, hit_points: float, move_speed: float, body_radius: float, color_variant: float, body_offset_x: float = 0.0, body_offset_z: float = 0.0) -> int:
 	if _free.is_empty():
 		return -1
 	var id: int = _free.pop_back()
@@ -77,6 +82,8 @@ func spawn(kind: int, px: float, pz: float, hit_points: float, move_speed: float
 	dissolve_left[id] = 0.0
 	variant[id] = clampf(color_variant, 0.0, 1.0)
 	vat_frame[id] = color_variant * 16.0
+	offset_x[id] = body_offset_x
+	offset_z[id] = body_offset_z
 	active_ids[active_n] = id
 	_active_index[id] = active_n
 	active_n += 1
@@ -124,6 +131,7 @@ func hit(id: int, amount: float, dir_x: float, dir_z: float) -> bool:
 	hp[id] = 0.0
 	state[id] = State.DYING
 	dissolve_left[id] = DISSOLVE_TIME
+	kill_count += 1
 	return true
 
 

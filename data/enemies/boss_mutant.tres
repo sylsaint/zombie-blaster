@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="EnemyArchetype" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_archetype.gd" id="1_arch"]
+
+[resource]
+script = ExtResource("1_arch")
+enemy_id = "boss_mutant"
+display_name = "突变巨兽"
+kind = 2
+base_hp = 27000.0
+move_speed = 1.6
+weight = 5
+contact_loss = 5
+contact_interval = 0.5
+collision_radius = 2.7
+offset_x = 0.4
+offset_z = -0.6
+mesh_extent_right = 3.07
+mesh_extent_left = 2.14
+mesh_extent_forward = 2.13
+mesh_path = "res://assets/models/boss_mutant.glb"

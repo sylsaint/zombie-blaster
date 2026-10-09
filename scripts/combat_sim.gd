@@ -19,6 +19,7 @@ var respawn_near: float = 16.0
 var respawn_far: float = 34.0
 var lane_span: float = 2.4
 var profile: SimProfile
+var boss_fight: BossFight
 
 
 func _init(game_clock: Node, enemy_capacity: int = 360, bullet_capacity: int = 64) -> void:
@@ -171,14 +172,16 @@ func _resolve_hits() -> void:
 				continue
 			if enemies.state[id] != EnemyPool.State.ALIVE:
 				continue
+			var cx := enemies.x[id] + enemies.offset_x[id]
+			var cz := enemies.z[id] + enemies.offset_z[id]
 			var limit := enemies.radius[id] + BULLET_RADIUS
-			if not _segment_hits(bullets.prev_x[b], bullets.prev_z[b], bullets.x[b], bullets.z[b], enemies.x[id], enemies.z[id], limit):
+			if not _segment_hits(bullets.prev_x[b], bullets.prev_z[b], bullets.x[b], bullets.z[b], cx, cz, limit):
 				continue
 			if hits >= _hit_ids.size():
 				_hit_ids.resize(hits + 8)
 				_hit_t.resize(hits + 8)
 			_hit_ids[hits] = id
-			_hit_t[hits] = _segment_t(bullets.prev_x[b], bullets.prev_z[b], bullets.x[b], bullets.z[b], enemies.x[id], enemies.z[id])
+			_hit_t[hits] = _segment_t(bullets.prev_x[b], bullets.prev_z[b], bullets.x[b], bullets.z[b], cx, cz)
 			hits += 1
 		var i := 1
 		while i < hits:
@@ -208,6 +211,14 @@ func _resolve_hits() -> void:
 				bullets.deactivate(b)
 				break
 			h += 1
+		if alive[b] != 0 and boss_fight != null and boss_fight.can_receive_hit():
+			var reach := boss_fight.collision_radius + BULLET_RADIUS
+			if _segment_hits(bullets.prev_x[b], bullets.prev_z[b], bullets.x[b], bullets.z[b], boss_fight.center_x, boss_fight.center_z, reach):
+				boss_fight.apply_damage(bullets.damage[b])
+				if bullets.pierce[b] > 0:
+					bullets.pierce[b] -= 1
+				else:
+					bullets.deactivate(b)
 		b += 1
 
 
