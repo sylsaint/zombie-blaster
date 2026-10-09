@@ -37,9 +37,15 @@ if ! adb install -r "$apk"; then
   note "arm64 translation: $(adb shell getprop ro.dalvik.vm.isa.arm64 | tr -d '\r')"
   exit 1
 fi
-note "device abi: $(adb shell getprop ro.product.cpu.abi | tr -d '\r')"
-package_abi="$(adb shell dumpsys package "$package" | tr -d '\r' | awk '/primaryCpuAbi/{print; exit}')"
-note "package abi: ${package_abi}"
+device_abi="$(adb shell getprop ro.product.cpu.abi | tr -d '\r')"
+note "device abi: ${device_abi}"
+# awk exiting on the first match closes a live adb pipe and pipefail turns that
+# SIGPIPE into exit 141. Read the whole dump first.
+adb shell dumpsys package "$package" | tr -d '\r' > "$out/package-dump.txt"
+package_abi="$(awk '/primaryCpuAbi/{print; exit}' "$out/package-dump.txt")"
+rm -f "$out/package-dump.txt"
+note "package abi: ${package_abi:-missing}"
+printf 'device abi: %s\npackage abi: %s\n' "$device_abi" "${package_abi:-missing}" > "$out/abi.txt"
 if [[ "$package_abi" != *x86_64* || "$package_abi" == *arm64* ]]; then
   echo "Smoke APK is not running as x86_64 (${package_abi:-missing}). ARM translation would hide the canvas." >&2
   exit 1
