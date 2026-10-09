@@ -161,9 +161,12 @@ func test_ac_rw_01_results_screen_splits_chest_from_the_total() -> void:
 	assert_true(chest.text.contains("200"))
 	assert_false(total.text.contains("200"))
 	assert_eq(screen.get_node("%Title").text, "胜利")
-	assert_true((screen.get_node("%StarClear") as Label).text.begins_with("★"))
-	assert_true((screen.get_node("%StarSquad") as Label).text.begins_with("★"))
-	assert_true((screen.get_node("%StarHits") as Label).text.begins_with("★"))
+	assert_true(_star_filled(screen, "StarClearRow"))
+	assert_true(_star_filled(screen, "StarSquadRow"))
+	assert_true(_star_filled(screen, "StarHitsRow"))
+	assert_eq((screen.get_node("%StarClear") as Label).text, "通关")
+	assert_false((screen.get_node("%StarClear") as Label).text.contains("★"))
+	assert_false((screen.get_node("%StarClear") as Label).text.contains("☆"))
 	assert_false((screen.get_node("%Retry") as Button).disabled)
 	assert_false((screen.get_node("%Next") as Button).disabled)
 	assert_false((screen.get_node("%Back") as Button).disabled)
@@ -189,7 +192,17 @@ func test_ac_rw_01_results_screen_splits_chest_from_the_total() -> void:
 	assert_true((screen.get_node("%Next") as Button).disabled)
 	assert_false((screen.get_node("%Retry") as Button).disabled)
 	assert_false((screen.get_node("%Back") as Button).disabled)
-	assert_true((screen.get_node("%StarClear") as Label).text.begins_with("☆"))
+	assert_false((screen.get_node("%StarClearRow") as Control).visible)
+	assert_false((screen.get_node("%StarSquadRow") as Control).visible)
+	assert_false((screen.get_node("%StarHitsRow") as Control).visible)
+	assert_eq((screen.get_node("%StarSquad") as Label).text, "")
+	assert_true((screen.get_node("%RunLine") as Label).visible)
+	assert_true((screen.get_node("%TotalLine") as Label).visible)
+	assert_eq((screen.get_node("Margin/Sheet/Column/Breakdown") as PanelContainer).theme_type_variation, &"RewardPanel")
+	assert_eq((screen.get_node("%ClearLine") as Label).theme_type_variation, &"RewardLabel")
+	assert_eq((screen.get_node("%RunLine") as Label).theme_type_variation, &"RewardLabel")
+	assert_eq((screen.get_node("%TotalLine") as Label).theme_type_variation, &"RewardLabel")
+	assert_eq((screen.get_node("%PartsLine") as Label).theme_type_variation, &"RewardLabel")
 
 
 func test_ac_rw_02_stars_are_judged_independently() -> void:
@@ -232,9 +245,12 @@ func test_ac_rw_02_stars_are_judged_independently() -> void:
 	assert_almost_eq(mixed.star_multiplier, 1.2, 0.001)
 	assert_eq(mixed.clear_coins, 120)
 	screen.present(mixed)
-	assert_true((screen.get_node("%StarClear") as Label).text.begins_with("★"))
-	assert_true((screen.get_node("%StarSquad") as Label).text.begins_with("☆"))
-	assert_true((screen.get_node("%StarHits") as Label).text.begins_with("★"))
+	assert_true(_star_filled(screen, "StarClearRow"))
+	assert_false(_star_filled(screen, "StarSquadRow"))
+	assert_true(_star_filled(screen, "StarHitsRow"))
+	assert_true((screen.get_node("%StarSquadRow") as Control).visible)
+	assert_eq((screen.get_node("%StarSquad") as Label).text, "人数 5 / 20")
+	assert_false((screen.get_node("%StarSquad") as Label).text.contains("☆"))
 
 
 func test_ac_rw_03_first_clear_parts_pay_once() -> void:
@@ -634,11 +650,33 @@ func test_ac_sq_06_fail_screen_appears_while_gameplay_clock_is_frozen() -> void:
 	assert_eq(Engine.time_scale, 1.0)
 
 
-func test_portrait_uses_default_theme_and_placeholder_title() -> void:
+func test_portrait_theme_font_slots_are_empty() -> void:
 	assert_eq(ProjectSettings.get_setting("display/window/size/viewport_width"), 1080)
 	assert_eq(ProjectSettings.get_setting("display/window/size/viewport_height"), 1920)
 	assert_eq(GameTitle.TEXT, "ZOMBIE BLASTER")
-	assert_false(FileAccess.file_exists("res://assets/ui/game_theme.tres"))
+	assert_eq(str(ProjectSettings.get_setting("gui/theme/custom")), "res://assets/ui/game_theme.tres")
+	assert_true(FileAccess.file_exists("res://assets/ui/game_theme.tres"))
+	var theme := load("res://assets/ui/game_theme.tres") as Theme
+	assert_not_null(theme)
+	var main_font := theme.default_font as FontVariation
+	assert_not_null(main_font)
+	var base := main_font.base_font as FontFile
+	assert_not_null(base)
+	assert_true(base.resource_path.ends_with("ZCOOLKuaiLe-Regular.ttf"))
+	assert_eq(main_font.fallbacks.size(), 1)
+	var fallback := main_font.fallbacks[0] as FontFile
+	assert_not_null(fallback)
+	assert_true(fallback.resource_path.ends_with("NotoSansSC-Medium.otf"))
+	assert_true(main_font.has_char(("★").unicode_at(0)))
+	assert_eq(theme.get_type_variation_base(&"Display"), &"Label")
+	assert_eq(theme.get_type_variation_base(&"Body"), &"Label")
+	assert_eq(theme.get_font_list(&"Display").size(), 0)
+	assert_eq(theme.get_font_list(&"Body").size(), 0)
+	assert_true(theme.has_font(&"font", &"Display"))
+	assert_true(theme.has_font(&"font", &"Body"))
+	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+		assert_true(theme.has_stylebox(StringName(state), &"Button"))
+	assert_true(theme.has_stylebox(&"panel", &"PanelContainer"))
 	var dir := DirAccess.open("res://assets/ui")
 	assert_not_null(dir)
 	dir.list_dir_begin()
@@ -663,11 +701,17 @@ func test_portrait_uses_default_theme_and_placeholder_title() -> void:
 		add_child_autofree(view)
 		assert_null(view.theme)
 		_assert_named_controls(view)
+		_assert_buttons_skip_focus(view)
 		if scene_path != "res://scenes/ui/meta_panel.tscn":
 			assert_almost_eq(view.anchor_right, 1.0, 0.001)
 			assert_almost_eq(view.anchor_bottom, 1.0, 0.001)
+	var cards := load("res://scenes/ui/card_select.tscn").instantiate() as Control
+	add_child_autofree(cards)
+	_assert_buttons_skip_focus(cards)
 	var menu := load("res://scenes/ui/main_menu.tscn").instantiate() as MainMenu
 	add_child_autofree(menu)
+	assert_eq((menu.get_node("%Title") as Label).theme_type_variation, &"Display")
+	assert_eq((menu.get_node("Margin/Sheet/Column/Subtitle") as Label).theme_type_variation, &"Body")
 	assert_eq((menu.get_node("%Title") as Label).text, "ZOMBIE BLASTER")
 
 
@@ -959,3 +1003,17 @@ func _assert_named_controls(node: Node) -> void:
 		assert_true(named or control.theme_type_variation != StringName())
 	for child in node.get_children():
 		_assert_named_controls(child)
+
+
+func _assert_buttons_skip_focus(node: Node) -> void:
+	if node is BaseButton:
+		assert_eq((node as BaseButton).focus_mode, Control.FOCUS_NONE)
+	for child in node.get_children():
+		_assert_buttons_skip_focus(child)
+
+
+func _star_filled(screen: Node, row_name: String) -> bool:
+	var icon := screen.get_node("%" + row_name).get_node("Icon") as TextureRect
+	if icon.texture == null:
+		return false
+	return icon.texture.resource_path.ends_with("icon_star_filled.png")

@@ -801,6 +801,7 @@ func _add_profile_button(label: String, y: float, callback: Callable) -> Button:
 	button.position = Vector2(48.0, y)
 	button.size = Vector2(984.0, 120.0)
 	button.add_theme_font_size_override("font_size", 42)
+	button.focus_mode = Control.FOCUS_NONE
 	button.pressed.connect(callback)
 	$Overlay.add_child(button)
 	return button

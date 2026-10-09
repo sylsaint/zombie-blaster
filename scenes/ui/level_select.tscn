@@ -42,12 +42,14 @@ horizontal_alignment = 1
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
+focus_mode = 0
 text = "第 1 关"
 
 [node name="Level2" type="Button" parent="Margin/Sheet/Column"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
+focus_mode = 0
 disabled = true
 text = "第 2 关  未解锁"
 
@@ -55,6 +57,7 @@ text = "第 2 关  未解锁"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
+focus_mode = 0
 disabled = true
 text = "第 3 关  未解锁"
 
@@ -70,4 +73,5 @@ size_flags_vertical = 3
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
+focus_mode = 0
 text = "返回"

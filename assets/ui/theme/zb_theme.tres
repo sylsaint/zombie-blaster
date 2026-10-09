@@ -1,0 +1,419 @@
+[gd_resource type="Theme" load_steps=36 format=3]
+
+[ext_resource type="FontFile" path="res://assets/ui/fonts/ZCOOLKuaiLe-Regular.ttf" id="1_ZCOOLKuaiLe-Regular"]
+[ext_resource type="FontFile" path="res://assets/ui/fonts/NotoSansSC-Medium.otf" id="2_NotoSansSC-Medium"]
+[ext_resource type="Texture2D" path="res://assets/ui/textures/btn_primary_normal.png" id="3_btn_primary_normal"]
+[ext_resource type="Texture2D" path="res://assets/ui/textures/btn_primary_hover.png" id="4_btn_primary_hover"]
+[ext_resource type="Texture2D" path="res://assets/ui/textures/btn_primary_pressed.png" id="5_btn_primary_pressed"]
+[ext_resource type="Texture2D" path="res://assets/ui/textures/btn_secondary_normal.png" id="6_btn_secondary_normal"]
+[ext_resource type="Texture2D" path="res://assets/ui/textures/btn_secondary_hover.png" id="7_btn_secondary_hover"]
+[ext_resource type="Texture2D" path="res://assets/ui/textures/btn_secondary_pressed.png" id="8_btn_secondary_pressed"]
+[ext_resource type="Texture2D" path="res://assets/ui/textures/btn_upgrade_normal.png" id="9_btn_upgrade_normal"]
+[ext_resource type="Texture2D" path="res://assets/ui/textures/btn_upgrade_hover.png" id="10_btn_upgrade_hover"]
+[ext_resource type="Texture2D" path="res://assets/ui/textures/btn_upgrade_pressed.png" id="11_btn_upgrade_pressed"]
+[ext_resource type="Texture2D" path="res://assets/ui/textures/btn_locked.png" id="12_btn_locked"]
+[ext_resource type="Texture2D" path="res://assets/ui/textures/btn_focus.png" id="13_btn_focus"]
+[ext_resource type="Texture2D" path="res://assets/ui/textures/panel_dark.png" id="14_panel_dark"]
+[ext_resource type="Texture2D" path="res://assets/ui/textures/panel_reward.png" id="15_panel_reward"]
+[ext_resource type="Texture2D" path="res://assets/ui/textures/bar_bg.png" id="16_bar_bg"]
+[ext_resource type="Texture2D" path="res://assets/ui/textures/bar_fill.png" id="17_bar_fill"]
+
+[sub_resource type="FontVariation" id="Font_main"]
+fallbacks = Array[Font]([ExtResource("2_NotoSansSC-Medium")])
+base_font = ExtResource("1_ZCOOLKuaiLe-Regular")
+
+[sub_resource type="FontVariation" id="Font_small"]
+fallbacks = Array[Font]([ExtResource("1_ZCOOLKuaiLe-Regular")])
+base_font = ExtResource("2_NotoSansSC-Medium")
+
+[sub_resource type="StyleBoxTexture" id="SB_primary_normal"]
+content_margin_left = 40.0
+content_margin_top = 16.0
+content_margin_right = 40.0
+content_margin_bottom = 26.0
+texture = ExtResource("3_btn_primary_normal")
+texture_margin_left = 24.0
+texture_margin_top = 20.0
+texture_margin_right = 24.0
+texture_margin_bottom = 28.0
+
+[sub_resource type="StyleBoxTexture" id="SB_primary_hover"]
+content_margin_left = 40.0
+content_margin_top = 16.0
+content_margin_right = 40.0
+content_margin_bottom = 26.0
+texture = ExtResource("4_btn_primary_hover")
+texture_margin_left = 24.0
+texture_margin_top = 20.0
+texture_margin_right = 24.0
+texture_margin_bottom = 28.0
+
+[sub_resource type="StyleBoxTexture" id="SB_primary_pressed"]
+content_margin_left = 40.0
+content_margin_top = 24.0
+content_margin_right = 40.0
+content_margin_bottom = 18.0
+texture = ExtResource("5_btn_primary_pressed")
+texture_margin_left = 24.0
+texture_margin_top = 28.0
+texture_margin_right = 24.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="SB_secondary_normal"]
+content_margin_left = 40.0
+content_margin_top = 16.0
+content_margin_right = 40.0
+content_margin_bottom = 26.0
+texture = ExtResource("6_btn_secondary_normal")
+texture_margin_left = 24.0
+texture_margin_top = 20.0
+texture_margin_right = 24.0
+texture_margin_bottom = 28.0
+
+[sub_resource type="StyleBoxTexture" id="SB_secondary_hover"]
+content_margin_left = 40.0
+content_margin_top = 16.0
+content_margin_right = 40.0
+content_margin_bottom = 26.0
+texture = ExtResource("7_btn_secondary_hover")
+texture_margin_left = 24.0
+texture_margin_top = 20.0
+texture_margin_right = 24.0
+texture_margin_bottom = 28.0
+
+[sub_resource type="StyleBoxTexture" id="SB_secondary_pressed"]
+content_margin_left = 40.0
+content_margin_top = 24.0
+content_margin_right = 40.0
+content_margin_bottom = 18.0
+texture = ExtResource("8_btn_secondary_pressed")
+texture_margin_left = 24.0
+texture_margin_top = 28.0
+texture_margin_right = 24.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="SB_upgrade_normal"]
+content_margin_left = 40.0
+content_margin_top = 16.0
+content_margin_right = 40.0
+content_margin_bottom = 26.0
+texture = ExtResource("9_btn_upgrade_normal")
+texture_margin_left = 24.0
+texture_margin_top = 20.0
+texture_margin_right = 24.0
+texture_margin_bottom = 28.0
+
+[sub_resource type="StyleBoxTexture" id="SB_upgrade_hover"]
+content_margin_left = 40.0
+content_margin_top = 16.0
+content_margin_right = 40.0
+content_margin_bottom = 26.0
+texture = ExtResource("10_btn_upgrade_hover")
+texture_margin_left = 24.0
+texture_margin_top = 20.0
+texture_margin_right = 24.0
+texture_margin_bottom = 28.0
+
+[sub_resource type="StyleBoxTexture" id="SB_upgrade_pressed"]
+content_margin_left = 40.0
+content_margin_top = 24.0
+content_margin_right = 40.0
+content_margin_bottom = 18.0
+texture = ExtResource("11_btn_upgrade_pressed")
+texture_margin_left = 24.0
+texture_margin_top = 28.0
+texture_margin_right = 24.0
+texture_margin_bottom = 20.0
+
+[sub_resource type="StyleBoxTexture" id="SB_locked"]
+content_margin_left = 40.0
+content_margin_top = 16.0
+content_margin_right = 40.0
+content_margin_bottom = 26.0
+texture = ExtResource("12_btn_locked")
+texture_margin_left = 24.0
+texture_margin_top = 20.0
+texture_margin_right = 24.0
+texture_margin_bottom = 28.0
+
+[sub_resource type="StyleBoxTexture" id="SB_focus"]
+content_margin_left = 40.0
+content_margin_top = 16.0
+content_margin_right = 40.0
+content_margin_bottom = 26.0
+texture = ExtResource("13_btn_focus")
+texture_margin_left = 24.0
+texture_margin_top = 20.0
+texture_margin_right = 24.0
+texture_margin_bottom = 28.0
+draw_center = false
+
+[sub_resource type="StyleBoxTexture" id="SB_panel_dark"]
+content_margin_left = 40.0
+content_margin_top = 32.0
+content_margin_right = 40.0
+content_margin_bottom = 32.0
+texture = ExtResource("14_panel_dark")
+texture_margin_left = 24.0
+texture_margin_top = 24.0
+texture_margin_right = 24.0
+texture_margin_bottom = 24.0
+
+[sub_resource type="StyleBoxTexture" id="SB_panel_reward"]
+content_margin_left = 40.0
+content_margin_top = 28.0
+content_margin_right = 40.0
+content_margin_bottom = 36.0
+texture = ExtResource("15_panel_reward")
+texture_margin_left = 24.0
+texture_margin_top = 20.0
+texture_margin_right = 24.0
+texture_margin_bottom = 28.0
+
+[sub_resource type="StyleBoxTexture" id="SB_banner"]
+content_margin_left = 56.0
+content_margin_top = 12.0
+content_margin_right = 56.0
+content_margin_bottom = 24.0
+texture = ExtResource("3_btn_primary_normal")
+texture_margin_left = 24.0
+texture_margin_top = 20.0
+texture_margin_right = 24.0
+texture_margin_bottom = 28.0
+
+[sub_resource type="StyleBoxTexture" id="SB_bar_bg"]
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
+texture = ExtResource("16_bar_bg")
+texture_margin_left = 12.0
+texture_margin_top = 12.0
+texture_margin_right = 12.0
+texture_margin_bottom = 12.0
+
+[sub_resource type="StyleBoxTexture" id="SB_bar_fill"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+texture = ExtResource("17_bar_fill")
+texture_margin_left = 12.0
+texture_margin_top = 12.0
+texture_margin_right = 12.0
+texture_margin_bottom = 12.0
+
+[resource]
+default_font = SubResource("Font_main")
+default_font_size = 36
+Button/colors/font_color = Color(0.227, 0.141, 0.063, 1)
+Button/colors/font_hover_color = Color(0.227, 0.141, 0.063, 1)
+Button/colors/font_pressed_color = Color(0.227, 0.141, 0.063, 1)
+Button/colors/font_focus_color = Color(0.227, 0.141, 0.063, 1)
+Button/colors/font_hover_pressed_color = Color(0.227, 0.141, 0.063, 1)
+Button/colors/font_disabled_color = Color(0.835, 0.855, 0.875, 1)
+Button/colors/icon_normal_color = Color(1.000, 1.000, 1.000, 1)
+Button/colors/icon_disabled_color = Color(1.000, 1.000, 1.000, 0.6)
+Button/colors/font_outline_color = Color(0.102, 0.102, 0.122, 1)
+Button/constants/outline_size = 0
+Button/constants/h_separation = 16
+Button/constants/icon_max_width = 72
+Button/font_sizes/font_size = 48
+Button/styles/normal = SubResource("SB_primary_normal")
+Button/styles/hover = SubResource("SB_primary_hover")
+Button/styles/pressed = SubResource("SB_primary_pressed")
+Button/styles/hover_pressed = SubResource("SB_primary_pressed")
+Button/styles/disabled = SubResource("SB_locked")
+Button/styles/focus = SubResource("SB_focus")
+PrimaryButton/base_type = &"Button"
+PrimaryButton/colors/font_color = Color(0.227, 0.141, 0.063, 1)
+PrimaryButton/colors/font_hover_color = Color(0.227, 0.141, 0.063, 1)
+PrimaryButton/colors/font_pressed_color = Color(0.227, 0.141, 0.063, 1)
+PrimaryButton/colors/font_focus_color = Color(0.227, 0.141, 0.063, 1)
+PrimaryButton/colors/font_hover_pressed_color = Color(0.227, 0.141, 0.063, 1)
+PrimaryButton/colors/font_disabled_color = Color(0.835, 0.855, 0.875, 1)
+PrimaryButton/colors/icon_normal_color = Color(1.000, 1.000, 1.000, 1)
+PrimaryButton/colors/icon_disabled_color = Color(1.000, 1.000, 1.000, 0.6)
+PrimaryButton/colors/font_outline_color = Color(0.102, 0.102, 0.122, 1)
+PrimaryButton/constants/outline_size = 0
+PrimaryButton/constants/h_separation = 16
+PrimaryButton/constants/icon_max_width = 72
+PrimaryButton/font_sizes/font_size = 48
+PrimaryButton/styles/normal = SubResource("SB_primary_normal")
+PrimaryButton/styles/hover = SubResource("SB_primary_hover")
+PrimaryButton/styles/pressed = SubResource("SB_primary_pressed")
+PrimaryButton/styles/hover_pressed = SubResource("SB_primary_pressed")
+PrimaryButton/styles/disabled = SubResource("SB_locked")
+PrimaryButton/styles/focus = SubResource("SB_focus")
+SecondaryButton/base_type = &"Button"
+SecondaryButton/colors/font_color = Color(1.000, 1.000, 1.000, 1)
+SecondaryButton/colors/font_hover_color = Color(1.000, 1.000, 1.000, 1)
+SecondaryButton/colors/font_pressed_color = Color(1.000, 1.000, 1.000, 1)
+SecondaryButton/colors/font_focus_color = Color(1.000, 1.000, 1.000, 1)
+SecondaryButton/colors/font_hover_pressed_color = Color(1.000, 1.000, 1.000, 1)
+SecondaryButton/colors/font_disabled_color = Color(0.835, 0.855, 0.875, 1)
+SecondaryButton/colors/icon_normal_color = Color(1.000, 1.000, 1.000, 1)
+SecondaryButton/colors/icon_disabled_color = Color(1.000, 1.000, 1.000, 0.6)
+SecondaryButton/colors/font_outline_color = Color(0.078, 0.314, 0.298, 1)
+SecondaryButton/constants/outline_size = 10
+SecondaryButton/constants/h_separation = 16
+SecondaryButton/constants/icon_max_width = 72
+SecondaryButton/font_sizes/font_size = 48
+SecondaryButton/styles/normal = SubResource("SB_secondary_normal")
+SecondaryButton/styles/hover = SubResource("SB_secondary_hover")
+SecondaryButton/styles/pressed = SubResource("SB_secondary_pressed")
+SecondaryButton/styles/hover_pressed = SubResource("SB_secondary_pressed")
+SecondaryButton/styles/disabled = SubResource("SB_locked")
+SecondaryButton/styles/focus = SubResource("SB_focus")
+UpgradeButton/base_type = &"Button"
+UpgradeButton/colors/font_color = Color(1.000, 1.000, 1.000, 1)
+UpgradeButton/colors/font_hover_color = Color(1.000, 1.000, 1.000, 1)
+UpgradeButton/colors/font_pressed_color = Color(1.000, 1.000, 1.000, 1)
+UpgradeButton/colors/font_focus_color = Color(1.000, 1.000, 1.000, 1)
+UpgradeButton/colors/font_hover_pressed_color = Color(1.000, 1.000, 1.000, 1)
+UpgradeButton/colors/font_disabled_color = Color(0.835, 0.855, 0.875, 1)
+UpgradeButton/colors/icon_normal_color = Color(1.000, 1.000, 1.000, 1)
+UpgradeButton/colors/icon_disabled_color = Color(1.000, 1.000, 1.000, 0.6)
+UpgradeButton/colors/font_outline_color = Color(0.043, 0.353, 0.243, 1)
+UpgradeButton/constants/outline_size = 10
+UpgradeButton/constants/h_separation = 16
+UpgradeButton/constants/icon_max_width = 72
+UpgradeButton/font_sizes/font_size = 48
+UpgradeButton/styles/normal = SubResource("SB_upgrade_normal")
+UpgradeButton/styles/hover = SubResource("SB_upgrade_hover")
+UpgradeButton/styles/pressed = SubResource("SB_upgrade_pressed")
+UpgradeButton/styles/hover_pressed = SubResource("SB_upgrade_pressed")
+UpgradeButton/styles/disabled = SubResource("SB_locked")
+UpgradeButton/styles/focus = SubResource("SB_focus")
+LockedButton/base_type = &"Button"
+LockedButton/colors/font_color = Color(0.835, 0.855, 0.875, 1)
+LockedButton/colors/font_hover_color = Color(0.835, 0.855, 0.875, 1)
+LockedButton/colors/font_pressed_color = Color(0.835, 0.855, 0.875, 1)
+LockedButton/colors/font_focus_color = Color(0.835, 0.855, 0.875, 1)
+LockedButton/colors/font_hover_pressed_color = Color(0.835, 0.855, 0.875, 1)
+LockedButton/colors/font_disabled_color = Color(0.835, 0.855, 0.875, 1)
+LockedButton/colors/icon_normal_color = Color(1.000, 1.000, 1.000, 1)
+LockedButton/colors/icon_disabled_color = Color(1.000, 1.000, 1.000, 0.6)
+LockedButton/colors/font_outline_color = Color(0.180, 0.204, 0.227, 1)
+LockedButton/constants/outline_size = 8
+LockedButton/constants/h_separation = 16
+LockedButton/constants/icon_max_width = 72
+LockedButton/font_sizes/font_size = 48
+LockedButton/styles/normal = SubResource("SB_locked")
+LockedButton/styles/hover = SubResource("SB_locked")
+LockedButton/styles/pressed = SubResource("SB_locked")
+LockedButton/styles/hover_pressed = SubResource("SB_locked")
+LockedButton/styles/disabled = SubResource("SB_locked")
+LockedButton/styles/focus = SubResource("SB_focus")
+SmallButton/base_type = &"Button"
+SmallButton/font_sizes/font_size = 36
+Label/colors/font_color = Color(0.969, 0.957, 0.925, 1)
+Label/colors/font_outline_color = Color(0.102, 0.102, 0.122, 1)
+Label/constants/outline_size = 10
+Label/font_sizes/font_size = 36
+Label/colors/font_shadow_color = Color(0.000, 0.000, 0.000, 0.45)
+Label/constants/shadow_offset_x = 0
+Label/constants/shadow_offset_y = 4
+Label/constants/shadow_outline_size = 10
+TitleLabel/base_type = &"Label"
+TitleLabel/colors/font_color = Color(1.000, 0.820, 0.400, 1)
+TitleLabel/colors/font_outline_color = Color(0.102, 0.102, 0.122, 1)
+TitleLabel/constants/outline_size = 28
+TitleLabel/font_sizes/font_size = 96
+TitleLabel/colors/font_shadow_color = Color(0.000, 0.000, 0.000, 0.45)
+TitleLabel/constants/shadow_offset_x = 0
+TitleLabel/constants/shadow_offset_y = 8
+TitleLabel/constants/shadow_outline_size = 28
+FailTitleLabel/base_type = &"Label"
+FailTitleLabel/colors/font_color = Color(0.863, 0.882, 0.902, 1)
+FailTitleLabel/colors/font_outline_color = Color(0.227, 0.118, 0.141, 1)
+FailTitleLabel/constants/outline_size = 28
+FailTitleLabel/font_sizes/font_size = 96
+FailTitleLabel/colors/font_shadow_color = Color(0.000, 0.000, 0.000, 0.45)
+FailTitleLabel/constants/shadow_offset_x = 0
+FailTitleLabel/constants/shadow_offset_y = 8
+FailTitleLabel/constants/shadow_outline_size = 28
+Display/base_type = &"Label"
+Display/colors/font_color = Color(1.000, 0.820, 0.400, 1)
+Display/colors/font_outline_color = Color(0.102, 0.102, 0.122, 1)
+Display/constants/outline_size = 28
+Display/font_sizes/font_size = 96
+Display/colors/font_shadow_color = Color(0.000, 0.000, 0.000, 0.45)
+Display/constants/shadow_offset_x = 0
+Display/constants/shadow_offset_y = 8
+Display/constants/shadow_outline_size = 28
+HeaderLabel/base_type = &"Label"
+HeaderLabel/colors/font_color = Color(0.969, 0.957, 0.925, 1)
+HeaderLabel/colors/font_outline_color = Color(0.102, 0.102, 0.122, 1)
+HeaderLabel/constants/outline_size = 16
+HeaderLabel/font_sizes/font_size = 60
+HeaderLabel/colors/font_shadow_color = Color(0.000, 0.000, 0.000, 0.45)
+HeaderLabel/constants/shadow_offset_x = 0
+HeaderLabel/constants/shadow_offset_y = 6
+HeaderLabel/constants/shadow_outline_size = 16
+StatLabel/base_type = &"Label"
+StatLabel/colors/font_color = Color(1.000, 1.000, 1.000, 1)
+StatLabel/colors/font_outline_color = Color(0.102, 0.102, 0.122, 1)
+StatLabel/constants/outline_size = 12
+StatLabel/font_sizes/font_size = 42
+StatLabel/colors/font_shadow_color = Color(0.000, 0.000, 0.000, 0.45)
+StatLabel/constants/shadow_offset_x = 0
+StatLabel/constants/shadow_offset_y = 4
+StatLabel/constants/shadow_outline_size = 12
+BodyLabel/base_type = &"Label"
+BodyLabel/colors/font_color = Color(0.969, 0.957, 0.925, 1)
+BodyLabel/colors/font_outline_color = Color(0.102, 0.102, 0.122, 1)
+BodyLabel/constants/outline_size = 10
+BodyLabel/font_sizes/font_size = 36
+BodyLabel/colors/font_shadow_color = Color(0.000, 0.000, 0.000, 0.45)
+BodyLabel/constants/shadow_offset_x = 0
+BodyLabel/constants/shadow_offset_y = 4
+BodyLabel/constants/shadow_outline_size = 10
+Body/base_type = &"Label"
+Body/colors/font_color = Color(0.969, 0.957, 0.925, 1)
+Body/colors/font_outline_color = Color(0.102, 0.102, 0.122, 1)
+Body/constants/outline_size = 10
+Body/font_sizes/font_size = 36
+Body/colors/font_shadow_color = Color(0.000, 0.000, 0.000, 0.45)
+Body/constants/shadow_offset_x = 0
+Body/constants/shadow_offset_y = 4
+Body/constants/shadow_outline_size = 10
+CaptionLabel/base_type = &"Label"
+CaptionLabel/colors/font_color = Color(0.969, 0.957, 0.925, 1)
+CaptionLabel/colors/font_outline_color = Color(0.102, 0.102, 0.122, 1)
+CaptionLabel/constants/outline_size = 8
+CaptionLabel/font_sizes/font_size = 28
+CaptionLabel/colors/font_shadow_color = Color(0.000, 0.000, 0.000, 0)
+CaptionLabel/fonts/font = SubResource("Font_small")
+RewardLabel/base_type = &"Label"
+RewardLabel/colors/font_color = Color(0.102, 0.102, 0.122, 1)
+RewardLabel/colors/font_outline_color = Color(0.102, 0.102, 0.122, 1)
+RewardLabel/constants/outline_size = 0
+RewardLabel/font_sizes/font_size = 44
+RewardLabel/colors/font_shadow_color = Color(0.000, 0.000, 0.000, 0)
+RewardNoteLabel/base_type = &"Label"
+RewardNoteLabel/colors/font_color = Color(0.357, 0.404, 0.439, 1)
+RewardNoteLabel/colors/font_outline_color = Color(0.102, 0.102, 0.122, 1)
+RewardNoteLabel/constants/outline_size = 0
+RewardNoteLabel/font_sizes/font_size = 28
+RewardNoteLabel/colors/font_shadow_color = Color(0.000, 0.000, 0.000, 0)
+RewardNoteLabel/fonts/font = SubResource("Font_small")
+BannerLabel/base_type = &"Label"
+BannerLabel/colors/font_color = Color(0.227, 0.141, 0.063, 1)
+BannerLabel/colors/font_outline_color = Color(0.102, 0.102, 0.122, 1)
+BannerLabel/constants/outline_size = 0
+BannerLabel/font_sizes/font_size = 72
+BannerLabel/colors/font_shadow_color = Color(0.000, 0.000, 0.000, 0)
+Panel/styles/panel = SubResource("SB_panel_dark")
+PanelContainer/styles/panel = SubResource("SB_panel_dark")
+RewardPanel/base_type = &"PanelContainer"
+RewardPanel/styles/panel = SubResource("SB_panel_reward")
+BannerPanel/base_type = &"PanelContainer"
+BannerPanel/styles/panel = SubResource("SB_banner")
+ProgressBar/styles/background = SubResource("SB_bar_bg")
+ProgressBar/styles/fill = SubResource("SB_bar_fill")
+ProgressBar/colors/font_color = Color(0.969, 0.957, 0.925, 1)
+ProgressBar/colors/font_outline_color = Color(0.102, 0.102, 0.122, 1)
+ProgressBar/constants/outline_size = 8
+ProgressBar/font_sizes/font_size = 28
+ProgressBar/fonts/font = SubResource("Font_main")

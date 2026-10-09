@@ -1,0 +1,16 @@
+Derived from Kenney UI Pack 2.0 (CC0), research/third_party/kenney/ui-pack/PNG/
+btn_primary_normal.png: Yellow/Double/button_rectangle_depth_gradient.png
+btn_primary_hover.png: Yellow/Double/button_rectangle_depth_gradient.png (lighter)
+btn_primary_pressed.png: Yellow/Double/button_rectangle_depth_gradient.png (lip removed, darker)
+btn_secondary_normal.png: Blue/Double/button_rectangle_depth_gradient.png
+btn_secondary_hover.png: Blue/Double/button_rectangle_depth_gradient.png (lighter)
+btn_secondary_pressed.png: Blue/Double/button_rectangle_depth_gradient.png (lip removed, darker)
+btn_upgrade_normal.png: Green/Double/button_rectangle_depth_gradient.png
+btn_upgrade_hover.png: Green/Double/button_rectangle_depth_gradient.png (lighter)
+btn_upgrade_pressed.png: Green/Double/button_rectangle_depth_gradient.png (lip removed, darker)
+btn_locked.png: Grey/Double/button_rectangle_depth_flat.png (slate recolour)
+btn_focus.png: Grey/Double/button_rectangle_depth_flat.png (outline only)
+panel_dark.png: Grey/Double/button_square_flat.png (dark teal recolour, translucent fill)
+panel_reward.png: Grey/Double/button_rectangle_depth_flat.png (cream recolour)
+bar_bg.png: Grey/Default/button_rectangle_flat.png (dark recolour)
+bar_fill.png: Yellow/Default/button_rectangle_flat.png (yellow-orange)
