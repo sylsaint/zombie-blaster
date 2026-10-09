@@ -2,6 +2,9 @@ extends GutTest
 ## Boots the main scene, taps 开始 then 第 1 关, and runs the real level.
 
 
+const _Clock := preload("res://scripts/game_clock.gd")
+
+
 const RUN_SECONDS := 15.0
 const FRAME_CAP := 8000
 
@@ -26,6 +29,7 @@ func test_level1_spawns_gates_squad_and_zombies() -> void:
 	var host := main.get_node("LevelHost") as LevelHost
 	assert_not_null(host.session, "level 1 did not start")
 	assert_eq(host.session.level.level_index, 1)
+	_assert_opening(host.session.level)
 	assert_false((main.get_node("Player/Body") as GeometryInstance3D).visible)
 	assert_false((main.get_node("Player/BlobShadow") as GeometryInstance3D).visible)
 	_assert_gates_match_level(host)
@@ -184,6 +188,128 @@ func _visible(node: MultiMeshInstance3D) -> int:
 	if node == null or node.multimesh == null:
 		return 0
 	return node.multimesh.visible_instance_count
+
+
+func test_level1_idle_and_add_gates_report_distance() -> void:
+	var level := LevelCatalog.load_index(1)
+	_assert_opening(level)
+	var idle := _reach(level, false)
+	var adds := _reach(level, true)
+	print("LEVEL1_REACH no_input=%.2f add_gates=%.2f" % [idle["distance"], adds["distance"]])
+	var gate_d: float = _opening_gate(level).distance
+	var elite_d := 0.0
+	for event in level.sorted_events():
+		if event.kind == "finale_elite":
+			elite_d = event.distance
+			break
+	assert_true(bool(idle["past_gate"]), "zero input died at %.2f m, before the first gate at %.1f m" % [idle["distance"], gate_d])
+	assert_gt(float(idle["distance"]), gate_d)
+	# The last step can land a fraction under the authored distance.
+	assert_gte(float(adds["distance"]), elite_d - 0.05, "add-soldier route stopped at %.2f m, short of the elite at %.1f m" % [adds["distance"], elite_d])
+	assert_eq(String(adds["state"]), "finale")
+	assert_gt(int(adds["count"]), 0)
+	assert_eq(int(adds["weapon"]), 1, "add-only route took a weapon gate")
+
+
+func _assert_opening(level: LevelData) -> void:
+	var gate := _opening_gate(level)
+	assert_not_null(gate)
+	assert_almost_eq(gate.distance, 15.0, 0.001, "first gate group")
+	var left: GateSpec = null
+	var right: GateSpec = null
+	for spec in gate.gates:
+		var item := spec as GateSpec
+		if item == null:
+			continue
+		if item.side == "left":
+			left = item
+		elif item.side == "right":
+			right = item
+	assert_not_null(right)
+	assert_not_null(left)
+	assert_eq(right.kind, GateRules.ADD, "x = 0 is the right gate, so that side adds soldiers")
+	assert_almost_eq(right.amount, float(level.add_gate_amount()), 0.001)
+	assert_eq(left.kind, GateRules.WEAPON)
+	assert_almost_eq(left.amount, 1.0, 0.001)
+	var first_wave: LevelEvent = null
+	var saw_eight := false
+	for event in level.sorted_events():
+		if event.kind != "wave":
+			continue
+		if absf(event.distance - 8.0) <= 0.001:
+			saw_eight = true
+		if first_wave == null:
+			first_wave = event
+	assert_false(saw_eight, "the 8 m wave should be gone")
+	assert_not_null(first_wave)
+	assert_gt(first_wave.distance, gate.distance, "first wave must come after the first gate")
+	assert_almost_eq(first_wave.distance, 20.0, 0.001, "former 20 m wave")
+	assert_eq(first_wave.count, 15, "former 20 m wave, halved from 30")
+	assert_false(level.wave_inside_gate_clearance(), "AC-GT-04")
+	var second := _gate_at(level, 1)
+	assert_not_null(second)
+	assert_almost_eq(second.distance, 48.0, 0.001, "second add gate sits before the 60 m wave")
+
+
+func _opening_gate(level: LevelData) -> LevelEvent:
+	return _gate_at(level, 0)
+
+
+func _gate_at(level: LevelData, index: int) -> LevelEvent:
+	var n := 0
+	for event in level.sorted_events():
+		if event.kind != "gate_group":
+			continue
+		if n == index:
+			return event
+		n += 1
+	return null
+
+
+func _reach(level: LevelData, pick_add: bool) -> Dictionary:
+	var session := LevelSession.new()
+	session.start(level, autofree(_Clock.new()))
+	var gate_d: float = _opening_gate(level).distance
+	var elite_d := level.finale_distance()
+	var past := false
+	var step := 0.05
+	var guard := 0
+	while guard < 4000 and session.state != "win" and session.state != "lose":
+		if pick_add:
+			_steer_add(session)
+		session.tick(step)
+		guard += 1
+		if session.traveled > gate_d + 0.05 and session.sim.squad.count > 0:
+			past = true
+		if session.state == "finale" and session.traveled + 0.001 >= elite_d:
+			break
+	return {
+		"distance": session.traveled,
+		"state": session.state,
+		"count": session.sim.squad.count,
+		"weapon": session.weapon_level,
+		"past_gate": past,
+	}
+
+
+func _steer_add(session: LevelSession) -> void:
+	var side := ""
+	for event in session.level.sorted_events():
+		if event.kind != "gate_group" or event.distance + 0.001 < session.traveled:
+			continue
+		for spec in event.gates:
+			var gate := spec as GateSpec
+			if gate != null and gate.kind == GateRules.ADD:
+				side = gate.side
+				break
+		break
+	var squad := session.sim.squad
+	if side == "left":
+		squad.target_x = -SquadAnchor.LANE_HALF_WIDTH
+	elif side == "right":
+		squad.target_x = SquadAnchor.LANE_HALF_WIDTH
+	else:
+		squad.target_x = 0.0
 
 
 func _enemy_instances(crowd: CrowdView) -> int:

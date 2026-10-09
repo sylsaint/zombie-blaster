@@ -40,7 +40,7 @@ func test_catalog_matches_the_chapter_table() -> void:
 	var levels := LevelCatalog.load_all()
 	assert_eq(levels.size(), 3)
 	var expected := [
-		{"grunts": 500, "gates": 5, "elites": 0, "finale": "elite", "finale_n": 1, "hp": 1.0, "elite_hp": 4800.0, "dps": 800.0, "star2": 20, "coins": 100, "parts": 5, "boss": 0.0, "add": 6},
+		{"grunts": 211, "gates": 5, "elites": 0, "finale": "elite", "finale_n": 1, "hp": 1.0, "elite_hp": 4800.0, "dps": 800.0, "star2": 20, "coins": 100, "parts": 5, "boss": 0.0, "add": 6},
 		{"grunts": 540, "gates": 5, "elites": 1, "finale": "elite_wall", "finale_n": 2, "hp": 1.13, "elite_hp": 5700.0, "dps": 944.0, "star2": 26, "coins": 120, "parts": 5, "boss": 0.0, "add": 7},
 		{"grunts": 580, "gates": 6, "elites": 1, "finale": "mini_boss", "finale_n": 0, "hp": 1.28, "elite_hp": 6700.0, "dps": 1114.0, "star2": 32, "coins": 140, "parts": 15, "boss": 27000.0, "add": 9},
 	]
