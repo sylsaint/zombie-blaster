@@ -41,7 +41,7 @@ Job 跑在 `ubuntu-24.04`：
 
 1. 按 `tools/godot.version` 安装 Godot 编辑器，用 `--headless` 导出，并安装同一版本的 export templates。编辑器和模板缓存在 Actions cache 里。
 2. 安装 Temurin JDK 17 和 Android SDK。`android-actions/setup-android` 只装 `platform-tools`：cmdline-tools 16 已经删掉旧的 `tools` 包，动作的默认值还会去装它，job 会在导出前失败。接下来的步骤再装 target SDK 36 对应的 `build-tools`；36 装不上时退回 35。
-3. `--export-release` 打 release 模板的 APK。真机性能只认这个包。再 `--export-debug` 打一个 debug 模板的包，用来排查。预设 `Android Profile` 也用 `--export-release`（不用 debug 模板），包名 `com.zombieblaster.game.profile`，feature tag `profile`。装上就进压测场景。步骤在 [../qa/device-test.md](../qa/device-test.md)。
+3. `--export-release` 打 release 模板的 APK。真机性能只认这个包。再 `--export-debug` 打一个 debug 模板的包，用来排查。这两个包共用预设 `Android`，启动器名字是 **高速打僵尸**。预设 `Android Profile` 也用 `--export-release`（不用 debug 模板），包名 `com.zombieblaster.game.profile`，启动器名字是 **高速打僵尸 Profile**（和正式包在手机上能分开），feature tag `profile`。装上就进压测场景。步骤在 [../qa/device-test.md](../qa/device-test.md)。
 4. 架构只有 **arm64-v8a**。要 32 位时再把预设里的 `architectures/armeabi-v7a` 改成 true。
 5. `export_filter` 是 `all_resources`，所以 `data/levels/`（`level_01`–`level_03`）和 `assets/`（模型、贴图、vfx）会打进 APK。脚本在导出后检查这些路径还在；缺了就失败。`build/` 里放了 `.gdignore`，导出目录不会再被扫回去。
 6. `gradle_build/use_gradle_build` 保持关闭，产物是 APK。上架 Play 的 AAB 以后再开 Gradle。
@@ -100,7 +100,7 @@ Job 跑在 `macos-latest`（镜像自带 Xcode）。先用 release 模板导出 
 
 发布 job 用 `needs: [android, ios]`，条件是 `always() && needs.android.result == 'success'`，并且只在 `v*` 标签推送时跑。iOS 失败或没有产物时，Release 仍然挂上 APK；IPA / 未签名 zip 有才附上（`fail_on_unmatched_files: false`）。pull request 不跑 iOS，也不创建 Release。`workflow_dispatch` 会跑 iOS，但不创建 Release。profile APK 在单独的 artifact `android-profile-apk` 里，发布 job 不下载它。
 
-包名和 bundle id 都是 `com.zombieblaster.game`。iOS 最低版本 15.0（Godot 4.7 模板的下限），设备家族是 iPhone。
+包名和 bundle id 都是 `com.zombieblaster.game`（Profile 包是 `com.zombieblaster.game.profile`）。iOS 最低版本 15.0（Godot 4.7 模板的下限），设备家族是 iPhone。iOS 显示名和 Bundle display name（`INFOPLIST_KEY_CFBundleDisplayName`）取自 `project.godot` 的 `application/config/name`，是 **高速打僵尸**。Godot 4.7 的 iOS 预设没有单独的显示名字段，bundle id 不跟着显示名改。
 
 ## 不打进包里的东西
 

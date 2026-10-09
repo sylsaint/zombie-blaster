@@ -634,10 +634,10 @@ func test_ac_sq_06_fail_screen_appears_while_gameplay_clock_is_frozen() -> void:
 	assert_eq(Engine.time_scale, 1.0)
 
 
-func test_portrait_uses_default_theme_and_placeholder_title() -> void:
+func test_portrait_uses_default_theme_and_title() -> void:
 	assert_eq(ProjectSettings.get_setting("display/window/size/viewport_width"), 1080)
 	assert_eq(ProjectSettings.get_setting("display/window/size/viewport_height"), 1920)
-	assert_eq(GameTitle.TEXT, "ZOMBIE BLASTER")
+	assert_eq(GameTitle.TEXT, "高速打僵尸")
 	assert_false(FileAccess.file_exists("res://assets/ui/game_theme.tres"))
 	var dir := DirAccess.open("res://assets/ui")
 	assert_not_null(dir)
@@ -668,7 +668,7 @@ func test_portrait_uses_default_theme_and_placeholder_title() -> void:
 			assert_almost_eq(view.anchor_bottom, 1.0, 0.001)
 	var menu := load("res://scenes/ui/main_menu.tscn").instantiate() as MainMenu
 	add_child_autofree(menu)
-	assert_eq((menu.get_node("%Title") as Label).text, "ZOMBIE BLASTER")
+	assert_eq((menu.get_node("%Title") as Label).text, "高速打僵尸")
 
 
 func test_release_exclude_keeps_menu_and_level_select() -> void:

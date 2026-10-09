@@ -1,6 +1,6 @@
 class_name GameTitle
 extends RefCounted
-## Placeholder title. Change this one string when the final name is chosen.
+## Main menu title. Launcher labels live in project.godot and export_presets.cfg.
 
 
-const TEXT := "ZOMBIE BLASTER"
+const TEXT := "高速打僵尸"
