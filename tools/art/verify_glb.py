@@ -46,6 +46,8 @@ def acc(js, binc, i):
 
 BUDGET = {"chr_soldier_": 450, "wpn_": 120, "enm_walker_lod1": 200, "enm_runner_lod1": 200, "enm_walker": 450,
           "enm_runner": 450, "enm_elite_brute": 1500, "boss_": 5000}
+# assets/textures/palette.png is 256x256, 32px cells.
+PALETTE_COLS, PALETTE_ROWS = 8, 8
 REACH = {"enm_walker": 0.6, "enm_runner": 0.6, "enm_elite_brute": 0.9}
 
 
@@ -93,9 +95,10 @@ def main(paths):
         uv2_prims = len(UV2)
         P, UV = np.vstack(P), np.vstack(UV)
         mn, mx = P.min(0), P.max(0)
-        # glTF UV origin top-left: swatch centre u=(c+.5)/8, v=(r+.5)/4
-        cols = np.round(UV[:, 0] * 8 - 0.5, 4)
-        rows = np.round(UV[:, 1] * 4 - 0.5, 4)
+        # glTF UV origin top-left. 256x256 palette, 8x8 cells:
+        # swatch centre u=(c+.5)/8, v=(r+.5)/8. Rows 0-3 stay in v 0..0.5.
+        cols = np.round(UV[:, 0] * PALETTE_COLS - 0.5, 4)
+        rows = np.round(UV[:, 1] * PALETTE_ROWS - 0.5, 4)
         on_centre = np.all(np.abs(cols - np.round(cols)) < 1e-3) and np.all(np.abs(rows - np.round(rows)) < 1e-3)
         sw = sorted(set(zip(rows.astype(int).tolist(), cols.astype(int).tolist())))
         samplers = js.get("samplers", [])

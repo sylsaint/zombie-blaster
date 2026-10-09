@@ -8,7 +8,8 @@ import bpy
 import bmesh
 from mathutils import Vector, Matrix
 
-PALETTE_COLS, PALETTE_ROWS = 8, 4
+# 256x256 palette, 32px cells. Rows 0-3 are the original sheet (v in 0..0.5).
+PALETTE_COLS, PALETTE_ROWS = 8, 8
 
 # (row, col) swatches, names match docs/art/style-guide.md section 3
 SW = {
@@ -24,6 +25,8 @@ SW = {
     # row 3 fx / ui
     "orange": (3, 0), "orangered": (3, 1), "fireyellow": (3, 2), "buffcyan": (3, 3),
     "debuffpink": (3, 4), "healgreen": (3, 5), "black": (3, 6), "white": (3, 7),
+    # row 4 zombie head tops (walker olive, runner mauve). Rows 5-7 are reserved.
+    "hairolive": (4, 0), "hairdk": (4, 1), "hairmauve": (4, 2), "hairplum": (4, 3),
 }
 
 
