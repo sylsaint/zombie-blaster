@@ -4,16 +4,16 @@
 
 [resource]
 script = ExtResource("1_weapon")
-weapon_name = "手枪"
-tier = 1
-outfit_tier = 1
-damage = 10.0
-interval = 0.4
-pellets = 1
-spread_degrees = 0.0
+weapon_name = "霰弹枪"
+tier = 3
+outfit_tier = 2
+damage = 9.0
+interval = 0.55
+pellets = 5
+spread_degrees = 30.0
 bullet_speed = 30.0
 bullet_range = 30.0
 pierce = 0
 explosion_radius = 0.0
-body_mesh_path = "res://assets/models/chr_soldier_body_t1.glb"
-weapon_mesh_path = "res://assets/models/wpn_pistol.glb"
+body_mesh_path = "res://assets/models/chr_soldier_body_t2.glb"
+weapon_mesh_path = "res://assets/models/wpn_shotgun.glb"

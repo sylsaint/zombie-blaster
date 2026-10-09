@@ -1,15 +1,15 @@
 shader_type spatial;
-render_mode diffuse_burley, specular_disabled, shadows_disabled, fog_disabled, cull_back;
+render_mode specular_disabled, shadows_disabled, fog_disabled, cull_back;
 
-// INSTANCE_CUSTOM: R flash, G dissolve, B VAT frame (0-1), A palette variant.
-// One shared material. Flash and dissolve never allocate a new one.
-// VAT samples a position texture by the vertex id stored in UV2. With VAT off,
-// the same channel drives a cheap vertex wobble. No Skeleton3D.
+// Cel variant of crowd_instance.gdshader. Keep the vertex and fragment
+// blocks in step with that file. light() replaces Burley with a 3-step ramp.
+// Used only while the cel toggle is on. Compatibility renderer: no compute.
 
 varying vec4 inst_custom;
 
 uniform sampler2D palette : source_color, filter_nearest, repeat_disable;
 uniform sampler2D vat_positions : hint_default_black, filter_nearest, repeat_disable;
+uniform sampler2D cel_ramp : filter_nearest, repeat_disable;
 uniform float vat_enabled = 0.0;
 uniform float vat_frame_count = 1.0;
 uniform vec3 flash_color : source_color = vec3(1.0, 0.96, 0.9);
@@ -53,4 +53,13 @@ void fragment() {
 		float fresnel = pow(1.0 - facing, rim_power);
 		EMISSION += rim_color * fresnel;
 	}
+}
+
+void light() {
+	float ndotl = clamp(dot(NORMAL, LIGHT), 0.0, 1.0);
+	// Three bands. Sample texel centers so the ends do not collapse.
+	float band = clamp(floor(ndotl * 3.0), 0.0, 2.0);
+	float u = (band + 0.5) / 3.0;
+	float shade = texture(cel_ramp, vec2(u, 0.5)).r;
+	DIFFUSE_LIGHT += shade * ATTENUATION * LIGHT_COLOR;
 }

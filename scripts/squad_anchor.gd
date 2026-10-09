@@ -16,6 +16,11 @@ var position := Vector3.ZERO
 var target_x: float = 0.0
 var damage_bonus: float = 0.0
 var rate_bonus: float = 0.0
+## Skill-card and meta hooks. Zero keeps the M1 pistol path unchanged.
+var extra_shots: int = 0
+var bonus_pierce: int = 0
+var split_level: int = 0
+var meta_attack_levels: int = 0
 var weapon: WeaponStats
 var lane_half_width: float = LANE_HALF_WIDTH
 var displayed_offsets := PackedVector3Array()
@@ -107,6 +112,26 @@ func current_interval() -> float:
 	return shot_interval(weapon.interval, rate_bonus)
 
 
+func total_damage_bonus() -> float:
+	return damage_bonus + WeaponMods.meta_attack_bonus(meta_attack_levels)
+
+
+func outfit_tier() -> int:
+	if weapon == null or weapon.outfit_tier <= 0:
+		return 1
+	return weapon.outfit_tier
+
+
+func weapon_tier() -> int:
+	if weapon == null or weapon.tier <= 0:
+		return 1
+	return weapon.tier
+
+
+func equip_tier(level: int) -> void:
+	weapon = WeaponCatalog.tier(level)
+
+
 func set_cooldown(seconds: float) -> void:
 	_cooldown = seconds
 
@@ -162,14 +187,17 @@ func _tween_formation(dt: float) -> void:
 
 
 func _emit_shot() -> void:
-	var offsets := lateral_offsets(weapon.pellets, count, _spread_cursor)
+	var pellets := weapon.pellets + extra_shots
+	var offsets := lateral_offsets(pellets, count, _spread_cursor)
 	_spread_cursor += 1
 	pending_shots.append({
-		"damage": shot_damage(weapon.damage, count, damage_bonus),
+		"damage": shot_damage(weapon.damage, count, total_damage_bonus()),
 		"speed": weapon.bullet_speed,
 		"range": weapon.bullet_range,
-		"pierce": weapon.pierce,
+		"pierce": weapon.pierce + bonus_pierce,
 		"spread": weapon.spread_degrees,
 		"offsets": offsets,
 		"origin": position,
+		"split_level": split_level,
+		"split_count": WeaponMods.split_child_count(split_level),
 	})

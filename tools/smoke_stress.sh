@@ -20,12 +20,34 @@ fi
 "$GODOT_BIN" --headless --path "$ROOT" --import
 
 FRAMES="${FRAMES:-120}"
+USER_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --frames)
+      FRAMES="$2"
+      shift 2
+      ;;
+    --frames=*)
+      FRAMES="${1#*=}"
+      shift
+      ;;
+    --cel|--rim|--outline)
+      USER_ARGS+=("${1}=1")
+      shift
+      ;;
+    *)
+      USER_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
 LOG="$(mktemp)"
 trap 'rm -f "$LOG"' EXIT
 
 set +e
 "$GODOT_BIN" --headless --audio-driver Dummy --path "$ROOT" \
-  res://scenes/debug/stress_test.tscn -- --frames="$FRAMES" >"$LOG" 2>&1
+  res://scenes/debug/stress_test.tscn -- --frames="$FRAMES" "${USER_ARGS[@]}" >"$LOG" 2>&1
 status=$?
 set -e
 

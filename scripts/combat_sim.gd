@@ -19,6 +19,8 @@ var respawn_near: float = 16.0
 var respawn_far: float = 34.0
 var lane_span: float = 2.4
 var profile: SimProfile
+## Optional. Stress runs leave this null so the crowd tick stays unchanged.
+var gates: GateRunner = null
 
 
 func _init(game_clock: Node, enemy_capacity: int = 360, bullet_capacity: int = 64) -> void:
@@ -37,6 +39,7 @@ func tick(gameplay_delta: float) -> void:
 		hash.profile = profile
 	var dt := maxf(gameplay_delta, 0.0)
 	var ts := Time.get_ticks_usec()
+	var gate_z_before := squad.position.z
 	squad.tick(dt)
 	if profile != null:
 		profile.squad_us += int(Time.get_ticks_usec() - ts)
@@ -55,6 +58,9 @@ func tick(gameplay_delta: float) -> void:
 	bullets.integrate(dt)
 	if profile != null:
 		profile.bullet_us += int(Time.get_ticks_usec() - tb)
+	if gates != null:
+		gates.absorb_bullets(bullets)
+		gates.resolve_crossing(squad, gate_z_before, squad.position.z)
 	_resolve_hits()
 	tb = Time.get_ticks_usec()
 	bullets.flush_retired()
