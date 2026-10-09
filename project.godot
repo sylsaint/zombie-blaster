@@ -48,6 +48,13 @@ textures/vram_compression/import_etc2_astc=true
 
 GameClock="*res://scripts/game_clock.gd"
 
+[shader_globals]
+
+game_time={
+"type": "float",
+"value": 0.0
+}
+
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/gut/plugin.cfg", "res://addons/outline_normals/plugin.cfg")

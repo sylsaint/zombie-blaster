@@ -56,6 +56,7 @@ var _overlay_every := 8
 var _cel: bool = false
 var _rim: bool = false
 var _outline: bool = false
+var _vat: bool = true
 var _prewarm_target: int = 45
 var _prewarm_frames: int = 0
 var _prewarm_max_ms: float = 0.0
@@ -72,6 +73,8 @@ var _spike_ms := PackedFloat32Array()
 var _spike_logic := PackedFloat32Array()
 var _warmup_skip: int = 30
 var _sample_limit: int = 0
+var _screenshot_path: String = ""
+var _shot_ready: bool = false
 
 
 func _ready() -> void:
@@ -91,6 +94,8 @@ func _ready() -> void:
 	add_child(_view)
 	_view.setup()
 	_view.set_toon_flags(_cel, _rim, _outline)
+	if not _vat:
+		_view.set_vat_enabled(false)
 	_sim = CombatSim.new(GameClock, 360, BulletPool.DEFAULT_CAPACITY)
 	_sim.auto_respawn = true
 	_sim.contact_enabled = false
@@ -123,6 +128,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if _finished:
+		_save_screenshot()
 		return
 	if _phase == 0:
 		var warmup := float(GameClock.gameplay_delta)
@@ -181,6 +187,8 @@ func _read_args() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--frames="):
 			_limit = int(arg.trim_prefix("--frames="))
+		elif arg.begins_with("--screenshot="):
+			_screenshot_path = arg.trim_prefix("--screenshot=")
 		elif arg.begins_with("--prewarm="):
 			_prewarm_target = int(arg.trim_prefix("--prewarm="))
 		elif arg.begins_with("--warmup-skip="):
@@ -197,6 +205,10 @@ func _read_args() -> void:
 			_outline = true
 		elif arg == "--outline=0":
 			_outline = false
+		elif arg == "--vat=0":
+			_vat = false
+		elif arg == "--vat=1" or arg == "--vat":
+			_vat = true
 	if _headless and _limit < 0:
 		_limit = 120
 
@@ -351,8 +363,40 @@ func _finish() -> void:
 		push_error("Instance count did not grow from 50 to 300: %d vs %d" % [_instances_50, _instances_300])
 	_print_spikes()
 	print(_stats_line(0.0))
+	if _screenshot_path != "":
+		return
 	if _limit >= 0:
 		get_tree().quit()
+
+
+func _save_screenshot() -> void:
+	if _screenshot_path == "":
+		return
+	if not _shot_ready:
+		var overlay := get_node_or_null("Overlay")
+		if overlay != null:
+			overlay.visible = false
+		_shot_ready = true
+		return
+	var viewport_tex := get_viewport().get_texture()
+	if viewport_tex == null:
+		push_error("Viewport texture is missing; screenshot skipped")
+		_screenshot_path = ""
+		get_tree().quit()
+		return
+	var image := viewport_tex.get_image()
+	if image == null:
+		push_error("Viewport image is missing; screenshot skipped")
+		_screenshot_path = ""
+		get_tree().quit()
+		return
+	var path := _screenshot_path
+	if path.begins_with("res://"):
+		path = ProjectSettings.globalize_path(path)
+	image.save_png(path)
+	print("STRESS_SCREENSHOT %s" % path)
+	_screenshot_path = ""
+	get_tree().quit()
 
 
 func _print_spikes() -> void:

@@ -12,13 +12,15 @@ func test_bullet_hit_damages_flashes_and_does_not_grow_pools() -> void:
 	sim.squad.forward_speed = 0.0
 	sim.squad.weapon = WeaponStats.pistol()
 	sim.squad.set_cooldown(0.0)
-	var id := sim.spawn_at(EnemyPool.Archetype.GRUNT, 0.0, -0.3, 100.0, 0.0, 0.4, 0.2)
+	# The pistol muzzle sits 0.73 m in front of the feet, so the grunt has to
+	# stand past the barrel or the bullet spawns behind it.
+	var id := sim.spawn_at(EnemyPool.Archetype.GRUNT, 0.0, -1.2, 100.0, 0.0, 0.4, 0.2)
 	var enemy_cap := sim.enemies.capacity
 	var bullet_cap := sim.bullets.capacity
 	sim.tick(0.02)
 	assert_lt(sim.enemies.hp[id], 100.0)
 	assert_gt(sim.enemies.flash_left[id], 0.0)
-	assert_almost_eq(sim.enemies.z[id], -0.45, 0.02)
+	assert_almost_eq(sim.enemies.z[id], -1.35, 0.02)
 	assert_eq(sim.enemies.capacity, enemy_cap)
 	assert_eq(sim.bullets.capacity, bullet_cap)
 	assert_eq(sim.bullets.x.size(), bullet_cap)
