@@ -23,6 +23,13 @@ var _grunt_mesh: ArrayMesh
 var _elite_mesh: ArrayMesh
 var _boss_mesh: ArrayMesh
 var _soldier_mesh: ArrayMesh
+var profile: SimProfile
+var _buf_grunt := PackedFloat32Array()
+var _buf_elite := PackedFloat32Array()
+var _buf_boss := PackedFloat32Array()
+var _buf_blob := PackedFloat32Array()
+var _buf_bullet := PackedFloat32Array()
+var _buf_squad := PackedFloat32Array()
 
 
 func setup() -> void:
@@ -50,6 +57,12 @@ func setup() -> void:
 	blob_mm = _add_plain("Blobs", PlaceholderMeshes.blob(), BLOB_CAP, blob_mat, false)
 	bullet_mm = _add_plain("Bullets", PlaceholderMeshes.bullet(), BULLET_CAP, bullet_mat, false)
 	squad_mm = _add_plain("Squad", _soldier_mesh, SQUAD_CAP, squad_mat, false)
+	_buf_grunt = _make_buffer(grunt_mm)
+	_buf_elite = _make_buffer(elite_mm)
+	_buf_boss = _make_buffer(boss_mm)
+	_buf_blob = _make_buffer(blob_mm)
+	_buf_bullet = _make_buffer(bullet_mm)
+	_buf_squad = _make_buffer(squad_mm)
 
 
 func logical_batch_count() -> int:
@@ -69,103 +82,185 @@ func visible_body_instances() -> int:
 
 
 func sync(sim: CombatSim) -> void:
-	_upload_kind(grunt_mm, sim, EnemyPool.Archetype.GRUNT, GRUNT_CAP, 0.0)
-	_upload_kind(elite_mm, sim, EnemyPool.Archetype.ELITE, ELITE_CAP, PI)
-	_upload_kind(boss_mm, sim, EnemyPool.Archetype.BOSS, BOSS_CAP, PI)
-	_upload_blobs(sim)
-	_upload_bullets(sim)
-	_upload_squad(sim)
+	var t0 := Time.get_ticks_usec()
+	var tw := Time.get_ticks_usec()
+	var n_grunt := _write_kind(_buf_grunt, 16, sim, EnemyPool.Archetype.GRUNT, GRUNT_CAP, false)
+	var n_elite := _write_kind(_buf_elite, 16, sim, EnemyPool.Archetype.ELITE, ELITE_CAP, true)
+	var n_boss := _write_kind(_buf_boss, 16, sim, EnemyPool.Archetype.BOSS, BOSS_CAP, true)
+	var n_blob := _write_blobs(sim)
+	var n_bullet := _write_bullets(sim)
+	var n_squad := _write_squad(sim)
+	var t_upload := Time.get_ticks_usec()
+	_commit(grunt_mm, _buf_grunt, n_grunt)
+	_commit(elite_mm, _buf_elite, n_elite)
+	_commit(boss_mm, _buf_boss, n_boss)
+	_commit(blob_mm, _buf_blob, n_blob)
+	_commit(bullet_mm, _buf_bullet, n_bullet)
+	_commit(squad_mm, _buf_squad, n_squad)
+	if profile != null:
+		profile.view_write_us += int(t_upload - tw)
+		profile.view_upload_us += int(Time.get_ticks_usec() - t_upload)
+		profile.view_us += int(Time.get_ticks_usec() - t0)
 
 
-func _upload_kind(node: MultiMeshInstance3D, sim: CombatSim, kind: int, cap: int, yaw: float) -> void:
-	var origins := PackedVector3Array()
-	var scales := PackedVector3Array()
-	var yaws := PackedFloat32Array()
-	var custom := PackedColorArray()
-	origins.resize(cap)
-	scales.resize(cap)
-	yaws.resize(cap)
-	custom.resize(cap)
-	var n := 0
+func _write_kind(buf: PackedFloat32Array, stride: int, sim: CombatSim, kind: int, cap: int, flip: bool) -> int:
 	var pool := sim.enemies
-	for i in pool.capacity:
-		if n >= cap:
-			break
-		if pool.state[i] == EnemyPool.State.FREE or pool.archetype[i] != kind:
-			continue
-		origins[n] = Vector3(pool.x[i], 0.0, pool.z[i])
-		scales[n] = Vector3.ONE
-		yaws[n] = yaw
-		var frame := fposmod(pool.vat_frame[i], 64.0) / 64.0
-		custom[n] = Color(pool.flash_amount(i), pool.dissolve_amount(i), frame, pool.variant[i])
-		n += 1
-	MultiMeshBuffer.upload(node.multimesh, n, origins, scales, yaws, custom)
-
-
-func _upload_blobs(sim: CombatSim) -> void:
-	var origins := PackedVector3Array()
-	var scales := PackedVector3Array()
-	var yaws := PackedFloat32Array()
-	origins.resize(BLOB_CAP)
-	scales.resize(BLOB_CAP)
-	yaws.resize(BLOB_CAP)
+	var ids := pool.active_ids
+	var states := pool.state
+	var kinds := pool.archetype
+	var xs := pool.x
+	var zs := pool.z
+	var flashes := pool.flash_left
+	var dissolves := pool.dissolve_left
+	var frames := pool.vat_frame
+	var variants := pool.variant
 	var n := 0
+	var a := 0
+	var xx := -1.0 if flip else 1.0
+	var zz := -1.0 if flip else 1.0
+	while a < pool.active_n and n < cap:
+		var i := ids[a]
+		a += 1
+		if states[i] == EnemyPool.State.FREE or kinds[i] != kind:
+			continue
+		var o := n * stride
+		buf[o + 0] = xx
+		buf[o + 1] = 0.0
+		buf[o + 2] = 0.0
+		buf[o + 3] = xs[i]
+		buf[o + 4] = 0.0
+		buf[o + 5] = 1.0
+		buf[o + 6] = 0.0
+		buf[o + 7] = 0.0
+		buf[o + 8] = 0.0
+		buf[o + 9] = 0.0
+		buf[o + 10] = zz
+		buf[o + 11] = zs[i]
+		buf[o + 12] = 1.0 if flashes[i] > 0.0 else 0.0
+		var dissolve := 0.0
+		if states[i] == EnemyPool.State.DYING:
+			dissolve = clampf(1.0 - dissolves[i] / EnemyPool.DISSOLVE_TIME, 0.0, 1.0)
+		buf[o + 13] = dissolve
+		buf[o + 14] = fposmod(frames[i], 64.0) / 64.0
+		buf[o + 15] = variants[i]
+		n += 1
+	return n
+
+
+func _write_blobs(sim: CombatSim) -> int:
+	var buf := _buf_blob
 	var pool := sim.enemies
-	for i in pool.capacity:
-		if n >= BLOB_CAP:
-			break
-		if pool.state[i] == EnemyPool.State.FREE:
-			continue
-		var diameter := pool.radius[i] * 2.2
-		origins[n] = Vector3(pool.x[i], 0.04, pool.z[i])
-		scales[n] = Vector3(diameter, 1.0, diameter)
-		yaws[n] = 0.0
-		n += 1
-	for offset in sim.squad.displayed_offsets:
-		if n >= BLOB_CAP:
-			break
-		origins[n] = Vector3(sim.squad.position.x + offset.x, 0.04, sim.squad.position.z + offset.z)
-		scales[n] = Vector3(0.7, 1.0, 0.7)
-		yaws[n] = 0.0
-		n += 1
-	MultiMeshBuffer.upload(blob_mm.multimesh, n, origins, scales, yaws, PackedColorArray())
-
-
-func _upload_bullets(sim: CombatSim) -> void:
-	var origins := PackedVector3Array()
-	var scales := PackedVector3Array()
-	var yaws := PackedFloat32Array()
-	origins.resize(BULLET_CAP)
-	scales.resize(BULLET_CAP)
-	yaws.resize(BULLET_CAP)
+	var ids := pool.active_ids
+	var xs := pool.x
+	var zs := pool.z
+	var rad := pool.radius
 	var n := 0
+	var a := 0
+	while a < pool.active_n and n < BLOB_CAP:
+		var i := ids[a]
+		a += 1
+		var diameter := rad[i] * 2.2
+		var o := n * 12
+		buf[o + 0] = diameter
+		buf[o + 1] = 0.0
+		buf[o + 2] = 0.0
+		buf[o + 3] = xs[i]
+		buf[o + 4] = 0.0
+		buf[o + 5] = 1.0
+		buf[o + 6] = 0.0
+		buf[o + 7] = 0.04
+		buf[o + 8] = 0.0
+		buf[o + 9] = 0.0
+		buf[o + 10] = diameter
+		buf[o + 11] = zs[i]
+		n += 1
+	var anchor := sim.squad.position
+	var offsets := sim.squad.displayed_offsets
+	var s := 0
+	while s < offsets.size() and n < BLOB_CAP:
+		var o2 := n * 12
+		buf[o2 + 0] = 0.7
+		buf[o2 + 1] = 0.0
+		buf[o2 + 2] = 0.0
+		buf[o2 + 3] = anchor.x + offsets[s].x
+		buf[o2 + 4] = 0.0
+		buf[o2 + 5] = 1.0
+		buf[o2 + 6] = 0.0
+		buf[o2 + 7] = 0.04
+		buf[o2 + 8] = 0.0
+		buf[o2 + 9] = 0.0
+		buf[o2 + 10] = 0.7
+		buf[o2 + 11] = anchor.z + offsets[s].z
+		n += 1
+		s += 1
+	return n
+
+
+func _write_bullets(sim: CombatSim) -> int:
+	var buf := _buf_bullet
 	var pool := sim.bullets
-	for i in pool.capacity:
-		if pool.alive[i] == 0:
-			continue
-		if n >= BULLET_CAP:
-			break
-		origins[n] = Vector3(pool.x[i], 1.05, pool.z[i])
-		scales[n] = Vector3.ONE
-		yaws[n] = 0.0
-		n += 1
-	MultiMeshBuffer.upload(bullet_mm.multimesh, n, origins, scales, yaws, PackedColorArray())
+	var n := 0
+	var i := 0
+	while i < pool.capacity and n < BULLET_CAP:
+		if pool.alive[i] != 0:
+			var o := n * 12
+			buf[o + 0] = 1.0
+			buf[o + 1] = 0.0
+			buf[o + 2] = 0.0
+			buf[o + 3] = pool.x[i]
+			buf[o + 4] = 0.0
+			buf[o + 5] = 1.0
+			buf[o + 6] = 0.0
+			buf[o + 7] = 1.05
+			buf[o + 8] = 0.0
+			buf[o + 9] = 0.0
+			buf[o + 10] = 1.0
+			buf[o + 11] = pool.z[i]
+			n += 1
+		i += 1
+	return n
 
 
-func _upload_squad(sim: CombatSim) -> void:
+func _write_squad(sim: CombatSim) -> int:
+	var buf := _buf_squad
 	var offsets := sim.squad.displayed_offsets
 	var n := mini(offsets.size(), SQUAD_CAP)
-	var origins := PackedVector3Array()
-	var scales := PackedVector3Array()
-	var yaws := PackedFloat32Array()
-	origins.resize(SQUAD_CAP)
-	scales.resize(SQUAD_CAP)
-	yaws.resize(SQUAD_CAP)
-	for i in n:
-		origins[i] = Vector3(sim.squad.position.x + offsets[i].x, 0.0, sim.squad.position.z + offsets[i].z)
-		scales[i] = Vector3.ONE
-		yaws[i] = 0.0
-	MultiMeshBuffer.upload(squad_mm.multimesh, n, origins, scales, yaws, PackedColorArray())
+	var anchor := sim.squad.position
+	var i := 0
+	while i < n:
+		var o := i * 12
+		buf[o + 0] = 1.0
+		buf[o + 1] = 0.0
+		buf[o + 2] = 0.0
+		buf[o + 3] = anchor.x + offsets[i].x
+		buf[o + 4] = 0.0
+		buf[o + 5] = 1.0
+		buf[o + 6] = 0.0
+		buf[o + 7] = 0.0
+		buf[o + 8] = 0.0
+		buf[o + 9] = 0.0
+		buf[o + 10] = 1.0
+		buf[o + 11] = anchor.z + offsets[i].z
+		i += 1
+	return n
+
+
+func _commit(node: MultiMeshInstance3D, buf: PackedFloat32Array, count: int) -> void:
+	var mm := node.multimesh
+	mm.visible_instance_count = count
+	mm.buffer = buf
+
+
+func _make_buffer(node: MultiMeshInstance3D) -> PackedFloat32Array:
+	var mm := node.multimesh
+	var stride := 12
+	if mm.use_colors:
+		stride += 4
+	if mm.use_custom_data:
+		stride += 4
+	var buf := PackedFloat32Array()
+	buf.resize(mm.instance_count * stride)
+	return buf
 
 
 func _make_material() -> ShaderMaterial:

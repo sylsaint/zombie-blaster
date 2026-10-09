@@ -18,6 +18,7 @@ var desired_boss: int = 0
 var respawn_near: float = 16.0
 var respawn_far: float = 34.0
 var lane_span: float = 2.4
+var profile: SimProfile
 
 
 func _init(game_clock: Node, enemy_capacity: int = 360, bullet_capacity: int = 64) -> void:
@@ -26,22 +27,44 @@ func _init(game_clock: Node, enemy_capacity: int = 360, bullet_capacity: int = 6
 	bullets = BulletPool.new(bullet_capacity)
 	enemies = EnemyPool.new(enemy_capacity)
 	hash = SpatialHash.new(0.8)
+	_hit_ids.resize(16)
+	_hit_t.resize(16)
 
 
 func tick(gameplay_delta: float) -> void:
+	var t0 := Time.get_ticks_usec()
+	if profile != null:
+		hash.profile = profile
 	var dt := maxf(gameplay_delta, 0.0)
+	var ts := Time.get_ticks_usec()
 	squad.tick(dt)
+	if profile != null:
+		profile.squad_us += int(Time.get_ticks_usec() - ts)
 	_spawn_shots()
 	_move_enemies(dt)
 	if separation_enabled:
+		var tq := Time.get_ticks_usec()
 		_separate()
+		if profile != null:
+			profile.hash_query_us += int(Time.get_ticks_usec() - tq)
+	var tr := Time.get_ticks_usec()
 	_rebuild_hash()
+	if profile != null:
+		profile.hash_rebuild_us += int(Time.get_ticks_usec() - tr)
+	var tb := Time.get_ticks_usec()
 	bullets.integrate(dt)
+	if profile != null:
+		profile.bullet_us += int(Time.get_ticks_usec() - tb)
 	_resolve_hits()
+	tb = Time.get_ticks_usec()
 	bullets.flush_retired()
+	if profile != null:
+		profile.bullet_us += int(Time.get_ticks_usec() - tb)
 	enemies.tick_timers(dt)
 	if auto_respawn:
 		maintain_counts()
+	if profile != null:
+		profile.combat_us += int(Time.get_ticks_usec() - t0)
 
 
 func maintain_counts() -> void:
@@ -100,60 +123,50 @@ func _move_enemies(dt: float) -> void:
 	if dt <= 0.0:
 		return
 	var sz := squad.position.z
-	for i in enemies.capacity:
-		if enemies.state[i] != EnemyPool.State.ALIVE:
+	var zs := enemies.z
+	var speeds := enemies.speed
+	var states := enemies.state
+	var ids := enemies.active_ids
+	var i := 0
+	while i < enemies.active_n:
+		var id := ids[i]
+		if states[id] != EnemyPool.State.ALIVE:
+			i += 1
 			continue
-		var dz := sz - enemies.z[i]
+		var dz := sz - zs[id]
 		if absf(dz) < 0.05:
+			i += 1
 			continue
-		enemies.z[i] += signf(dz) * enemies.speed[i] * dt
+		zs[id] += signf(dz) * speeds[id] * dt
 		# Passed the squad: drop them so the respawn path keeps the wave full.
-		if enemies.z[i] > sz + 1.5:
-			enemies.recycle(i)
+		if zs[id] > sz + 1.5:
+			enemies.recycle(id)
+			continue
+		i += 1
 
 
 func _separate() -> void:
-	for i in enemies.capacity:
-		if enemies.state[i] != EnemyPool.State.ALIVE:
-			continue
-		var reach := enemies.radius[i] * 2.2
-		var ids := hash.query(enemies.x[i], enemies.z[i], reach + 0.2)
-		var checks := 0
-		for other in ids:
-			if other == i or enemies.state[other] != EnemyPool.State.ALIVE:
-				continue
-			checks += 1
-			if checks > 8:
-				break
-			var dx := enemies.x[i] - enemies.x[other]
-			var dz := enemies.z[i] - enemies.z[other]
-			var dist := sqrt(dx * dx + dz * dz)
-			var min_d := enemies.radius[i] + enemies.radius[other]
-			if dist >= min_d:
-				continue
-			if dist <= 0.0001:
-				enemies.x[i] += 0.02
-				continue
-			var push := (min_d - dist) * 0.5
-			enemies.x[i] += dx / dist * push
-			enemies.z[i] += dz / dist * push
+	hash.separate_window(enemies.x, enemies.z, enemies.radius, enemies.state, enemies.active_ids, enemies.active_n, EnemyPool.State.ALIVE)
 
 
 func _rebuild_hash() -> void:
-	hash.clear()
-	for i in enemies.capacity:
-		if enemies.state[i] == EnemyPool.State.ALIVE:
-			hash.insert(i, enemies.x[i], enemies.z[i], enemies.radius[i])
+	hash.rebuild_window(-12.0, squad.position.z - 60.0, enemies.active_ids, enemies.active_n, enemies.x, enemies.z, enemies.radius, enemies.state, EnemyPool.State.ALIVE)
 
 
 func _resolve_hits() -> void:
 	var search := BULLET_RADIUS + EnemyPool.MAX_BODY_RADIUS
-	for b in bullets.capacity:
-		if bullets.alive[b] == 0:
+	var alive := bullets.alive
+	var b := 0
+	while b < bullets.capacity:
+		if alive[b] == 0:
+			b += 1
 			continue
-		var ids := hash.query_segment(bullets.prev_x[b], bullets.prev_z[b], bullets.x[b], bullets.z[b], search)
-		var hits: Array = []
-		for id in ids:
+		var found := hash.collect_segment_window(bullets.prev_x[b], bullets.prev_z[b], bullets.x[b], bullets.z[b], search)
+		var hits := 0
+		var s := 0
+		while s < found:
+			var id := hash.scratch_id(s)
+			s += 1
 			if id == bullets.last_hit[b]:
 				continue
 			if enemies.state[id] != EnemyPool.State.ALIVE:
@@ -161,22 +174,45 @@ func _resolve_hits() -> void:
 			var limit := enemies.radius[id] + BULLET_RADIUS
 			if not _segment_hits(bullets.prev_x[b], bullets.prev_z[b], bullets.x[b], bullets.z[b], enemies.x[id], enemies.z[id], limit):
 				continue
-			hits.append({"id": id, "t": _segment_t(bullets.prev_x[b], bullets.prev_z[b], bullets.x[b], bullets.z[b], enemies.x[id], enemies.z[id])})
-		hits.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["t"]) < float(b["t"]))
-		for hit in hits:
-			if bullets.alive[b] == 0:
+			if hits >= _hit_ids.size():
+				_hit_ids.resize(hits + 8)
+				_hit_t.resize(hits + 8)
+			_hit_ids[hits] = id
+			_hit_t[hits] = _segment_t(bullets.prev_x[b], bullets.prev_z[b], bullets.x[b], bullets.z[b], enemies.x[id], enemies.z[id])
+			hits += 1
+		var i := 1
+		while i < hits:
+			var j := i
+			while j > 0 and _hit_t[j] < _hit_t[j - 1]:
+				var tmp_t := _hit_t[j - 1]
+				_hit_t[j - 1] = _hit_t[j]
+				_hit_t[j] = tmp_t
+				var tmp_id := _hit_ids[j - 1]
+				_hit_ids[j - 1] = _hit_ids[j]
+				_hit_ids[j] = tmp_id
+				j -= 1
+			i += 1
+		var h := 0
+		while h < hits:
+			if alive[b] == 0:
 				break
-			var id: int = hit["id"]
-			var killed := enemies.hit(id, bullets.damage[b], bullets.vx[b], bullets.vz[b])
-			bullets.last_hit[b] = id
-			hash.move(id, enemies.x[id], enemies.z[id])
-			if killed and enemies.archetype[id] == EnemyPool.Archetype.ELITE:
+			var id2 := _hit_ids[h]
+			var killed := enemies.hit(id2, bullets.damage[b], bullets.vx[b], bullets.vz[b])
+			bullets.last_hit[b] = id2
+			hash.note_move_window(id2, enemies.x[id2], enemies.z[id2])
+			if killed and enemies.archetype[id2] == EnemyPool.Archetype.ELITE:
 				clock.hit_stop(60.0)
 			if bullets.pierce[b] > 0:
 				bullets.pierce[b] -= 1
 			else:
 				bullets.deactivate(b)
 				break
+			h += 1
+		b += 1
+
+
+var _hit_ids := PackedInt32Array()
+var _hit_t := PackedFloat32Array()
 
 
 func _segment_hits(x0: float, z0: float, x1: float, z1: float, cx: float, cz: float, radius: float) -> bool:

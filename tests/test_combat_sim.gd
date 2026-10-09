@@ -50,6 +50,20 @@ func test_elite_death_requests_hit_stop_grunt_death_does_not() -> void:
 	assert_eq(Engine.time_scale, 1.0)
 
 
+func test_separation_pushes_overlapping_grunts_apart() -> void:
+	var clock = autofree(_Clock.new())
+	var sim := CombatSim.new(clock, 8, 4)
+	sim.separation_enabled = true
+	sim.squad.forward_speed = 0.0
+	sim.squad.set_cooldown(10.0)
+	var a := sim.spawn_at(EnemyPool.Archetype.GRUNT, 0.0, -5.0, 20.0, 0.0, 0.4, 0.2)
+	var b := sim.spawn_at(EnemyPool.Archetype.GRUNT, 0.1, -5.0, 20.0, 0.0, 0.4, 0.2)
+	sim.tick(0.0)
+	sim.tick(0.0)
+	var dx: float = absf(sim.enemies.x[a] - sim.enemies.x[b])
+	assert_gt(dx, 0.2)
+
+
 func test_respawn_reuses_slots_and_keeps_the_count() -> void:
 	var clock = autofree(_Clock.new())
 	var sim := CombatSim.new(clock, 6, 4)

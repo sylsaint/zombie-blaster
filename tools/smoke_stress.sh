@@ -78,4 +78,18 @@ if enemies != 304:
     raise SystemExit("expected 304 active enemies, got %s" % enemies)
 PY
 
+logic_avg="$(value logic_avg_ms)"
+# Packed-grid combat on this project is about 1 ms/frame headless.
+# 20 ms still catches a multi-times regression and leaves room for a slow CI host.
+if [[ -z "$logic_avg" ]]; then
+  echo "Stress scene did not report logic_avg_ms: $stats" >&2
+  exit 1
+fi
+python3 - "$logic_avg" <<'PY'
+import sys
+ms = float(sys.argv[1])
+if ms > 20.0:
+    raise SystemExit("headless logic_avg_ms %.3f exceeds 20" % ms)
+PY
+
 echo "Stress scene ran ${FRAMES} benchmark frames. ${stats}"

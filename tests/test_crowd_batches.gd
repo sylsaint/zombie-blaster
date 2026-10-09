@@ -30,6 +30,9 @@ func test_draw_batches_do_not_grow_from_50_to_300() -> void:
 	assert_eq(view.elite_mm.material_override, material)
 	assert_eq(view.boss_mm.material_override, material)
 	assert_eq(view.grunt_mm.multimesh.instance_count, CrowdView.GRUNT_CAP)
+	assert_almost_eq(view._buf_grunt[3], 0.0, 0.001)
+	assert_almost_eq(view._buf_grunt[16 + 3], 0.5, 0.001)
+	assert_almost_eq(view._buf_grunt[12], 1.0, 0.001)
 
 
 func test_placeholder_triangles_stay_inside_budget() -> void:

@@ -30,6 +30,10 @@ var dissolve_left := PackedFloat32Array()
 var variant := PackedFloat32Array()
 var vat_frame := PackedFloat32Array()
 var active_count: int = 0
+var active_ids := PackedInt32Array()
+var active_n: int = 0
+var _active_index := PackedInt32Array()
+var _kind_counts := PackedInt32Array()
 var _free: Array[int] = []
 
 
@@ -47,6 +51,10 @@ func _init(cap: int = 320) -> void:
 	dissolve_left.resize(capacity)
 	variant.resize(capacity)
 	vat_frame.resize(capacity)
+	active_ids.resize(capacity)
+	_active_index.resize(capacity)
+	_active_index.fill(-1)
+	_kind_counts.resize(3)
 	_free.resize(capacity)
 	for i in capacity:
 		state[i] = State.FREE
@@ -69,7 +77,11 @@ func spawn(kind: int, px: float, pz: float, hit_points: float, move_speed: float
 	dissolve_left[id] = 0.0
 	variant[id] = clampf(color_variant, 0.0, 1.0)
 	vat_frame[id] = color_variant * 16.0
+	active_ids[active_n] = id
+	_active_index[id] = active_n
+	active_n += 1
 	active_count += 1
+	_kind_counts[kind] += 1
 	return id
 
 
@@ -78,8 +90,17 @@ func recycle(id: int) -> void:
 		return
 	if state[id] == State.FREE:
 		return
+	var kind := archetype[id]
 	state[id] = State.FREE
 	active_count -= 1
+	_kind_counts[kind] -= 1
+	var li := _active_index[id]
+	var last := active_n - 1
+	var moved := active_ids[last]
+	active_ids[li] = moved
+	_active_index[moved] = li
+	_active_index[id] = -1
+	active_n = last
 	_free.append(id)
 
 
@@ -108,16 +129,22 @@ func hit(id: int, amount: float, dir_x: float, dir_z: float) -> bool:
 
 func tick_timers(dt: float) -> void:
 	var step := maxf(dt, 0.0)
-	for i in capacity:
-		if state[i] == State.FREE:
-			continue
-		if flash_left[i] > 0.0:
-			flash_left[i] = maxf(0.0, flash_left[i] - step)
-		vat_frame[i] += step * 8.0
-		if state[i] == State.DYING:
-			dissolve_left[i] -= step
-			if dissolve_left[i] <= 0.0:
-				recycle(i)
+	var flashes := flash_left
+	var frames := vat_frame
+	var dissolves := dissolve_left
+	var states := state
+	var i := 0
+	while i < active_n:
+		var id := active_ids[i]
+		if flashes[id] > 0.0:
+			flashes[id] = maxf(0.0, flashes[id] - step)
+		frames[id] += step * 8.0
+		if states[id] == State.DYING:
+			dissolves[id] -= step
+			if dissolves[id] <= 0.0:
+				recycle(id)
+				continue
+		i += 1
 
 
 func flash_amount(id: int) -> float:
@@ -141,8 +168,6 @@ static func flash_duration(kind: int) -> float:
 
 
 func count_kind(kind: int) -> int:
-	var n := 0
-	for i in capacity:
-		if state[i] != State.FREE and archetype[i] == kind:
-			n += 1
-	return n
+	if kind < 0 or kind >= _kind_counts.size():
+		return 0
+	return _kind_counts[kind]

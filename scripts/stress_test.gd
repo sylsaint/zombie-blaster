@@ -23,12 +23,28 @@ var _instances_50: int = 0
 var _instances_300: int = 0
 var _bench_frames: int = 0
 var _bench_time: float = 0.0
-var _frame_times: Array[float] = []
+var _frame_ring := PackedFloat32Array()
+var _frame_ring_i: int = 0
+var _frame_ring_filled: bool = false
+const _FRAME_RING := 4096
 var _finished: bool = false
 var _draw_min: int = 999999
 var _draw_max: int = 0
 var _draw3d_min: int = 999999
 var _draw3d_max: int = 0
+var _profile := SimProfile.new()
+var _sample_combat := PackedInt32Array()
+var _sample_squad := PackedInt32Array()
+var _sample_rebuild := PackedInt32Array()
+var _sample_query := PackedInt32Array()
+var _sample_bullet := PackedInt32Array()
+var _sample_view := PackedInt32Array()
+var _sample_write := PackedInt32Array()
+var _sample_upload := PackedInt32Array()
+var _sample_overlay := PackedInt32Array()
+var _sample_process := PackedInt32Array()
+var _sample_logic := PackedInt32Array()
+var _overlay_every := 8
 
 
 func _ready() -> void:
@@ -54,6 +70,10 @@ func _ready() -> void:
 	_sim.squad.weapon = weapon
 	_sim.squad.rate_bonus = 2.0
 	_sim.squad.set_cooldown(0.0)
+	_sim.profile = _profile
+	_view.profile = _profile
+	# Crowd combat does not use the physics server. Leaving it on still steps an empty world.
+	PhysicsServer3D.set_active(false)
 	_fill(50, ELITES, BOSSES)
 	_view.sync(_sim)
 	_batches_50 = _view.logical_batch_count()
@@ -85,23 +105,28 @@ func _process(delta: float) -> void:
 		_gpu_draw_300 = _draw_calls()
 		_phase = 3
 		return
+	var process_start := Time.get_ticks_usec()
+	_profile.reset_frame()
 	var gameplay := float(GameClock.gameplay_delta)
 	_sim.squad.target_x = sin(GameClock.gameplay_time * 0.65) * 2.0
 	_sim.tick(gameplay)
 	_view.sync(_sim)
 	_follow_camera()
+	var overlay_start := Time.get_ticks_usec()
+	if _bench_frames % _overlay_every == 0:
+		_label.text = _overlay_text(delta)
+	_profile.overlay_us = int(Time.get_ticks_usec() - overlay_start)
+	_profile.process_us = int(Time.get_ticks_usec() - process_start)
+	_record_profile()
 	_bench_frames += 1
 	_bench_time += delta
-	_frame_times.append(delta)
+	_push_frame_time(delta)
 	var draws_now := _draw_calls()
 	var draws3d_now := _draw_calls_3d()
 	_draw_min = mini(_draw_min, draws_now)
 	_draw_max = maxi(_draw_max, draws_now)
 	_draw3d_min = mini(_draw3d_min, draws3d_now)
 	_draw3d_max = maxi(_draw3d_max, draws3d_now)
-	if _frame_times.size() > 4096:
-		_frame_times.pop_front()
-	_label.text = _overlay_text(delta)
 	if _limit >= 0 and _bench_frames >= _limit:
 		_finish()
 
@@ -180,7 +205,7 @@ func _overlay_text(frame_delta: float) -> String:
 		"内存 静态 %.1f MB / 显存 %.1f MB / 对象 %d" % [static_mb, video_mb, objects],
 		"绘制 %d    三角形 %d" % [draws, tris],
 		"敌人 %d    小队 %d（可见 %d）" % [_sim.enemies.active_count, _sim.squad.count, visible],
-		"时钟 ×%.2f" % float(GameClock.scale),
+		"逻辑 %.2f ms    时钟 ×%.2f" % [_last_logic_ms(), float(GameClock.scale)],
 	])
 
 
@@ -193,7 +218,7 @@ func _stats_line(frame_delta: float) -> String:
 	var frame_ms := (_bench_time / float(maxi(_bench_frames, 1))) * 1000.0
 	if frame_delta > 0.0:
 		frame_ms = frame_delta * 1000.0
-	return "STRESS_STATS fps=%.2f fps_1pct_low=%.2f frame_ms=%.3f memory_static_mb=%.2f memory_video_mb=%.2f objects=%d draw_calls=%d draw_calls_min=%d draw_calls_max=%d draw3d_min=%d draw3d_max=%d triangles=%d enemies=%d batches_50=%d batches_300=%d instances_50=%d instances_300=%d gpu_draw_50=%d gpu_draw_300=%d" % [
+	return "STRESS_STATS fps=%.2f fps_1pct_low=%.2f frame_ms=%.3f memory_static_mb=%.2f memory_video_mb=%.2f objects=%d draw_calls=%d draw_calls_min=%d draw_calls_max=%d draw3d_min=%d draw3d_max=%d triangles=%d enemies=%d batches_50=%d batches_300=%d instances_50=%d instances_300=%d gpu_draw_50=%d gpu_draw_300=%d logic_avg_ms=%.3f logic_p99_ms=%.3f process_avg_ms=%.3f process_p99_ms=%.3f combat_avg_ms=%.3f combat_p99_ms=%.3f squad_avg_ms=%.3f squad_p99_ms=%.3f hash_rebuild_avg_ms=%.3f hash_rebuild_p99_ms=%.3f hash_query_avg_ms=%.3f hash_query_p99_ms=%.3f bullet_avg_ms=%.3f bullet_p99_ms=%.3f view_avg_ms=%.3f view_p99_ms=%.3f view_write_avg_ms=%.3f view_write_p99_ms=%.3f view_upload_avg_ms=%.3f view_upload_p99_ms=%.3f overlay_avg_ms=%.3f overlay_p99_ms=%.3f debug_build=%d cores=%d" % [
 		_fps(),
 		_one_percent_low(),
 		frame_ms,
@@ -213,7 +238,63 @@ func _stats_line(frame_delta: float) -> String:
 		_instances_300,
 		_gpu_draw_50,
 		_gpu_draw_300,
+		_avg_ms(_sample_logic),
+		_p99_ms(_sample_logic),
+		_avg_ms(_sample_process),
+		_p99_ms(_sample_process),
+		_avg_ms(_sample_combat),
+		_p99_ms(_sample_combat),
+		_avg_ms(_sample_squad),
+		_p99_ms(_sample_squad),
+		_avg_ms(_sample_rebuild),
+		_p99_ms(_sample_rebuild),
+		_avg_ms(_sample_query),
+		_p99_ms(_sample_query),
+		_avg_ms(_sample_bullet),
+		_p99_ms(_sample_bullet),
+		_avg_ms(_sample_view),
+		_p99_ms(_sample_view),
+		_avg_ms(_sample_write),
+		_p99_ms(_sample_write),
+		_avg_ms(_sample_upload),
+		_p99_ms(_sample_upload),
+		_avg_ms(_sample_overlay),
+		_p99_ms(_sample_overlay),
+		1 if OS.is_debug_build() else 0,
+		OS.get_processor_count(),
 	]
+
+
+func _record_profile() -> void:
+	_sample_combat.append(_profile.combat_us)
+	_sample_squad.append(_profile.squad_us)
+	_sample_rebuild.append(_profile.hash_rebuild_us)
+	_sample_query.append(_profile.hash_query_us)
+	_sample_bullet.append(_profile.bullet_us)
+	_sample_view.append(_profile.view_us)
+	_sample_write.append(_profile.view_write_us)
+	_sample_upload.append(_profile.view_upload_us)
+	_sample_overlay.append(_profile.overlay_us)
+	_sample_process.append(_profile.process_us)
+	_sample_logic.append(_profile.combat_us + _profile.view_us + _profile.overlay_us)
+
+
+func _avg_ms(samples: PackedInt32Array) -> float:
+	if samples.is_empty():
+		return 0.0
+	var sum := 0
+	for v in samples:
+		sum += v
+	return float(sum) / float(samples.size()) / 1000.0
+
+
+func _p99_ms(samples: PackedInt32Array) -> float:
+	if samples.is_empty():
+		return 0.0
+	var copy := samples.duplicate()
+	copy.sort()
+	var idx := clampi(int(ceil(float(copy.size()) * 0.99)) - 1, 0, copy.size() - 1)
+	return float(copy[idx]) / 1000.0
 
 
 func _fps() -> float:
@@ -222,19 +303,43 @@ func _fps() -> float:
 	return float(_bench_frames) / _bench_time
 
 
+func _push_frame_time(delta: float) -> void:
+	if _frame_ring.size() != _FRAME_RING:
+		_frame_ring.resize(_FRAME_RING)
+	_frame_ring[_frame_ring_i] = delta
+	_frame_ring_i += 1
+	if _frame_ring_i >= _FRAME_RING:
+		_frame_ring_i = 0
+		_frame_ring_filled = true
+
+
 func _one_percent_low() -> float:
-	if _frame_times.is_empty():
+	var count := _FRAME_RING if _frame_ring_filled else _frame_ring_i
+	if count <= 0:
 		return 0.0
-	var sorted := _frame_times.duplicate()
+	var sorted := PackedFloat32Array()
+	sorted.resize(count)
+	var i := 0
+	while i < count:
+		sorted[i] = _frame_ring[i]
+		i += 1
 	sorted.sort()
-	var n := maxi(1, int(ceil(float(sorted.size()) * 0.01)))
+	var n := maxi(1, int(ceil(float(count) * 0.01)))
 	var sum := 0.0
-	for i in n:
-		sum += sorted[sorted.size() - 1 - i]
+	var w := 0
+	while w < n:
+		sum += sorted[count - 1 - w]
+		w += 1
 	var worst := sum / float(n)
 	if worst <= 0.0000001:
 		return 0.0
 	return 1.0 / worst
+
+
+func _last_logic_ms() -> float:
+	if _sample_logic.is_empty():
+		return 0.0
+	return float(_sample_logic[_sample_logic.size() - 1]) / 1000.0
 
 
 func _draw_calls() -> int:

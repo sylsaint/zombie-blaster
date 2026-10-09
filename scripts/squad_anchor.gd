@@ -23,6 +23,8 @@ var pending_shots: Array = []
 
 var _cooldown: float = 0.4
 var _spread_cursor: int = 0
+var _form_count: int = -1
+var _form := PackedVector3Array()
 
 
 func _init() -> void:
@@ -139,17 +141,24 @@ func tick(gameplay_delta: float) -> void:
 
 
 func _tween_formation(dt: float) -> void:
-	var target := formation_offsets(count)
-	var next := PackedVector3Array()
-	next.resize(target.size())
+	if _form_count != count:
+		_form = formation_offsets(count)
+		_form_count = count
+		if displayed_offsets.size() != _form.size():
+			var next := PackedVector3Array()
+			next.resize(_form.size())
+			var keep := mini(displayed_offsets.size(), next.size())
+			var k := 0
+			while k < keep:
+				next[k] = displayed_offsets[k]
+				k += 1
+			displayed_offsets = next
 	# Cross the widest formation inside the 0.25 s blend window.
 	var step := (4.8 / FORMATION_TWEEN) * dt
-	for i in target.size():
-		var from := target[i]
-		if i < displayed_offsets.size():
-			from = displayed_offsets[i]
-		next[i] = from.move_toward(target[i], step)
-	displayed_offsets = next
+	var i := 0
+	while i < _form.size():
+		displayed_offsets[i] = displayed_offsets[i].move_toward(_form[i], step)
+		i += 1
 
 
 func _emit_shot() -> void:
