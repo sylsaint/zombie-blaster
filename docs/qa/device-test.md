@@ -39,7 +39,9 @@
 adb shell dumpsys meminfo com.zombieblaster.game.profile
 ```
 
-`dumpsys` 不要求应用可调试。release 包也可以查。
+`dumpsys` 不要求应用可调试。release 包也可以查。精确的 TOTAL PSS 仍然要这条 adb 命令。
+
+没有电脑时：打开开发者选项，进「内存」（有的机型叫「正在运行的服务」）。里面能看到这个应用的平均内存和最高内存。这是近似值，只够粗对一下 500 MB 那条线，不能代替 TOTAL PSS。
 
 屏幕下方有一行说明，和上面 frame avg 的规则一样：60 Hz 下限 16.7 ms，是否通过只看 1% low 和 logic p99。
 
