@@ -46,6 +46,10 @@ jobs:
 
       - name: Install Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # cmdline-tools 16 dropped the obsolete "tools" package. The action
+          # default still installs it, which fails the job before export.
+          packages: platform-tools
 
       - name: Install Android SDK packages
         run: |

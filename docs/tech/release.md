@@ -39,7 +39,7 @@ Godot 版本钉在 `tools/godot.version`（当前 4.7.2 stable）。流水线是
 Job 跑在 `ubuntu-24.04`：
 
 1. 按 `tools/godot.version` 安装 Godot 编辑器，用 `--headless` 导出，并安装同一版本的 export templates。编辑器和模板缓存在 Actions cache 里。
-2. 安装 Temurin JDK 17 和 Android SDK（`platform-tools`，以及 target SDK 36 对应的 `build-tools`；36 装不上时退回 35）。
+2. 安装 Temurin JDK 17 和 Android SDK。`android-actions/setup-android` 只装 `platform-tools`：cmdline-tools 16 已经删掉旧的 `tools` 包，动作的默认值还会去装它，job 会在导出前失败。接下来的步骤再装 target SDK 36 对应的 `build-tools`；36 装不上时退回 35。
 3. `--export-release` 打 release 模板的 APK。真机性能只认这个包。再 `--export-debug` 打一个 debug 模板的包，用来排查。
 4. 架构只有 **arm64-v8a**。要 32 位时再把预设里的 `architectures/armeabi-v7a` 改成 true。
 5. `export_filter` 是 `all_resources`，所以 `data/levels/`（`level_01`–`level_03`）和 `assets/`（模型、贴图、vfx）会打进 APK。脚本在导出后检查这些路径还在；缺了就失败。`build/` 里放了 `.gdignore`，导出目录不会再被扫回去。
