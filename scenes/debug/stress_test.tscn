@@ -1,0 +1,95 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/stress_test.gd" id="1_stress"]
+
+[sub_resource type="Environment" id="Environment_stress"]
+background_mode = 1
+background_color = Color(0.45, 0.52, 0.56, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.8, 0.83, 0.86, 1)
+ambient_light_energy = 0.85
+glow_enabled = false
+ssao_enabled = false
+sdfgi_enabled = false
+fog_enabled = false
+
+[sub_resource type="BoxMesh" id="BoxMesh_ground"]
+size = Vector3(8, 0.2, 120)
+
+[sub_resource type="StandardMaterial3D" id="Mat_ground"]
+specular_mode = 2
+albedo_color = Color(0.34, 0.37, 0.4, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_stripe"]
+size = Vector3(0.12, 0.02, 120)
+
+[sub_resource type="StandardMaterial3D" id="Mat_stripe"]
+specular_mode = 2
+albedo_color = Color(0.55, 0.58, 0.6, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_rail"]
+size = Vector3(0.35, 0.5, 120)
+
+[sub_resource type="StandardMaterial3D" id="Mat_rail"]
+specular_mode = 2
+albedo_color = Color(0.2, 0.22, 0.24, 1)
+
+[node name="StressTest" type="Node3D"]
+script = ExtResource("1_stress")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_stress")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.906308, -0.365998, 0.211309, 0, 0.5, 0.866025, -0.422618, -0.784887, 0.453154, 0, 0, 0)
+shadow_enabled = false
+light_energy = 1.15
+
+[node name="ChaseCamera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.5, 12)
+current = true
+fov = 52.0
+near = 0.05
+far = 200.0
+
+[node name="Lane" type="Node3D" parent="."]
+
+[node name="Ground" type="MeshInstance3D" parent="Lane"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, -20)
+mesh = SubResource("BoxMesh_ground")
+surface_material_override/0 = SubResource("Mat_ground")
+cast_shadow = 0
+
+[node name="CenterStripe" type="MeshInstance3D" parent="Lane"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, -20)
+mesh = SubResource("BoxMesh_stripe")
+surface_material_override/0 = SubResource("Mat_stripe")
+cast_shadow = 0
+
+[node name="RailLeft" type="MeshInstance3D" parent="Lane"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.75, 0.25, -20)
+mesh = SubResource("BoxMesh_rail")
+surface_material_override/0 = SubResource("Mat_rail")
+cast_shadow = 0
+
+[node name="RailRight" type="MeshInstance3D" parent="Lane"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.75, 0.25, -20)
+mesh = SubResource("BoxMesh_rail")
+surface_material_override/0 = SubResource("Mat_rail")
+cast_shadow = 0
+
+[node name="Overlay" type="CanvasLayer" parent="."]
+
+[node name="Panel" type="ColorRect" parent="Overlay"]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 640.0
+offset_bottom = 280.0
+color = Color(0.05, 0.07, 0.09, 0.62)
+
+[node name="Label" type="Label" parent="Overlay"]
+offset_left = 32.0
+offset_top = 24.0
+offset_right = 620.0
+offset_bottom = 270.0
+text = "压测"

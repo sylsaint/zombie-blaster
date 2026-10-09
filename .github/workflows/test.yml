@@ -44,5 +44,8 @@ jobs:
       - name: Smoke main scene
         run: ./tools/smoke_main.sh
 
+      - name: Smoke stress scene
+        run: ./tools/smoke_stress.sh
+
       - name: Run GUT
         run: ./tools/run_tests.sh
