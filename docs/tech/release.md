@@ -6,9 +6,9 @@ Godot 版本钉在 `tools/godot.version`（当前 4.7.2 stable）。流水线是
 
 | 触发 | 做什么 |
 | --- | --- |
-| 推送 `v*` 标签，例如 `v0.1.0` | Android 和 iOS 都出包，并挂到**同名** GitHub Release。这是唯一会创建 Release 的路径 |
-| 改 `.github/workflows/release.yml` 或 `export_presets.cfg` 的 pull request | 只打 Android release / debug APK，上传成 artifact。不跑 iOS，不创建 Release |
-| Actions 里手动 `workflow_dispatch` | Android 和 iOS 都出包，只上传 artifact，**不**创建 Release。可选输入 `artifact_tag` 用来拼文件名；留空时用 `manual-<短 SHA>` |
+| 推送 `v*` 标签，例如 `v0.1.0` | Android 和 iOS 都出包，并挂到**同名** GitHub Release。这是唯一会创建 Release 的路径。另外上传 profile APK artifact，不挂到 Release |
+| 改 `.github/workflows/release.yml` 或 `export_presets.cfg` 的 pull request | 打 Android release / debug APK，再打 profile APK。都只上传 artifact。不跑 iOS，不创建 Release |
+| Actions 里手动 `workflow_dispatch` | Android、profile 和 iOS 都出包，只上传 artifact，**不**创建 Release。可选输入 `artifact_tag` 用来拼文件名；留空时用 `manual-<短 SHA>` |
 
 推送到 `master`（或其它分支）**不会**跑这条流水线。没有 `push.branches`。
 
@@ -16,8 +16,9 @@ Godot 版本钉在 `tools/godot.version`（当前 4.7.2 stable）。流水线是
 
 文件名：
 
-- `zombie-blaster-<tag>-android-release.apk`
-- `zombie-blaster-<tag>-android-debug.apk`
+- `zombie-blaster-<tag>-android-release.apk`（artifact `android-apks`，标签构建会挂到 Release）
+- `zombie-blaster-<tag>-android-debug.apk`（同上）
+- `zombie-blaster-<tag>-android-profile.apk`（artifact `android-profile-apk`，只上传，**不**进 Release）
 - 有 iOS 签名 Secrets：`zombie-blaster-<tag>-ios.ipa`
 - 没有 iOS 签名 Secrets：`zombie-blaster-<tag>-ios-xcode-unsigned.zip`
 
@@ -40,7 +41,7 @@ Job 跑在 `ubuntu-24.04`：
 
 1. 按 `tools/godot.version` 安装 Godot 编辑器，用 `--headless` 导出，并安装同一版本的 export templates。编辑器和模板缓存在 Actions cache 里。
 2. 安装 Temurin JDK 17 和 Android SDK。`android-actions/setup-android` 只装 `platform-tools`：cmdline-tools 16 已经删掉旧的 `tools` 包，动作的默认值还会去装它，job 会在导出前失败。接下来的步骤再装 target SDK 36 对应的 `build-tools`；36 装不上时退回 35。
-3. `--export-release` 打 release 模板的 APK。真机性能只认这个包。再 `--export-debug` 打一个 debug 模板的包，用来排查。
+3. `--export-release` 打 release 模板的 APK。真机性能只认这个包。再 `--export-debug` 打一个 debug 模板的包，用来排查。预设 `Android Profile` 也用 `--export-release`（不用 debug 模板），包名 `com.zombieblaster.game.profile`，feature tag `profile`。装上就进压测场景。步骤在 [../qa/device-test.md](../qa/device-test.md)。
 4. 架构只有 **arm64-v8a**。要 32 位时再把预设里的 `architectures/armeabi-v7a` 改成 true。
 5. `export_filter` 是 `all_resources`，所以 `data/levels/`（`level_01`–`level_03`）和 `assets/`（模型、贴图、vfx）会打进 APK。脚本在导出后检查这些路径还在；缺了就失败。`build/` 里放了 `.gdignore`，导出目录不会再被扫回去。
 6. `gradle_build/use_gradle_build` 保持关闭，产物是 APK。上架 Play 的 AAB 以后再开 Gradle。
@@ -97,13 +98,13 @@ Job 跑在 `macos-latest`（镜像自带 Xcode）。先用 release 模板导出 
 
 有了 Apple Developer 账号之后，把上面四个 Secret 配齐即可，不用改流水线。
 
-发布 job 用 `needs: [android, ios]`，条件是 `always() && needs.android.result == 'success'`，并且只在 `v*` 标签推送时跑。iOS 失败或没有产物时，Release 仍然挂上 APK；IPA / 未签名 zip 有才附上（`fail_on_unmatched_files: false`）。pull request 不跑 iOS，也不创建 Release。`workflow_dispatch` 会跑 iOS，但不创建 Release。
+发布 job 用 `needs: [android, ios]`，条件是 `always() && needs.android.result == 'success'`，并且只在 `v*` 标签推送时跑。iOS 失败或没有产物时，Release 仍然挂上 APK；IPA / 未签名 zip 有才附上（`fail_on_unmatched_files: false`）。pull request 不跑 iOS，也不创建 Release。`workflow_dispatch` 会跑 iOS，但不创建 Release。profile APK 在单独的 artifact `android-profile-apk` 里，发布 job 不下载它。
 
 包名和 bundle id 都是 `com.zombieblaster.game`。iOS 最低版本 15.0（Godot 4.7 模板的下限），设备家族是 iPhone。
 
 ## 不打进包里的东西
 
-两个预设的 `exclude_filter` 都是 `tests/*, addons/gut/*, scenes/debug/*`。主场景和 `scripts/` 里的玩法代码不引用 `res://tests/` 或 `res://scenes/debug/`。压力场景只被 `tools/smoke_stress.sh` 用，测试留在仓库里给 GUT，不进安装包。
+正式 Android 和 iOS 的 `exclude_filter` 是 `tests/*, addons/gut/*, scenes/debug/*`。主场景和 `scripts/` 里的玩法代码不引用 `res://tests/` 或 `res://scenes/debug/`。`Android Profile` 留下 `scenes/debug/stress_test.tscn`，仍然排除 `tests/*`、`addons/gut/*`、`docs/*`、`tools/*`。压力场景的无头跑法还是 `tools/smoke_stress.sh`。
 
 `docs/` 和 `tools/` 各有一个 `.gdignore`。这两个目录没有 `.gd` / `.tscn` / `.tres`，里面的预览图和 shell 脚本不会被导入，也不会打进包。GUT 和 `tools/smoke_main.sh` 照常从仓库读测试和主场景。
 

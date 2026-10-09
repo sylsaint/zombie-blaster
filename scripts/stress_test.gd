@@ -13,6 +13,7 @@ const WALKERS := 180
 const RUNNERS := 120
 const ELITES := 3
 const BOSSES := 1
+const PROFILE_FRAMES := 600
 const SPIKE_MS := 50.0
 const SPIKE_CAP := 24
 const _FRAME_RING := 4096
@@ -75,6 +76,11 @@ var _warmup_skip: int = 30
 var _sample_limit: int = 0
 var _screenshot_path: String = ""
 var _shot_ready: bool = false
+var _profile_device: bool = false
+var _stats_json: String = ""
+var _share_button: Button
+## Survives reload_current_scene so back-to-back profile runs stay numbered.
+static var _profile_run_index: int = 0
 
 
 func _ready() -> void:
@@ -209,11 +215,18 @@ func _read_args() -> void:
 			_vat = false
 		elif arg == "--vat=1" or arg == "--vat":
 			_vat = true
+	_profile_device = OS.has_feature("profile") and not _headless
+	if _profile_device and _profile_run_index < 1:
+		_profile_run_index = 1
 	if _headless and _limit < 0:
 		_limit = 120
+	elif _profile_device and _limit < 0:
+		_limit = PROFILE_FRAMES
 
 
 func _build_toggles() -> void:
+	if _profile_device:
+		return
 	var names: PackedStringArray = PackedStringArray(["卡通着色", "边缘光", "倒模描边"])
 	var keys: PackedStringArray = PackedStringArray(["cel", "rim", "outline"])
 	var pressed: Array[bool] = [_cel, _rim, _outline]
@@ -364,6 +377,9 @@ func _finish() -> void:
 	_print_spikes()
 	print(_stats_line(0.0))
 	if _screenshot_path != "":
+		return
+	if _profile_device:
+		_present_profile_results()
 		return
 	if _limit >= 0:
 		get_tree().quit()
@@ -671,6 +687,136 @@ func _draw_calls_3d() -> int:
 		RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE,
 		RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME
 	)
+
+
+static func profile_record(logic_avg_ms: float, logic_p99_ms: float, frame_avg_ms: float, fps_1pct_low: float, draw_calls: int, triangles: int, memory_static_mb: float, timestamp: String, device_model: String, run_index: int, device_physical_mb: float, device_available_mb: float) -> Dictionary:
+	return {
+		"timestamp": timestamp,
+		"device_model": device_model,
+		"run": run_index,
+		"logic_avg_ms": logic_avg_ms,
+		"logic_p99_ms": logic_p99_ms,
+		"frame_avg_ms": frame_avg_ms,
+		"fps_1pct_low": fps_1pct_low,
+		"draw_calls": draw_calls,
+		"triangles": triangles,
+		"memory_static_mb": memory_static_mb,
+		"device_physical_mb": device_physical_mb,
+		"device_available_mb": device_available_mb,
+	}
+
+
+static func profile_device_ram_mb() -> Vector2:
+	var info: Dictionary = OS.get_memory_info()
+	var physical := float(info.get("physical", -1))
+	var available := float(info.get("available", -1))
+	var physical_mb := -1.0
+	var available_mb := -1.0
+	if physical > 0.0:
+		physical_mb = physical / (1024.0 * 1024.0)
+	if available > 0.0:
+		available_mb = available / (1024.0 * 1024.0)
+	return Vector2(physical_mb, available_mb)
+
+
+static func profile_screen_text(record: Dictionary) -> String:
+	var lines: PackedStringArray = PackedStringArray([
+		"run %d" % int(record["run"]),
+		"logic avg  %.2f ms" % float(record["logic_avg_ms"]),
+		"logic p99  %.2f ms" % float(record["logic_p99_ms"]),
+		"frame avg  %.2f ms" % float(record["frame_avg_ms"]),
+		"1%% low    %.1f" % float(record["fps_1pct_low"]),
+		"draws      %d" % int(record["draw_calls"]),
+		"tris       %d" % int(record["triangles"]),
+		"Godot static (not PSS)  %.1f MB" % float(record["memory_static_mb"]),
+	])
+	var physical_mb := float(record.get("device_physical_mb", -1))
+	var available_mb := float(record.get("device_available_mb", -1))
+	if physical_mb > 0.0 or available_mb > 0.0:
+		lines.append("device RAM  %.0f MB total / %.0f MB available" % [physical_mb, available_mb])
+	lines.append("")
+	lines.append("frame avg 受垂直同步限制，60 Hz 时下限是 16.7 ms。")
+	lines.append("是否通过只看 1% low 和 logic p99。frame avg 只作参考。")
+	return "\n".join(lines)
+
+
+static func profile_timestamp() -> String:
+	var stamp := Time.get_datetime_string_from_system(true)
+	if not stamp.ends_with("Z"):
+		stamp += "Z"
+	return stamp
+
+
+func _present_profile_results() -> void:
+	var frame_ms := (_bench_time / float(maxi(_bench_frames, 1))) * 1000.0
+	var ram := profile_device_ram_mb()
+	var record := profile_record(
+		_avg_ms(_sample_logic),
+		_p99_ms(_sample_logic),
+		frame_ms,
+		_one_percent_low(),
+		_draw_calls(),
+		int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)),
+		Performance.get_monitor(Performance.MEMORY_STATIC) / (1024.0 * 1024.0),
+		profile_timestamp(),
+		OS.get_model_name(),
+		_profile_run_index,
+		ram.x,
+		ram.y
+	)
+	_stats_json = JSON.stringify(record, "  ")
+	_write_profile_stats(_stats_json)
+	var toast := $Overlay.get_node_or_null("LossToast")
+	if toast != null:
+		toast.visible = false
+	var panel := $Overlay/Panel as ColorRect
+	panel.offset_left = 0.0
+	panel.offset_top = 0.0
+	panel.offset_right = 1080.0
+	panel.offset_bottom = 1920.0
+	panel.color = Color(0.05, 0.07, 0.09, 0.94)
+	_label.offset_left = 48.0
+	_label.offset_top = 36.0
+	_label.offset_right = 1032.0
+	_label.offset_bottom = 1460.0
+	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_label.add_theme_font_size_override("font_size", 46)
+	_label.text = profile_screen_text(record)
+	_add_profile_button("再跑一次", 1520.0, _on_run_again)
+	_share_button = _add_profile_button("Share", 1680.0, _on_share)
+
+
+func _write_profile_stats(text: String) -> void:
+	var file := FileAccess.open("user://stress_stats.json", FileAccess.WRITE)
+	if file == null:
+		push_error("Could not write user://stress_stats.json: %s" % error_string(FileAccess.get_open_error()))
+		return
+	file.store_string(text)
+	file.close()
+
+
+func _add_profile_button(label: String, y: float, callback: Callable) -> Button:
+	var button := Button.new()
+	button.text = label
+	button.position = Vector2(48.0, y)
+	button.size = Vector2(984.0, 120.0)
+	button.add_theme_font_size_override("font_size", 42)
+	button.pressed.connect(callback)
+	$Overlay.add_child(button)
+	return button
+
+
+func _on_run_again() -> void:
+	_profile_run_index += 1
+	get_tree().reload_current_scene()
+
+
+func _on_share() -> void:
+	if _stats_json == "":
+		return
+	DisplayServer.clipboard_set(_stats_json)
+	if _share_button != null:
+		_share_button.text = "Share  已复制"
 
 
 func _style_label() -> void:
