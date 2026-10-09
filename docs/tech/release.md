@@ -7,7 +7,7 @@ Godot 版本钉在 `tools/godot.version`（当前 4.7.2 stable）。流水线是
 | 触发 | 做什么 |
 | --- | --- |
 | 推送 `v*` 标签，例如 `v0.1.0` | Android 和 iOS 都出包，并挂到**同名** GitHub Release。这是唯一会创建 Release 的路径。另外上传 profile APK artifact，不挂到 Release |
-| 改 `.github/workflows/release.yml` 或 `export_presets.cfg` 的 pull request | 打 Android release / debug APK，再打 profile APK。都只上传 artifact。不跑 iOS，不创建 Release |
+| 改 `.github/workflows/release.yml`、`export_presets.cfg`、`tools/release/**`、`tools/smoke_exported_menu.sh` 或 `docs/tech/release.md` 的 pull request | 打 Android release / debug APK，去掉 release 模板里的 baseline profile，再无头启动导出的 pck 确认主菜单可见且第 1 关会出兵。都只上传 artifact。不跑 iOS，不创建 Release |
 | Actions 里手动 `workflow_dispatch` | Android、profile 和 iOS 都出包，只上传 artifact，**不**创建 Release。可选输入 `artifact_tag` 用来拼文件名；留空时用 `manual-<短 SHA>` |
 
 推送到 `master`（或其它分支）**不会**跑这条流水线。没有 `push.branches`。
@@ -45,6 +45,25 @@ Job 跑在 `ubuntu-24.04`：
 4. 架构只有 **arm64-v8a**。要 32 位时再把预设里的 `architectures/armeabi-v7a` 改成 true。
 5. `export_filter` 是 `all_resources`，所以 `data/levels/`（`level_01`–`level_03`）和 `assets/`（模型、贴图、vfx）会打进 APK。脚本在导出后检查这些路径还在；缺了就失败。`build/` 里放了 `.gdignore`，导出目录不会再被扫回去。
 6. `gradle_build/use_gradle_build` 保持关闭，产物是 APK。上架 Play 的 AAB 以后再开 Gradle。
+7. release 和 profile 两个包在签名前会删掉 `assets/dexopt/baseline.prof` 和 `baseline.profm`，再 `zipalign -P 16`（不能和 `-p` 一起用）并重新签名。debug 包保持 debug 模板原样。原因见下一节。
+8. 导出之后 `tools/smoke_exported_menu.sh` 用同一套 Android 排除规则打一个 pck，无头启动，确认主菜单的「开始」可见，并且第 1 关在 4 秒游戏时间里画出士兵和行走僵尸。这个检查看的是包里的项目，不是手机上的 `libgodot_android.so`。
+
+## 正式包只有 3D、没有菜单
+
+v0.1.0 的 release APK 在小米 15 Pro（Android 16，Adreno 830）上只画出 3D 车道，主菜单和其它 2D/UI 不出现。同一套资源打出来的 debug 包，以及所有 debug 模板包，菜单都在。
+
+两边的 `project.binary` 和资源文件一致。APK 之间对得上的差别只有两处：
+
+- release 模板的 `libgodot_android.so`（debug 模板是另一份 so）
+- release 模板多出来的 `assets/dexopt/baseline.prof` 和 `baseline.profm`
+
+Godot 4.7 的 Android 模板用 Android Gradle Plugin 8.6 编出来，release 变体自带这份 baseline profile。非 Gradle 导出没有开关可以关掉它，预设里也没有对应项。ART 只给**不可调试**的安装应用这份 profile；debug 包是 debuggable，所以根本不会装上它。这和「只有 release 包丢菜单」一致。
+
+处理是：`tools/release/export_android.sh` 在 `--export-release` 之后删掉这些 profile 条目和旧签名，按 16 KB 页对齐重新打包，再用同一次导出的 keystore 签名。正式包仍然用 release 模板的 so，不把 debug so 换进去。debug 包不改。
+
+查过 Godot 4.7 的 issue，没有一条对得上「release 模板在 Adreno 上只画 3D、不画 2D，debug 模板正常」。能对上 Adreno 的报告是 Vulkan / Mobile 渲染器的花屏或几何丢失（例如 [#115217](https://github.com/godotengine/godot/issues/115217)、[#120299](https://github.com/godotengine/godot/issues/120299)）。本工程桌面和手机都是 Compatibility（`gl_compatibility`），shader baker 也关着。字体和 text server 在 pck 里，debug 和 release 是同一份，所以不是资源被裁掉。
+
+如果去掉 profile 之后真机仍然只有 3D，剩下的差别就是 release 的 `libgodot_android.so`（优化和裁剪过的原生库）。那就要换自定义 release 模板，不是再改 pck。
 
 签名：
 

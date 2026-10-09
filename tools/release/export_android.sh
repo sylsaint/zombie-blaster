@@ -121,20 +121,58 @@ export_one() {
   fi
 }
 
+aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort | tail -n 1)"
+apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort | tail -n 1)"
+zipalign="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort | tail -n 1)"
+if [[ -z "$aapt" || -z "$apksigner" || -z "$zipalign" ]]; then
+  echo "aapt, apksigner, or zipalign is missing under $ANDROID_HOME/build-tools" >&2
+  exit 1
+fi
+
+# The release template's baseline profile is the only extra payload versus the
+# debug APK besides libgodot_android.so. ART applies it on non-debuggable
+# installs. Strip it from every release-template APK and sign again.
+strip_baseline_profile() {
+  local apk="$1" ks="$2" alias="$3" pass="$4"
+  local work aligned
+  work="$(mktemp -d)"
+  aligned="$work/aligned.apk"
+  note "Removing baseline profile from $(basename "$apk")"
+  python3 "$ROOT/tools/release/strip_baseline_profile.py" "$apk" "$work/stripped.apk"
+  # -P 16 keeps uncompressed .so files loadable on 16 KB page devices (Android 15+).
+  # Build-tools 35+ reject combining -P with -p. -h is not a real flag, so read the
+  # usage text from the error output instead of treating a non-zero status as failure.
+  local align_help
+  align_help="$("$zipalign" -h 2>&1 || true)"
+  if grep -q -- '-P ' <<<"$align_help"; then
+    "$zipalign" -P 16 -f 4 "$work/stripped.apk" "$aligned"
+  else
+    "$zipalign" -f -p 4 "$work/stripped.apk" "$aligned"
+  fi
+  APKSIGNER_PASS="$pass" "$apksigner" sign \
+    --ks "$ks" \
+    --ks-key-alias "$alias" \
+    --ks-pass env:APKSIGNER_PASS \
+    --key-pass env:APKSIGNER_PASS \
+    --out "$work/signed.apk" \
+    "$aligned"
+  mv "$work/signed.apk" "$apk"
+  rm -rf "$work"
+  if zipinfo -1 "$apk" | grep -E '(^|/)(baseline|startup)\.profm?$'; then
+    echo "$apk still contains a baseline profile after stripping" >&2
+    exit 1
+  fi
+}
+
 export_one release "Android" "$release_apk" "$release_ks" "$release_alias" "$release_pass"
 export_one debug "Android" "$debug_apk" "$debug_ks" "$debug_alias" "$debug_pass"
+strip_baseline_profile "$release_apk" "$release_ks" "$release_alias" "$release_pass"
 
 profile_apk="$ROOT/build/profile/zombie-blaster-${tag}-android-profile.apk"
 mkdir -p "$(dirname "$profile_apk")"
 # Release template, not debug, so on-device frame times match the 30 fps target.
 export_one release "Android Profile" "$profile_apk" "$release_ks" "$release_alias" "$release_pass"
-
-aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort | tail -n 1)"
-apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort | tail -n 1)"
-if [[ -z "$aapt" || -z "$apksigner" ]]; then
-  echo "aapt or apksigner is missing under $ANDROID_HOME/build-tools" >&2
-  exit 1
-fi
+strip_baseline_profile "$profile_apk" "$release_ks" "$release_alias" "$release_pass"
 
 verify_apk() {
   local apk="$1"

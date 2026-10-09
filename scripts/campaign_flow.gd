@@ -42,6 +42,7 @@ func _ready() -> void:
 	profile = store.load_profile()
 	_show_menu()
 	_arm_level1_shot()
+	_arm_exported_smoke()
 
 
 func _process(_delta: float) -> void:
@@ -144,6 +145,62 @@ func _save_level1_shot() -> void:
 		push_error("Could not save level 1 screenshot: %s" % error_string(err))
 		return
 	print("LEVEL1_SHOT %s" % path)
+
+
+func _arm_exported_smoke() -> void:
+	if not OS.get_cmdline_user_args().has("--smoke-exported"):
+		return
+	call_deferred("_run_exported_smoke")
+
+
+func _run_exported_smoke() -> void:
+	var play: Button = null
+	if menu_view != null:
+		play = menu_view.get_node_or_null("%Play") as Button
+	if menu_view == null or not menu_view.visible or play == null or not play.visible or play.text != "开始":
+		push_error("exported smoke: main menu is not visible")
+		get_tree().quit(1)
+		return
+	print("SMOKE_MENU_OK")
+	play.pressed.emit()
+	var level_button: Button = null
+	if select_view != null:
+		level_button = select_view.get_node_or_null("%Level1") as Button
+	if level_button == null or not level_button.visible or level_button.text != "第 1 关":
+		push_error("exported smoke: level select did not show 第 1 关")
+		get_tree().quit(1)
+		return
+	level_button.pressed.emit()
+	if host == null or host.session == null or host.crowd == null:
+		push_error("exported smoke: level 1 did not start")
+		get_tree().quit(1)
+		return
+	var clock := get_node_or_null("/root/GameClock")
+	if clock == null:
+		push_error("exported smoke: GameClock is missing")
+		get_tree().quit(1)
+		return
+	var walkers := 0
+	var soldiers := 0
+	var i := 0
+	while i < 80:
+		clock.advance(0.05)
+		host._process(0.05)
+		i += 1
+		walkers = maxi(walkers, _visible_instances(host.crowd.grunt_mm))
+		soldiers = maxi(soldiers, _visible_instances(host.crowd.squad_body_mm))
+	if walkers <= 0 or soldiers <= 0:
+		push_error("exported smoke: level 1 soldiers=%d walkers=%d" % [soldiers, walkers])
+		get_tree().quit(1)
+		return
+	print("SMOKE_LEVEL1_OK")
+	get_tree().quit(0)
+
+
+func _visible_instances(node: MultiMeshInstance3D) -> int:
+	if node == null or node.multimesh == null:
+		return 0
+	return node.multimesh.visible_instance_count
 
 
 func _gameplay_time() -> float:

@@ -8,6 +8,9 @@ on:
     paths:
       - ".github/workflows/release.yml"
       - "export_presets.cfg"
+      - "tools/release/**"
+      - "tools/smoke_exported_menu.sh"
+      - "docs/tech/release.md"
   workflow_dispatch:
     inputs:
       artifact_tag:
@@ -71,6 +74,9 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: ./tools/release/export_android.sh
+
+      - name: Boot the exported pack and check the menu
+        run: ./tools/smoke_exported_menu.sh
 
       - name: Upload APKs
         uses: actions/upload-artifact@v4
