@@ -29,12 +29,16 @@ mono_crash.*.json
 *.keystore
 *.jks
 *.idsig
+*.p12
+*.mobileprovision
 
 # Export artifacts
 /build/
 /builds/
 *.apk
 *.aab
+*.ipa
+*.xcarchive
 *.pck
 
 # OS / editor junk

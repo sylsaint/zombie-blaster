@@ -47,6 +47,7 @@ GitHub Actions（`.github/workflows/test.yml`）在 push 和 pull request 上安
    - 包名 `com.zombieblaster.game`，版本名 `0.1.0`，version code `1`
    - 沉浸式竖屏。朝向来自项目设置，不在预设里再写一遍
    - 未填写任何 keystore 路径或密码
+   - 图标路径指向 `assets/branding/`（adaptive 前景/背景 432×432、主图标 192×192，iOS 1024）。图放进该目录后，把 `project.godot` 的 `boot_splash/image` 指到 `splash_1080x1920.png`（见 `docs/tech/release.md`）
 3. **Project → Export → Android** 导出调试 APK。调试签名用 Godot 自带的 debug keystore，不必把密钥放进仓库。
 4. 正式签名不要写进 `export_presets.cfg`。密码放在 `.godot/export_credentials.cfg`（已被 `.gitignore` 忽略），或导出时设置环境变量：
    - `GODOT_ANDROID_KEYSTORE_RELEASE_PATH`
@@ -55,6 +56,10 @@ GitHub Actions（`.github/workflows/test.yml`）在 push 和 pull request 上安
    - 调试包对应 `GODOT_ANDROID_KEYSTORE_DEBUG_PATH` / `_USER` / `_PASSWORD`
 5. 上架 Google Play 的 AAB 需要之后打开 **Use Gradle Build**。这会在 `android/` 生成 Gradle 工程，该目录已忽略。需要 32 位包时再勾 `armeabi-v7a`。
 
+## 发版
+
+推送 `v*` 标签会跑 `.github/workflows/release.yml`：打 arm64 的 release / debug APK，并在有苹果签名 Secrets 时打 IPA，挂到 GitHub Release。手动 `workflow_dispatch` 只上传 artifact，不发 Release。没有 iOS Secrets 时 iOS job 跳过签名并上传未签名的 Xcode 工程，流水线保持绿色。步骤和 Secrets 在 [docs/tech/release.md](docs/tech/release.md)。
+
 ## 目录
 
 | 路径 | 内容 |
@@ -62,9 +67,10 @@ GitHub Actions（`.github/workflows/test.yml`）在 push 和 pull request 上安
 | `scenes/` | 场景。现在只有灰盒主场景 |
 | `scripts/` | GDScript |
 | `tests/` | GUT 测试 |
+| `assets/branding/` | 图标和启动图。文件名见 `docs/tech/release.md`；图还没进仓库时导出走 Godot 默认图标 |
 | `assets/models/` `textures/` `audio/` `vfx/` `ui/` | 美术与特效资源 |
 | `addons/gut/` | GUT 9.7.1（MIT） |
 | `docs/design/` `art/` `qa/` `tech/` | 设计、美术、测试、技术文档 |
-| `tools/` | 无头测试脚本和 Godot 版本号 |
+| `tools/` | 无头测试脚本、发版导出脚本和 Godot 版本号 |
 
 技术约束（尸潮怎么批量画、门怎么做碰撞、面数预算）在 `docs/tech/architecture.md`。
