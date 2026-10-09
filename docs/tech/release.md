@@ -7,7 +7,7 @@ Godot 版本钉在 `tools/godot.version`（当前 4.7.2 stable）。流水线是
 | 触发 | 做什么 |
 | --- | --- |
 | 推送 `v*` 标签，例如 `v0.1.0` | Android 和 iOS 都出包，并挂到**同名** GitHub Release。这是唯一会创建 Release 的路径。另外上传 profile APK artifact，不挂到 Release |
-| 改 `.github/workflows/release.yml`、`export_presets.cfg`、`tools/release/**`、`tools/smoke_exported_menu.sh` 或 `docs/tech/release.md` 的 pull request | 打 Android release / debug APK，去掉 release 模板里的 baseline profile，再无头启动导出的 pck 确认主菜单可见且第 1 关会出兵。都只上传 artifact。不跑 iOS，不创建 Release |
+| 改 `.github/workflows/release.yml`、`export_presets.cfg`、`tools/release/**`、`tools/smoke_exported_menu.sh`、`tools/emulator_menu_smoke.sh` 或 `docs/tech/release.md` 的 pull request | 打 Android release / debug APK，去掉 release 模板里的 baseline profile，无头启动导出的 pck 确认主菜单和第 1 关，再在 API 34 的 x86_64 模拟器里安装 **release** APK 并截主菜单和第 1 关。都只上传 artifact。不跑 iOS，不创建 Release |
 | Actions 里手动 `workflow_dispatch` | Android、profile 和 iOS 都出包，只上传 artifact，**不**创建 Release。可选输入 `artifact_tag` 用来拼文件名；留空时用 `manual-<短 SHA>` |
 
 推送到 `master`（或其它分支）**不会**跑这条流水线。没有 `push.branches`。
@@ -47,6 +47,7 @@ Job 跑在 `ubuntu-24.04`：
 6. `gradle_build/use_gradle_build` 保持关闭，产物是 APK。上架 Play 的 AAB 以后再开 Gradle。
 7. release 和 profile 两个包在签名前会删掉 `assets/dexopt/baseline.prof` 和 `baseline.profm`，再 `zipalign -P 16`（不能和 `-p` 一起用）并重新签名。debug 包保持 debug 模板原样。原因见下一节。
 8. 导出之后 `tools/smoke_exported_menu.sh` 用同一套 Android 排除规则打一个 pck，无头启动，确认主菜单的「开始」可见，并且第 1 关在 4 秒游戏时间里画出士兵和行走僵尸。这个检查看的是包里的项目，不是手机上的 `libgodot_android.so`。
+9. Android job 成功后，`emulator` job 在 GitHub 托管的 `ubuntu-24.04` 上用 udev 规则打开 KVM，再用 `reactivecircus/android-emulator-runner` 启动 API 34、`google_apis`、`x86_64` 的模拟器（Pixel 2，1080×1920）。它安装本轮导出的 **release** APK（arm64-v8a，靠系统镜像的 ARM 翻译运行），等 logcat 里的 `MENU_READY`，`adb exec-out screencap` 截主菜单，按 1080×1920 布局把「开始」(540, 1698) 和「第 1 关」(540, 376) 换算到模拟器分辨率后点击，等 15 秒再截一张。主菜单截图里按钮米色像素太少、画面几乎纯色，或应用 logcat 里有 `SCRIPT ERROR` / `FATAL`，job 失败。截图和 logcat 上传为 artifact `android-emulator-smoke`。
 
 ## 正式包只有 3D、没有菜单
 

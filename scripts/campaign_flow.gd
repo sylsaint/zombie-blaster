@@ -251,6 +251,9 @@ func _show_menu() -> void:
 	if results_view != null:
 		results_view.visible = false
 	_refresh_meta()
+	# The Android release smoke looks for this in logcat. The canvas can fail
+	# to draw while this still runs, so the screenshot check is separate.
+	print("MENU_READY")
 
 
 func _show_select() -> void:
