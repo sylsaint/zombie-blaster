@@ -55,6 +55,15 @@ jobs:
       - name: Run GUT
         run: ./tools/run_tests.sh
 
+  font_charset:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check UI font charset
+        run: python3 tools/check_font_charset.py
+
   actionlint:
     runs-on: ubuntu-24.04
     timeout-minutes: 5

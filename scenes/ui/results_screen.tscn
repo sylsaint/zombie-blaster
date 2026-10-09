@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/results_screen.gd" id="1_results"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/icon_star_empty.png" id="2_empty"]
 
 [node name="ResultsScreen" type="Control"]
 visible = false
@@ -38,26 +39,69 @@ theme_type_variation = &"Display"
 text = "胜利"
 horizontal_alignment = 1
 
-[node name="StarClear" type="Label" parent="Margin/Sheet/Column"]
+[node name="StarClearRow" type="HBoxContainer" parent="Margin/Sheet/Column"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"Body"
-text = "☆  通关"
+theme_override_constants/separation = 16
 
-[node name="StarSquad" type="Label" parent="Margin/Sheet/Column"]
-unique_name_in_owner = true
+[node name="Icon" type="TextureRect" parent="Margin/Sheet/Column/StarClearRow"]
+custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
-theme_type_variation = &"Body"
-text = "☆  人数 0 / 0"
+size_flags_horizontal = 4
+texture = ExtResource("2_empty")
+expand_mode = 1
+stretch_mode = 5
 
-[node name="StarHits" type="Label" parent="Margin/Sheet/Column"]
+[node name="StarClear" type="Label" parent="Margin/Sheet/Column/StarClearRow"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"Body"
-text = "☆  关底受击 0"
+theme_type_variation = &"StatLabel"
+text = "通关"
+vertical_alignment = 1
+
+[node name="StarSquadRow" type="HBoxContainer" parent="Margin/Sheet/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Icon" type="TextureRect" parent="Margin/Sheet/Column/StarSquadRow"]
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 2
+size_flags_horizontal = 4
+texture = ExtResource("2_empty")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="StarSquad" type="Label" parent="Margin/Sheet/Column/StarSquadRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"StatLabel"
+text = "人数 0 / 0"
+vertical_alignment = 1
+
+[node name="StarHitsRow" type="HBoxContainer" parent="Margin/Sheet/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Icon" type="TextureRect" parent="Margin/Sheet/Column/StarHitsRow"]
+custom_minimum_size = Vector2(64, 64)
+layout_mode = 2
+size_flags_horizontal = 4
+texture = ExtResource("2_empty")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="StarHits" type="Label" parent="Margin/Sheet/Column/StarHitsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"StatLabel"
+text = "关底受击 0"
+vertical_alignment = 1
 
 [node name="Breakdown" type="PanelContainer" parent="Margin/Sheet/Column"]
 layout_mode = 2
+theme_type_variation = &"RewardPanel"
 
 [node name="Lines" type="VBoxContainer" parent="Margin/Sheet/Column/Breakdown"]
 layout_mode = 2
@@ -66,32 +110,32 @@ theme_override_constants/separation = 12
 [node name="ClearLine" type="Label" parent="Margin/Sheet/Column/Breakdown/Lines"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"Body"
+theme_type_variation = &"RewardLabel"
 text = "通关金币"
 
 [node name="RunLine" type="Label" parent="Margin/Sheet/Column/Breakdown/Lines"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"Body"
+theme_type_variation = &"RewardLabel"
 text = "局内金币"
 
 [node name="TotalLine" type="Label" parent="Margin/Sheet/Column/Breakdown/Lines"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"Body"
+theme_type_variation = &"RewardLabel"
 text = "合计"
 
 [node name="PartsLine" type="Label" parent="Margin/Sheet/Column/Breakdown/Lines"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"Body"
+theme_type_variation = &"RewardLabel"
 text = "首通零件  0"
 
 [node name="ChestLine" type="Label" parent="Margin/Sheet/Column"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
-theme_type_variation = &"Body"
+theme_type_variation = &"StatLabel"
 text = ""
 
 [node name="Spacer" type="Control" parent="Margin/Sheet/Column"]
@@ -102,16 +146,19 @@ size_flags_vertical = 3
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
+focus_mode = 0
 text = "重试"
 
 [node name="Next" type="Button" parent="Margin/Sheet/Column"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
+focus_mode = 0
 text = "下一关"
 
 [node name="Back" type="Button" parent="Margin/Sheet/Column"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
+focus_mode = 0
 text = "返回"

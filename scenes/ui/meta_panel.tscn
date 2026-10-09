@@ -9,17 +9,19 @@ script = ExtResource("1_meta")
 [node name="Attack" type="Label" parent="."]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"Body"
+theme_type_variation = &"StatLabel"
 text = "攻击力  0 / 30    伤害 +0%"
 
 [node name="Wallet" type="Label" parent="."]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"Body"
+theme_type_variation = &"StatLabel"
 text = "金币  0    零件  0"
 
 [node name="Upgrade" type="Button" parent="."]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
+focus_mode = 0
+theme_type_variation = &"UpgradeButton"
 text = "升级攻击力  50"

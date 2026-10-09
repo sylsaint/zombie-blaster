@@ -33,6 +33,10 @@ window/stretch/mode="viewport"
 window/stretch/aspect="keep_width"
 window/handheld/orientation=1
 
+[gui]
+
+theme/custom="res://assets/ui/game_theme.tres"
+
 [input_devices]
 
 pointing/emulate_mouse_from_touch=true

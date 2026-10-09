@@ -105,6 +105,7 @@ theme_override_styles/normal = SubResource("StyleCard0")
 theme_override_styles/hover = SubResource("StyleCard0")
 theme_override_styles/pressed = SubResource("StyleCard0")
 theme_override_styles/focus = SubResource("StyleCard0")
+focus_mode = 0
 autowrap_mode = 3
 text = "卡牌一"
 
@@ -118,6 +119,7 @@ theme_override_styles/normal = SubResource("StyleCard1")
 theme_override_styles/hover = SubResource("StyleCard1")
 theme_override_styles/pressed = SubResource("StyleCard1")
 theme_override_styles/focus = SubResource("StyleCard1")
+focus_mode = 0
 autowrap_mode = 3
 text = "卡牌二"
 
@@ -131,5 +133,6 @@ theme_override_styles/normal = SubResource("StyleCard2")
 theme_override_styles/hover = SubResource("StyleCard2")
 theme_override_styles/pressed = SubResource("StyleCard2")
 theme_override_styles/focus = SubResource("StyleCard2")
+focus_mode = 0
 autowrap_mode = 3
 text = "卡牌三"
