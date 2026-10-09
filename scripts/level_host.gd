@@ -1,6 +1,8 @@
+class_name LevelHost
 extends Node
 ## Loads chapter-1 levels for the game scene. A run starts only from start_level,
-## so the greybox boot stays quiet.
+## so the greybox boot stays quiet. Meta attack is the squad's existing input
+## and is not folded into the gate or skill bonus.
 
 
 var levels: Array[LevelData] = []
@@ -13,10 +15,14 @@ func _ready() -> void:
 	levels = LevelCatalog.load_all()
 
 
-func start_level(level_index: int) -> void:
+func start_level(level_index: int, meta_attack_levels: int = 0) -> void:
+	if boss_view != null and is_instance_valid(boss_view):
+		boss_view.queue_free()
+	boss_view = null
 	var level := LevelCatalog.load_index(level_index)
 	session = LevelSession.new()
 	session.start(level, get_node("/root/GameClock"))
+	session.sim.squad.meta_attack_levels = clampi(meta_attack_levels, 0, WeaponMods.META_ATTACK_CAP)
 	_running = true
 
 

@@ -1,0 +1,27 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/meta_panel.gd" id="1_meta"]
+[ext_resource type="Theme" path="res://assets/ui/game_theme.tres" id="2_theme"]
+
+[node name="MetaPanel" type="VBoxContainer"]
+theme = ExtResource("2_theme")
+theme_override_constants/separation = 16
+script = ExtResource("1_meta")
+
+[node name="Attack" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Body"
+text = "攻击力  0 / 30    伤害 +0%"
+
+[node name="Wallet" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"Body"
+text = "金币  0    零件  0"
+
+[node name="Upgrade" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+text = "升级攻击力  50"
