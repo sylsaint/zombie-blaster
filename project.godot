@@ -47,6 +47,7 @@ textures/vram_compression/import_etc2_astc=true
 [autoload]
 
 GameClock="*res://scripts/game_clock.gd"
+ProfileBoot="*res://scripts/profile_boot.gd"
 
 [shader_globals]
 

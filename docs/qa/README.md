@@ -8,4 +8,4 @@
 - `./tools/smoke_main.sh`：无头启动主场景，日志里出现 `ERROR:` 或 `WARNING:` 就失败
 - GitHub Actions（`.github/workflows/test.yml`）在 push 和 pull request 上做同样的事
 
-之后补：低端 Android 机型表、竖屏长宽比（约 9:16 到 9:21）、发热和同屏人数。设计文档未定之前，不写玩法用例。
+真机压测包的安装和要记的数在 [device-test.md](device-test.md)。低端机是 Helio G85 / 骁龙 680，中端机是骁龙 7 Gen 1，标准在 [m1-test-plan.md](m1-test-plan.md)。

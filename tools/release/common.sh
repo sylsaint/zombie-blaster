@@ -44,11 +44,12 @@ note() {
 # Fail the export if the package dropped the level data or the assets tree.
 # Android stores them as loose files under assets/. iOS stores them in the pck.
 assert_project_data_packed() {
-  python3 - "$1" << 'PY'
+  python3 - "$1" "${2:-game}" << 'PY'
 import struct, sys, zipfile
 from pathlib import Path
 
 target = Path(sys.argv[1])
+mode = sys.argv[2]
 needles = (
     "data/levels/level_01",
     "data/levels/level_02",
@@ -99,12 +100,18 @@ def pack_path(name: str) -> str:
         name = name[len("assets/"):]
     return name
 
-blocked = ("tests/", "addons/gut/", "docs/", "tools/", "scenes/debug/")
+if mode == "profile":
+    blocked = ("tests/", "addons/gut/", "docs/", "tools/")
+    if not any("scenes/debug/stress_test" in name for name in names):
+        raise SystemExit(f"{target.name} is missing scenes/debug/stress_test")
+else:
+    blocked = ("tests/", "addons/gut/", "docs/", "tools/", "scenes/debug/")
 leaked = sorted({name for name in names if pack_path(name).startswith(blocked)})
 if leaked:
     preview = "\n".join(leaked[:20])
     raise SystemExit(f"{target.name} packed files that should stay out of the release:\n{preview}")
-print(f"{target.name} includes data/levels and assets ({len(names)} entries); tests, gut, docs, tools, and scenes/debug are absent")
+kept = "stress scene kept; tests, gut, docs, and tools are absent" if mode == "profile" else "tests, gut, docs, tools, and scenes/debug are absent"
+print(f"{target.name} includes data/levels and assets ({len(names)} entries); {kept}")
 PY
 }
 

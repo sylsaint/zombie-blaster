@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Export arm64-v8a release and debug APKs.
-# Release uses the release export template. Without the three release
-# keystore secrets, that APK is signed with a generated debug keystore
-# so it can be installed. When all three secrets are set, the release
-# APK uses them instead. The debug APK always uses the debug keystore.
+# Export arm64-v8a release and debug APKs, plus a release-template profile APK.
+# Release and profile use the release export template. Without the three
+# release keystore secrets, those APKs are signed with a generated debug
+# keystore so they can be installed. When all three secrets are set, they
+# use that keystore instead. The debug APK always uses the debug keystore.
+# The profile APK is a separate package and is not a Play release.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -91,7 +92,7 @@ note "Importing project"
 "$GODOT_BIN" --headless --path "$ROOT" --import
 
 export_one() {
-  local mode="$1" apk="$2" ks="$3" alias="$4" pass="$5"
+  local mode="$1" preset_name="$2" apk="$3" ks="$4" alias="$5" pass="$6"
   local path_var user_var pass_var
   if [[ "$mode" == "release" ]]; then
     path_var="GODOT_ANDROID_KEYSTORE_RELEASE_PATH"
@@ -105,13 +106,13 @@ export_one() {
     unset GODOT_ANDROID_KEYSTORE_RELEASE_PATH GODOT_ANDROID_KEYSTORE_RELEASE_USER GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD || true
   fi
   export "$path_var=$ks" "$user_var=$alias" "$pass_var=$pass"
-  note "Exporting $mode APK -> $(basename "$apk")"
+  note "Exporting $mode APK ($preset_name) -> $(basename "$apk")"
   if [[ "$mode" == "release" ]]; then
     "$GODOT_BIN" --headless --audio-driver Dummy --path "$ROOT" \
-      --export-release "Android" "$apk"
+      --export-release "$preset_name" "$apk"
   else
     "$GODOT_BIN" --headless --audio-driver Dummy --path "$ROOT" \
-      --export-debug "Android" "$apk"
+      --export-debug "$preset_name" "$apk"
   fi
   unset "$path_var" "$user_var" "$pass_var"
   if [[ ! -s "$apk" ]]; then
@@ -120,8 +121,13 @@ export_one() {
   fi
 }
 
-export_one release "$release_apk" "$release_ks" "$release_alias" "$release_pass"
-export_one debug "$debug_apk" "$debug_ks" "$debug_alias" "$debug_pass"
+export_one release "Android" "$release_apk" "$release_ks" "$release_alias" "$release_pass"
+export_one debug "Android" "$debug_apk" "$debug_ks" "$debug_alias" "$debug_pass"
+
+profile_apk="$ROOT/build/profile/zombie-blaster-${tag}-android-profile.apk"
+mkdir -p "$(dirname "$profile_apk")"
+# Release template, not debug, so on-device frame times match the 30 fps target.
+export_one release "Android Profile" "$profile_apk" "$release_ks" "$release_alias" "$release_pass"
 
 aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort | tail -n 1)"
 apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort | tail -n 1)"
@@ -132,12 +138,13 @@ fi
 
 verify_apk() {
   local apk="$1"
+  local package="$2"
   local badging
   badging="$("$aapt" dump badging "$apk")"
   printf '%s\n' "$badging" | awk 'NR<=20 { print }'
   case "$badging" in
-    *"package: name='com.zombieblaster.game'"*) ;;
-    *) echo "$apk package name is not com.zombieblaster.game" >&2; exit 1 ;;
+    *"package: name='${package}'"*) ;;
+    *) echo "$apk package name is not ${package}" >&2; exit 1 ;;
   esac
   case "$badging" in
     *"native-code: 'arm64-v8a'"*) ;;
@@ -153,9 +160,12 @@ verify_apk() {
   note "$(basename "$apk"): $(wc -c < "$apk" | tr -d ' ') bytes"
 }
 
-verify_apk "$release_apk"
-verify_apk "$debug_apk"
-assert_project_data_packed "$release_apk"
-assert_project_data_packed "$debug_apk"
+verify_apk "$release_apk" "com.zombieblaster.game"
+verify_apk "$debug_apk" "com.zombieblaster.game"
+verify_apk "$profile_apk" "com.zombieblaster.game.profile"
+assert_project_data_packed "$release_apk" game
+assert_project_data_packed "$debug_apk" game
+assert_project_data_packed "$profile_apk" profile
 note "Android export finished: $release_apk"
 note "Android export finished: $debug_apk"
+note "Android export finished: $profile_apk"
