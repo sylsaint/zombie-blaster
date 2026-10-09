@@ -11,6 +11,7 @@ func test_draw_batches_do_not_grow_from_50_to_300() -> void:
 	add_child_autofree(view)
 	view.setup()
 	var material := view.shared_material
+	var grunt_mat := view.grunt_mm.material_override
 	for i in 50:
 		sim.spawn_at(EnemyPool.Archetype.GRUNT, float(i % 10) * 0.5, -float(i / 10), 20.0, 0.0, 0.4, 0.2)
 	view.sync(sim)
@@ -26,7 +27,8 @@ func test_draw_batches_do_not_grow_from_50_to_300() -> void:
 	assert_eq(view.logical_batch_count(), batches_50)
 	assert_gt(batches_50, 0)
 	assert_eq(view.shared_material, material)
-	assert_eq(view.grunt_mm.material_override, material)
+	assert_eq(view.grunt_mm.material_override, grunt_mat)
+	assert_eq(view.runner_mm.material_override, material)
 	assert_eq(view.elite_mm.material_override, material)
 	assert_eq(view.boss_mm.material_override, material)
 	assert_eq(view.grunt_mm.multimesh.instance_count, CrowdView.GRUNT_CAP)

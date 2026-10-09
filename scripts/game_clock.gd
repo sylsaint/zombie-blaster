@@ -1,6 +1,7 @@
 extends Node
-## Gameplay clock. Movement, VAT frames, bullets, flash, and dissolve read
-## gameplay_delta. UI, tweens, and camera shake keep using the real delta.
+## Gameplay clock. Movement, bullets, flash, and dissolve read gameplay_delta.
+## Walker VAT reads gameplay_time through the game_time shader uniform.
+## UI, tweens, and camera shake keep using the real delta.
 ## This never writes Engine.time_scale.
 
 
@@ -88,11 +89,18 @@ func advance(real_delta: float) -> float:
 		produced = _integrate_motion(left)
 	gameplay_delta = produced
 	gameplay_time += produced
+	_publish_game_time()
 	if _hit_stop_left > 0.0 and left <= 0.0:
 		scale = 0.0
 	else:
 		scale = _motion_scale()
 	return produced
+
+
+func _publish_game_time() -> void:
+	# Declared in project.godot. get_list/add are editor-only and the GLES3
+	# driver errors if add runs against a name that already exists.
+	RenderingServer.global_shader_parameter_set("game_time", gameplay_time)
 
 
 func _motion_scale() -> float:

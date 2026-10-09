@@ -15,5 +15,6 @@ bullet_speed = 30.0
 bullet_range = 30.0
 pierce = 0
 explosion_radius = 2.0
-body_mesh_path = "res://assets/models/chr_soldier_body_t3.glb"
+body_mesh_path = "res://assets/models/chr_soldier_c.glb"
 weapon_mesh_path = "res://assets/models/wpn_rocket.glb"
+muzzle_offset = Vector3(0.33, 0.59, -1.086)

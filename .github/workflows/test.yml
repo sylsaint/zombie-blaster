@@ -37,6 +37,11 @@ jobs:
           fi
           echo "GODOT=${{ runner.temp }}/godot/godot" >> "$GITHUB_ENV"
 
+      - name: Verify glb art contract
+        run: |
+          python3 -m pip install --disable-pip-version-check numpy
+          python3 tools/art/verify_glb.py assets/models/*.glb
+
       - name: Import project
         run: |
           "$GODOT" --headless --path . --import
