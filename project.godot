@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="Zombie Blaster"
+config/name="高速打僵尸"
 config/version="0.1.0"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"

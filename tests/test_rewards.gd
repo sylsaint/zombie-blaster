@@ -657,7 +657,7 @@ func test_ac_sq_06_fail_screen_appears_while_gameplay_clock_is_frozen() -> void:
 func test_portrait_theme_font_slots_are_empty() -> void:
 	assert_eq(ProjectSettings.get_setting("display/window/size/viewport_width"), 1080)
 	assert_eq(ProjectSettings.get_setting("display/window/size/viewport_height"), 1920)
-	assert_eq(GameTitle.TEXT, "ZOMBIE BLASTER")
+	assert_eq(GameTitle.TEXT, "高速打僵尸")
 	assert_eq(str(ProjectSettings.get_setting("gui/theme/custom")), "res://assets/ui/game_theme.tres")
 	assert_true(FileAccess.file_exists("res://assets/ui/game_theme.tres"))
 	var theme := load("res://assets/ui/game_theme.tres") as Theme
@@ -719,7 +719,7 @@ func test_portrait_theme_font_slots_are_empty() -> void:
 	assert_eq((menu.get_node("%Meta/Attack") as Label).theme_type_variation, &"StatLabel")
 	assert_eq((menu.get_node("%Meta/Wallet") as Label).theme_type_variation, &"StatLabel")
 	assert_eq((menu.get_node("%Meta/Upgrade") as Button).theme_type_variation, &"UpgradeButton")
-	assert_eq((menu.get_node("%Title") as Label).text, GameTitle.TEXT)
+	assert_eq((menu.get_node("%Title") as Label).text, "高速打僵尸")
 
 
 func test_release_exclude_keeps_menu_and_level_select() -> void:
