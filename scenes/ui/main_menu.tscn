@@ -35,7 +35,7 @@ theme_override_constants/separation = 36
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Display"
-text = "ZOMBIE BLASTER"
+text = "高速打僵尸"
 horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="Margin/Sheet/Column"]

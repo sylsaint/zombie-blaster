@@ -1,6 +1,6 @@
 # 真机压测（Android Profile APK）
 
-这个包用 **release 导出模板**，不是 debug。包名是 `com.zombieblaster.game.profile`，和正式包 `com.zombieblaster.game` 可以同时装。启动器名字是 **Zombie Blaster Profile**。
+这个包用 **release 导出模板**，不是 debug。包名是 `com.zombieblaster.game.profile`，和正式包 `com.zombieblaster.game` 可以同时装。启动器名字是 **高速打僵尸 Profile**。
 
 它只作为 Actions artifact `android-profile-apk` 上传。PR（改了 `.github/workflows/release.yml` 或 `export_presets.cfg`）和 `v*` 标签都会打这个包。**不会**挂到 GitHub Release。
 
@@ -13,7 +13,7 @@
 3. 解压 zip。
 4. 点 `zombie-blaster-<tag>-android-profile.apk`。
 5. 系统如果拦住，允许这个浏览器或文件管理器「安装未知应用」，再点一次 APK。
-6. 打开 **Zombie Blaster Profile**。不要打开正式的 Zombie Blaster。
+6. 打开 **高速打僵尸 Profile**。不要打开正式的 **高速打僵尸**。
 
 电脑上也可以 `adb install -r` 同一个 APK。
 

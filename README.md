@@ -1,4 +1,6 @@
-# 僵尸开炮（Zombie Blaster）
+# 高速打僵尸
+
+仓库名仍是 `zombie-blaster`。主菜单、Android 启动器和 iOS 显示名是 **高速打僵尸**。包名仍是 `com.zombieblaster.game`（Profile 包是 `com.zombieblaster.game.profile`，启动器名字 **高速打僵尸 Profile**）。
 
 竖屏手机车道射击的工程骨架：左右拖动小队，穿过给兵或升级武器的门，迎面是尸潮、精英和 Boss。按关卡推进并发放奖励。
 
@@ -44,7 +46,7 @@ GitHub Actions（`.github/workflows/test.yml`）在 push 和 pull request 上安
 1. 用编辑器下载与 4.7.2 匹配的 **Export Templates**（Editor → Manage Export Templates）。
 2. 导出预设 **Android** 已经写在 `export_presets.cfg`：
    - arm64-v8a APK（`gradle_build` 关闭）
-   - 包名 `com.zombieblaster.game`，版本名 `0.1.0`，version code `1`
+   - 包名 `com.zombieblaster.game`，启动器名字 **高速打僵尸**（release 和 debug 共用这个预设），版本名 `0.1.0`，version code `1`
    - 沉浸式竖屏。朝向来自项目设置，不在预设里再写一遍
    - 未填写任何 keystore 路径或密码
    - 图标指向 `assets/branding/`（adaptive 前景/背景 432×432、主图标 192×192，iOS 1024）。启动图是 `project.godot` 里的 `boot_splash/image`（`splash_1080x1920.png`）
@@ -58,7 +60,7 @@ GitHub Actions（`.github/workflows/test.yml`）在 push 和 pull request 上安
 
 ## 发版
 
-推送 `v*` 标签会跑 `.github/workflows/release.yml`：打 arm64 的 release / debug APK，并在有苹果签名 Secrets 时打 IPA，挂到 GitHub Release。同一条流水线还会打 release 模板的 profile APK（包名 `com.zombieblaster.game.profile`），只上传 artifact，不进 Release。普通推送到 `master` 不会触发这条流水线。改这个 workflow 或 `export_presets.cfg` 的 pull request 只上传 Android APK artifact，不发 Release。手动 `workflow_dispatch` 同样只上传 artifact。没有 iOS Secrets 时 iOS job 跳过签名并上传未签名的 Xcode 工程，流水线保持绿色。步骤和 Secrets 在 [docs/tech/release.md](docs/tech/release.md)，真机压测在 [docs/qa/device-test.md](docs/qa/device-test.md)。
+推送 `v*` 标签会跑 `.github/workflows/release.yml`：打 arm64 的 release / debug APK，并在有苹果签名 Secrets 时打 IPA，挂到 GitHub Release。同一条流水线还会打 release 模板的 profile APK（包名 `com.zombieblaster.game.profile`，启动器名字 **高速打僵尸 Profile**），只上传 artifact，不进 Release。普通推送到 `master` 不会触发这条流水线。改这个 workflow 或 `export_presets.cfg` 的 pull request 只上传 Android APK artifact，不发 Release。手动 `workflow_dispatch` 同样只上传 artifact。没有 iOS Secrets 时 iOS job 跳过签名并上传未签名的 Xcode 工程，流水线保持绿色。步骤和 Secrets 在 [docs/tech/release.md](docs/tech/release.md)，真机压测在 [docs/qa/device-test.md](docs/qa/device-test.md)。
 
 ## 目录
 
