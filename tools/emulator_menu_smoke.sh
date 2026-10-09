@@ -73,30 +73,49 @@ read -r tap_play_x tap_play_y < <(map_tap "$play_x" "$play_y")
 read -r tap_level_x tap_level_y < <(map_tap "$level_x" "$level_y")
 note "Tap 开始 at ${tap_play_x},${tap_play_y} and 第 1 关 at ${tap_level_x},${tap_level_y}"
 
-adb logcat -c || true
+adb logcat -b all -c || true
 adb shell am start -n "${package}/com.godot.game.GodotAppLauncher"
 ready=0
-for _ in $(seq 1 90); do
-  if adb logcat -d | tr -d '\r' | grep -q 'MENU_READY'; then
+# First launch translates the arm64 libgodot_android.so. Give it several minutes.
+for i in $(seq 1 150); do
+  if adb logcat -d -b all | tr -d '\r' | grep -a -q 'MENU_READY'; then
     ready=1
     break
+  fi
+  if (( i % 15 == 0 )); then
+    pid_now="$(adb shell pidof "$package" 2>/dev/null | tr -d '\r' || true)"
+    note "still waiting for MENU_READY after $((i * 2))s pid=${pid_now:-missing}"
+    adb logcat -d -b all -t 40 -v time | tr -d '\r' | grep -a -E 'godot|Godot|zombieblaster|SCRIPT ERROR|FATAL|Fatal signal' | tail -n 20 || true
   fi
   sleep 2
 done
 # Let the GL surface present the canvas after the scene is ready.
-sleep 3
-adb exec-out screencap -p > "$out/menu.png"
-png_sig="$(head -c 8 "$out/menu.png" || true)"
-if [[ "$png_sig" != $'\x89PNG\r\n\x1a\n' ]]; then
-  echo "Menu screenshot is not a PNG" >&2
-  exit 1
+if [[ "$ready" -eq 1 ]]; then
+  sleep 3
 fi
+
+# adb exec-out screencap is binary, but some adb builds still mangle 0x0d.
+# A device-side file plus adb pull is the fallback when the stream is not a PNG.
+capture_screen() {
+  local dest="$1"
+  adb exec-out screencap -p > "$dest" || true
+  if python3 -c 'import sys; raise SystemExit(0 if open(sys.argv[1],"rb").read(8).startswith(b"\x89PNG") else 1)' "$dest"; then
+    return 0
+  fi
+  note "exec-out screencap for $(basename "$dest") was not a PNG ($(wc -c < "$dest" | tr -d ' ') bytes); pulling a device-side capture"
+  python3 -c 'import sys; d=open(sys.argv[1],"rb").read(24); print(d.hex())' "$dest" || true
+  adb shell screencap -p /sdcard/zb_smoke.png
+  adb pull /sdcard/zb_smoke.png "$dest"
+  adb shell rm -f /sdcard/zb_smoke.png
+}
+
+capture_screen "$out/menu.png"
 
 adb shell input tap "$tap_play_x" "$tap_play_y"
 sleep 2
 adb shell input tap "$tap_level_x" "$tap_level_y"
 sleep 15
-adb exec-out screencap -p > "$out/level1.png"
+capture_screen "$out/level1.png"
 
 pid="$(adb shell pidof "$package" 2>/dev/null | tr -d '\r' || true)"
 {
@@ -106,10 +125,9 @@ pid="$(adb shell pidof "$package" 2>/dev/null | tr -d '\r' || true)"
     adb logcat -d -v time --pid="${pid%% *}" || true
   fi
   echo "---- package and godot ----"
-  adb logcat -d -v time | tr -d '\r' | grep -E 'godot|Godot|com\.zombieblaster\.game|SCRIPT ERROR' || true
-  echo "---- crash buffer ----"
-  adb logcat -d -b crash -v time | tr -d '\r' | grep -E 'zombieblaster|godot|Godot|SCRIPT ERROR|Fatal signal' || true
+  adb logcat -d -b all -v time | tr -d '\r' | grep -a -E 'godot|Godot|com\.zombieblaster\.game|SCRIPT ERROR' || true
 } > "$out/logcat.txt"
+adb logcat -d -b crash -v time | tr -d '\r' > "$out/crash.txt" || true
 
 status=0
 if [[ "$ready" -ne 1 ]]; then
@@ -119,8 +137,12 @@ fi
 if ! python3 "$ROOT/tools/release/check_menu_screenshot.py" "$out/menu.png"; then
   status=1
 fi
-if grep -E 'SCRIPT ERROR|FATAL|Fatal signal' "$out/logcat.txt"; then
+if grep -a -E 'SCRIPT ERROR|FATAL|Fatal signal' "$out/logcat.txt"; then
   echo "logcat contains SCRIPT ERROR or FATAL" >&2
+  status=1
+fi
+if grep -a -E 'zombieblaster|godot|Godot' "$out/crash.txt"; then
+  echo "crash buffer names the app" >&2
   status=1
 fi
 exit "$status"
