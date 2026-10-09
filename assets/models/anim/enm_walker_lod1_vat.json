@@ -1,0 +1,71 @@
+{
+  "format": "zb-vat-1",
+  "model": "assets/models/enm_walker_lod1.glb",
+  "texture": "assets/models/anim/enm_walker_lod1_vat.exr",
+  "width": 116,
+  "height": 48,
+  "rows_per_frame": 1,
+  "fps": 30,
+  "clips": {
+    "walk": {
+      "start_row": 0,
+      "frame_count": 24,
+      "loop": true,
+      "action": "walk",
+      "ground": "plant",
+      "max_forward_reach_m": 0.5447,
+      "min_height_m": 0.0
+    },
+    "hit": {
+      "start_row": 24,
+      "frame_count": 8,
+      "loop": false,
+      "action": "hit",
+      "ground": "plant",
+      "max_forward_reach_m": 0.5365,
+      "min_height_m": 0.0
+    },
+    "death": {
+      "start_row": 32,
+      "frame_count": 16,
+      "loop": false,
+      "action": "death",
+      "ground": "plant",
+      "min_height_m": -0.00773
+    }
+  },
+  "encoding": {
+    "pixel": "RGBA16F (half) OpenEXR, ZIP lossless; texel RGB = position offset from the rest pose in glTF/Godot mesh space (Y up, facing -Z), metres; A = 1.0 (unused)",
+    "rows": "texel row = start_row + frame * rows_per_frame + block; row 0 = first (top) scanline = texelFetch y 0",
+    "uv2": "TEXCOORD_1 (Godot UV2): x = (column + 0.5) / width, y = block + 0.5 (0.5 when rows_per_frame == 1); column = floor(UV2.x * width), block = floor(UV2.y)",
+    "normals": "not baked; derive flat face normals in the fragment shader (dFdx/dFdy)"
+  },
+  "vertex_count": 364,
+  "columns": 116,
+  "meshes": [
+    {
+      "node": "enm_walker_lod1",
+      "vertices": 364
+    }
+  ],
+  "aabb": {
+    "min": [
+      -0.5552,
+      -0.0077,
+      -0.5447
+    ],
+    "max": [
+      0.6028,
+      1.6792,
+      1.9073
+    ],
+    "note": "union over rest + all frames (glTF space); use as custom_aabb (+margin)"
+  },
+  "max_abs_offset_m": 2.2304,
+  "root_motion": false,
+  "source": {
+    "script": "tools/art/bake_vat.py",
+    "rig_blend": "tools/art/vat_rigs/enm_walker_lod1.blend",
+    "baked": "2026-10-09 15:33 +0800"
+  }
+}

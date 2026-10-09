@@ -1,0 +1,231 @@
+assets/models/boss_mutant.glb
+  triangles: 1470   verts: 3065   meshes: 2   materials: 2 (['mat_palette', 'mat_weakpoint'])
+  bounds X -2.137..3.065  Y 0.000..5.518  Z -2.130..0.981
+  size (w x h x d): 5.202 x 5.518 x 3.111 m ; feet at Y=0.000
+  max forward reach (-Z) 2.130 m ; max behind (+Z) 0.981 m ; max side |X| 3.065 m
+  footprint half-width |X| max 3.065 m (left 2.137 / right 3.065) ; half-depth 2.130 m
+  centroid Z -0.647 (negative => reaches toward -Z)
+  UVs on swatch centres: True ; swatches (row,col): [(0, 5), (0, 6), (0, 7), (1, 0), (1, 1), (1, 3), (1, 4), (1, 7), (2, 3), (2, 6), (3, 0), (3, 1), (3, 2), (3, 6), (3, 7)]
+  samplers: [{'magFilter': 9728, 'minFilter': 9984}] ; images: 1
+  attributes: ['NORMAL', 'POSITION', 'TEXCOORD_0']
+  [PASS] tris 1470 <= 5000
+  [PASS] boss: nodes {'boss_mutant': ['mat_palette'], 'weakpoint': ['mat_weakpoint']}
+  [PASS] UVs on swatch centres
+  [PASS] no vertex colours (COLOR_n) 
+  [PASS] flat shading: 0/4410 vertex normals off the face normal
+  [PASS] degenerate (zero-area) triangles: 0
+assets/models/chr_soldier_a.glb
+  triangles: 364   verts: 760   meshes: 1   materials: 1 (['mat_palette'])
+  bounds X -0.428..0.505  Y 0.000..1.616  Z -0.610..0.385
+  size (w x h x d): 0.933 x 1.616 x 0.995 m ; feet at Y=0.000
+  max forward reach (-Z) 0.610 m ; max behind (+Z) 0.385 m ; max side |X| 0.505 m
+  footprint half-width |X| max 0.505 m (left 0.428 / right 0.505) ; half-depth 0.610 m
+  centroid Z -0.113 (negative => reaches toward -Z)
+  UVs on swatch centres: True ; swatches (row,col): [(0, 0), (0, 1), (0, 3), (0, 4), (0, 6), (1, 4), (3, 6), (3, 7)]
+  samplers: [{'magFilter': 9728, 'minFilter': 9984}] ; images: 1
+  attributes: ['NORMAL', 'POSITION', 'TEXCOORD_0']
+  [PASS] tris 364 <= 450
+  [PASS] single material mat_palette
+  [PASS] UVs on swatch centres
+  [PASS] no vertex colours (COLOR_n) 
+  [PASS] flat shading: 0/1092 vertex normals off the face normal
+  [PASS] degenerate (zero-area) triangles: 0
+assets/models/chr_soldier_b.glb
+  triangles: 410   verts: 828   meshes: 1   materials: 1 (['mat_palette'])
+  bounds X -0.428..0.505  Y 0.000..1.637  Z -0.610..0.407
+  size (w x h x d): 0.933 x 1.637 x 1.016 m ; feet at Y=0.000
+  max forward reach (-Z) 0.610 m ; max behind (+Z) 0.407 m ; max side |X| 0.505 m
+  footprint half-width |X| max 0.505 m (left 0.428 / right 0.505) ; half-depth 0.610 m
+  centroid Z -0.083 (negative => reaches toward -Z)
+  UVs on swatch centres: True ; swatches (row,col): [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (1, 4), (2, 0), (2, 1), (2, 4), (3, 6), (3, 7)]
+  samplers: [{'magFilter': 9728, 'minFilter': 9984}] ; images: 1
+  attributes: ['NORMAL', 'POSITION', 'TEXCOORD_0']
+  [PASS] tris 410 <= 450
+  [PASS] single material mat_palette
+  [PASS] UVs on swatch centres
+  [PASS] no vertex colours (COLOR_n) 
+  [PASS] flat shading: 0/1230 vertex normals off the face normal
+  [PASS] degenerate (zero-area) triangles: 0
+assets/models/chr_soldier_c.glb
+  triangles: 432   verts: 888   meshes: 1   materials: 1 (['mat_palette'])
+  bounds X -0.428..0.505  Y 0.000..1.691  Z -0.610..0.407
+  size (w x h x d): 0.933 x 1.691 x 1.016 m ; feet at Y=0.000
+  max forward reach (-Z) 0.610 m ; max behind (+Z) 0.407 m ; max side |X| 0.505 m
+  footprint half-width |X| max 0.505 m (left 0.428 / right 0.505) ; half-depth 0.610 m
+  centroid Z -0.067 (negative => reaches toward -Z)
+  UVs on swatch centres: True ; swatches (row,col): [(0, 0), (0, 1), (0, 2), (0, 3), (0, 6), (1, 4), (3, 6), (3, 7)]
+  samplers: [{'magFilter': 9728, 'minFilter': 9984}] ; images: 1
+  attributes: ['NORMAL', 'POSITION', 'TEXCOORD_0']
+  [PASS] tris 432 <= 450
+  [PASS] single material mat_palette
+  [PASS] UVs on swatch centres
+  [PASS] no vertex colours (COLOR_n) 
+  [PASS] flat shading: 0/1296 vertex normals off the face normal
+  [PASS] degenerate (zero-area) triangles: 0
+assets/models/enm_elite_brute.glb
+  triangles: 1272   verts: 2662   meshes: 1   materials: 1 (['mat_palette'])
+  bounds X -1.281..1.281  Y 0.000..2.644  Z -0.892..0.380
+  size (w x h x d): 2.562 x 2.644 x 1.273 m ; feet at Y=0.000
+  max forward reach (-Z) 0.892 m ; max behind (+Z) 0.380 m ; max side |X| 1.281 m
+  footprint half-width |X| max 1.281 m (left 1.281 / right 1.281) ; half-depth 0.892 m
+  centroid Z -0.295 (negative => reaches toward -Z)
+  UVs on swatch centres: True ; swatches (row,col): [(0, 5), (0, 6), (0, 7), (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (3, 6)]
+  samplers: [{'magFilter': 9728, 'minFilter': 9984}] ; images: 1
+  attributes: ['NORMAL', 'POSITION', 'TEXCOORD_0']
+  [PASS] tris 1272 <= 1500
+  [PASS] single material mat_palette
+  [PASS] UVs on swatch centres
+  [PASS] no vertex colours (COLOR_n) 
+  [PASS] flat shading: 0/3816 vertex normals off the face normal
+  [PASS] degenerate (zero-area) triangles: 0
+  [PASS] forward reach 0.892 <= 0.90 m
+assets/models/enm_runner.glb
+  triangles: 420   verts: 936   meshes: 1   materials: 1 (['mat_palette'])
+  bounds X -0.362..0.362  Y 0.000..1.594  Z -0.558..0.524
+  size (w x h x d): 0.724 x 1.594 x 1.082 m ; feet at Y=0.000
+  max forward reach (-Z) 0.558 m ; max behind (+Z) 0.524 m ; max side |X| 0.362 m
+  footprint half-width |X| max 0.362 m (left 0.362 / right 0.362) ; half-depth 0.558 m
+  centroid Z -0.119 (negative => reaches toward -Z)
+  UVs on swatch centres: True ; swatches (row,col): [(1, 1), (1, 2), (1, 3), (2, 6), (3, 0), (3, 1), (3, 6)]
+  samplers: [{'magFilter': 9728, 'minFilter': 9984}] ; images: 1
+  attributes: ['NORMAL', 'POSITION', 'TEXCOORD_0']
+  [PASS] tris 420 <= 450
+  [PASS] single material mat_palette
+  [PASS] UVs on swatch centres
+  [PASS] no vertex colours (COLOR_n) 
+  [PASS] flat shading: 0/1260 vertex normals off the face normal
+  [PASS] degenerate (zero-area) triangles: 0
+  [PASS] forward reach 0.558 <= 0.60 m
+assets/models/enm_runner_lod1.glb
+  triangles: 192   verts: 420   meshes: 1   materials: 1 (['mat_palette'])
+  bounds X -0.351..0.352  Y 0.000..1.499  Z -0.572..0.518
+  size (w x h x d): 0.704 x 1.499 x 1.090 m ; feet at Y=0.000
+  max forward reach (-Z) 0.572 m ; max behind (+Z) 0.518 m ; max side |X| 0.352 m
+  footprint half-width |X| max 0.352 m (left 0.351 / right 0.352) ; half-depth 0.572 m
+  centroid Z -0.096 (negative => reaches toward -Z)
+  UVs on swatch centres: True ; swatches (row,col): [(1, 2), (1, 3), (2, 6), (3, 0), (3, 1), (3, 6)]
+  samplers: [{'magFilter': 9728, 'minFilter': 9984}] ; images: 1
+  attributes: ['NORMAL', 'POSITION', 'TEXCOORD_0']
+  [PASS] tris 192 <= 200
+  [PASS] single material mat_palette
+  [PASS] UVs on swatch centres
+  [PASS] no vertex colours (COLOR_n) 
+  [PASS] flat shading: 0/576 vertex normals off the face normal
+  [PASS] degenerate (zero-area) triangles: 0
+  [PASS] forward reach 0.572 <= 0.60 m
+assets/models/enm_walker.glb
+  triangles: 364   verts: 776   meshes: 1   materials: 1 (['mat_palette'])
+  bounds X -0.413..0.413  Y 0.000..1.697  Z -0.543..0.206
+  size (w x h x d): 0.826 x 1.697 x 0.748 m ; feet at Y=0.000
+  max forward reach (-Z) 0.543 m ; max behind (+Z) 0.206 m ; max side |X| 0.413 m
+  footprint half-width |X| max 0.413 m (left 0.413 / right 0.413) ; half-depth 0.543 m
+  centroid Z -0.169 (negative => reaches toward -Z)
+  UVs on swatch centres: True ; swatches (row,col): [(0, 7), (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (2, 3), (2, 6), (3, 0), (3, 6)]
+  samplers: [{'magFilter': 9728, 'minFilter': 9984}] ; images: 1
+  attributes: ['NORMAL', 'POSITION', 'TEXCOORD_0']
+  [PASS] tris 364 <= 450
+  [PASS] single material mat_palette
+  [PASS] UVs on swatch centres
+  [PASS] no vertex colours (COLOR_n) 
+  [PASS] flat shading: 0/1092 vertex normals off the face normal
+  [PASS] degenerate (zero-area) triangles: 0
+  [PASS] forward reach 0.543 <= 0.60 m
+assets/models/enm_walker_lod1.glb
+  triangles: 166   verts: 364   meshes: 1   materials: 1 (['mat_palette'])
+  bounds X -0.417..0.416  Y 0.000..1.587  Z -0.508..0.207
+  size (w x h x d): 0.833 x 1.587 x 0.715 m ; feet at Y=0.000
+  max forward reach (-Z) 0.508 m ; max behind (+Z) 0.207 m ; max side |X| 0.417 m
+  footprint half-width |X| max 0.417 m (left 0.417 / right 0.416) ; half-depth 0.508 m
+  centroid Z -0.141 (negative => reaches toward -Z)
+  UVs on swatch centres: True ; swatches (row,col): [(1, 1), (1, 4), (2, 3), (2, 6), (3, 0), (3, 6)]
+  samplers: [{'magFilter': 9728, 'minFilter': 9984}] ; images: 1
+  attributes: ['NORMAL', 'POSITION', 'TEXCOORD_0']
+  [PASS] tris 166 <= 200
+  [PASS] single material mat_palette
+  [PASS] UVs on swatch centres
+  [PASS] no vertex colours (COLOR_n) 
+  [PASS] flat shading: 0/498 vertex normals off the face normal
+  [PASS] degenerate (zero-area) triangles: 0
+  [PASS] forward reach 0.508 <= 0.60 m
+assets/models/wpn_gatling.glb
+  triangles: 116   verts: 226   meshes: 1   materials: 1 (['mat_palette'])
+  bounds X 0.110..0.464  Y 0.389..0.752  Z -1.288..-0.162
+  size (w x h x d): 0.354 x 0.363 x 1.127 m ; feet at Y=0.389
+  max forward reach (-Z) 1.288 m ; max behind (+Z) -0.162 m ; max side |X| 0.464 m
+  footprint half-width |X| max 0.464 m (left -0.110 / right 0.464) ; half-depth 1.288 m
+  centroid Z -0.621 (negative => reaches toward -Z)
+  UVs on swatch centres: True ; swatches (row,col): [(0, 0), (0, 5), (0, 6), (3, 6)]
+  samplers: [{'magFilter': 9728, 'minFilter': 9984}] ; images: 1
+  attributes: ['NORMAL', 'POSITION', 'TEXCOORD_0']
+  [PASS] tris 116 <= 120
+  [PASS] single material mat_palette
+  [PASS] UVs on swatch centres
+  [PASS] no vertex colours (COLOR_n) 
+  [PASS] flat shading: 0/348 vertex normals off the face normal
+  [PASS] degenerate (zero-area) triangles: 0
+assets/models/wpn_pistol.glb
+  triangles: 60   verts: 120   meshes: 1   materials: 1 (['mat_palette'])
+  bounds X 0.271..0.372  Y 0.400..0.725  Z -0.728..-0.277
+  size (w x h x d): 0.101 x 0.325 x 0.451 m ; feet at Y=0.400
+  max forward reach (-Z) 0.728 m ; max behind (+Z) -0.277 m ; max side |X| 0.372 m
+  footprint half-width |X| max 0.372 m (left -0.271 / right 0.372) ; half-depth 0.728 m
+  centroid Z -0.486 (negative => reaches toward -Z)
+  UVs on swatch centres: True ; swatches (row,col): [(0, 4), (0, 5), (3, 6)]
+  samplers: [{'magFilter': 9728, 'minFilter': 9984}] ; images: 1
+  attributes: ['NORMAL', 'POSITION', 'TEXCOORD_0']
+  [PASS] tris 60 <= 120
+  [PASS] single material mat_palette
+  [PASS] UVs on swatch centres
+  [PASS] no vertex colours (COLOR_n) 
+  [PASS] flat shading: 0/180 vertex normals off the face normal
+  [PASS] degenerate (zero-area) triangles: 0
+assets/models/wpn_rifle.glb
+  triangles: 96   verts: 192   meshes: 1   materials: 1 (['mat_palette'])
+  bounds X 0.271..0.389  Y 0.374..0.761  Z -1.157..0.054
+  size (w x h x d): 0.118 x 0.387 x 1.210 m ; feet at Y=0.374
+  max forward reach (-Z) 1.157 m ; max behind (+Z) 0.054 m ; max side |X| 0.389 m
+  footprint half-width |X| max 0.389 m (left -0.271 / right 0.389) ; half-depth 1.157 m
+  centroid Z -0.539 (negative => reaches toward -Z)
+  UVs on swatch centres: True ; swatches (row,col): [(0, 0), (0, 4), (0, 5), (3, 6)]
+  samplers: [{'magFilter': 9728, 'minFilter': 9984}] ; images: 1
+  attributes: ['NORMAL', 'POSITION', 'TEXCOORD_0']
+  [PASS] tris 96 <= 120
+  [PASS] single material mat_palette
+  [PASS] UVs on swatch centres
+  [PASS] no vertex colours (COLOR_n) 
+  [PASS] flat shading: 0/288 vertex normals off the face normal
+  [PASS] degenerate (zero-area) triangles: 0
+assets/models/wpn_rocket.glb
+  triangles: 102   verts: 200   meshes: 1   materials: 1 (['mat_palette'])
+  bounds X 0.219..0.487  Y 0.427..0.749  Z -1.086..0.332
+  size (w x h x d): 0.267 x 0.322 x 1.418 m ; feet at Y=0.427
+  max forward reach (-Z) 1.086 m ; max behind (+Z) 0.332 m ; max side |X| 0.487 m
+  footprint half-width |X| max 0.487 m (left -0.219 / right 0.487) ; half-depth 1.086 m
+  centroid Z -0.349 (negative => reaches toward -Z)
+  UVs on swatch centres: True ; swatches (row,col): [(0, 1), (0, 4), (0, 5), (0, 6), (3, 1), (3, 6)]
+  samplers: [{'magFilter': 9728, 'minFilter': 9984}] ; images: 1
+  attributes: ['NORMAL', 'POSITION', 'TEXCOORD_0']
+  [PASS] tris 102 <= 120
+  [PASS] single material mat_palette
+  [PASS] UVs on swatch centres
+  [PASS] no vertex colours (COLOR_n) 
+  [PASS] flat shading: 0/306 vertex normals off the face normal
+  [PASS] degenerate (zero-area) triangles: 0
+assets/models/wpn_shotgun.glb
+  triangles: 96   verts: 192   meshes: 1   materials: 1 (['mat_palette'])
+  bounds X 0.261..0.400  Y 0.443..0.730  Z -1.240..0.067
+  size (w x h x d): 0.139 x 0.287 x 1.308 m ; feet at Y=0.443
+  max forward reach (-Z) 1.240 m ; max behind (+Z) 0.067 m ; max side |X| 0.400 m
+  footprint half-width |X| max 0.400 m (left -0.261 / right 0.400) ; half-depth 1.240 m
+  centroid Z -0.606 (negative => reaches toward -Z)
+  UVs on swatch centres: True ; swatches (row,col): [(0, 0), (0, 4), (0, 5), (0, 6), (3, 6)]
+  samplers: [{'magFilter': 9728, 'minFilter': 9984}] ; images: 1
+  attributes: ['NORMAL', 'POSITION', 'TEXCOORD_0']
+  [PASS] tris 96 <= 120
+  [PASS] single material mat_palette
+  [PASS] UVs on swatch centres
+  [PASS] no vertex colours (COLOR_n) 
+  [PASS] flat shading: 0/288 vertex normals off the face normal
+  [PASS] degenerate (zero-area) triangles: 0
+
+SUMMARY: 14 files, ALL PASS

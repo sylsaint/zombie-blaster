@@ -6,11 +6,13 @@ extends RefCounted
 const WALKER_PATH := "res://data/enemies/enm_walker_a.tres"
 const RUNNER_PATH := "res://data/enemies/enm_runner_a.tres"
 const ELITE_PATH := "res://data/enemies/enm_elite_brute.tres"
+const BOSS_PATH := "res://data/enemies/boss_mutant.tres"
 const STAGE_PATH := "res://data/stages/chapter1_combat.tres"
 
 static var _walker: EnemyArchetype
 static var _runner: EnemyArchetype
 static var _elite: EnemyArchetype
+static var _boss: EnemyArchetype
 static var _stages: StageTable
 
 
@@ -30,6 +32,12 @@ static func elite() -> EnemyArchetype:
 	if _elite == null:
 		_elite = load(ELITE_PATH) as EnemyArchetype
 	return _elite
+
+
+static func boss() -> EnemyArchetype:
+	if _boss == null:
+		_boss = load(BOSS_PATH) as EnemyArchetype
+	return _boss
 
 
 static func stages() -> StageTable:

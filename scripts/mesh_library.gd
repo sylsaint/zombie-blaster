@@ -1,7 +1,8 @@
 class_name ModelResolver
 extends RefCounted
 ## Resolves a data-driven mesh path. A missing glb stays on the greybox fallback.
-## Real drops: enm_walker.glb, enm_walker_lod1.glb, enm_runner.glb, enm_runner_lod1.glb.
+## Real drops: chr_soldier_a/b/c, wpn_*, enm_walker, enm_walker_lod1, enm_runner,
+## enm_runner_lod1, enm_elite_brute. The boss scene is instantiate_boss().
 
 
 const BOSS_MESH_PATH := "res://assets/models/boss_mutant.glb"
@@ -43,9 +44,16 @@ static func _find_mesh(resource: Resource) -> Mesh:
 	if resource is PackedScene:
 		var root := (resource as PackedScene).instantiate()
 		var found := _find_in_node(root)
+		var copy := _detach(found)
 		root.free()
-		return found
+		return copy
 	return null
+
+
+static func _detach(mesh: Mesh) -> Mesh:
+	if mesh == null:
+		return null
+	return mesh.duplicate() as Mesh
 
 
 static func _find_in_node(node: Node) -> Mesh:

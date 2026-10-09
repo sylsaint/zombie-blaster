@@ -56,6 +56,7 @@ func tick(gameplay_delta: float) -> void:
 	if profile != null:
 		hash.profile = profile
 	var dt := maxf(gameplay_delta, 0.0)
+	enemies.vat_time = float(clock.gameplay_time)
 	var ts := Time.get_ticks_usec()
 	var gate_z_before := squad.position.z
 	squad.tick(dt)
@@ -142,6 +143,9 @@ func _spawn_shots() -> void:
 	for shot in squad.consume_shots():
 		var origin: Vector3 = shot["origin"]
 		var offsets: PackedFloat32Array = shot["offsets"]
+		var muzzle := Vector3.ZERO
+		if shot.has("muzzle"):
+			muzzle = shot["muzzle"]
 		var pellets := offsets.size()
 		var spread := float(shot["spread"])
 		for i in pellets:
@@ -152,13 +156,15 @@ func _spawn_shots() -> void:
 			var dir := Vector3(sin(ang), 0.0, -cos(ang))
 			var speed := float(shot["speed"])
 			bullets.try_spawn(
-				origin.x + offsets[i],
-				origin.z,
+				origin.x + offsets[i] + muzzle.x,
+				origin.z + muzzle.z,
 				dir.x * speed,
 				dir.z * speed,
 				float(shot["damage"]),
 				int(shot["pierce"]),
-				float(shot["range"])
+				float(shot["range"]),
+				0,
+				origin.y + muzzle.y
 			)
 
 
@@ -444,7 +450,8 @@ func _maybe_split(bullet: int, enemy_id: int) -> void:
 			dmg,
 			pierce,
 			remain,
-			BulletPool.FLAG_SPLIT
+			BulletPool.FLAG_SPLIT,
+			bullets.y[bullet]
 		)
 		if child >= 0:
 			bullets.last_hit[child] = enemy_id

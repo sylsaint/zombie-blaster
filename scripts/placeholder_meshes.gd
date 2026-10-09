@@ -157,10 +157,14 @@ static func blob() -> ArrayMesh:
 
 
 static func triangle_count(mesh: Mesh) -> int:
-	if mesh == null or mesh.get_surface_count() == 0:
+	if mesh == null:
 		return 0
-	var indexes: PackedInt32Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX]
-	return indexes.size() / 3
+	var total := 0
+	for surface in mesh.get_surface_count():
+		var indexes: PackedInt32Array = mesh.surface_get_arrays(surface)[Mesh.ARRAY_INDEX]
+		if indexes != null:
+			total += indexes.size() / 3
+	return total
 
 
 class _Builder:

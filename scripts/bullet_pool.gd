@@ -8,6 +8,7 @@ const FLAG_SPLIT := 1
 
 var capacity: int = DEFAULT_CAPACITY
 var x := PackedFloat32Array()
+var y := PackedFloat32Array()
 var z := PackedFloat32Array()
 var prev_x := PackedFloat32Array()
 var prev_z := PackedFloat32Array()
@@ -27,6 +28,7 @@ var live_count: int = 0
 func _init(cap: int = DEFAULT_CAPACITY) -> void:
 	capacity = maxi(cap, 1)
 	x.resize(capacity)
+	y.resize(capacity)
 	z.resize(capacity)
 	prev_x.resize(capacity)
 	prev_z.resize(capacity)
@@ -44,12 +46,13 @@ func _init(cap: int = DEFAULT_CAPACITY) -> void:
 		last_hit[i] = -1
 
 
-func try_spawn(ox: float, oz: float, vel_x: float, vel_z: float, dmg: float, pierce_left: int, range_m: float, bullet_flags: int = 0) -> int:
+func try_spawn(ox: float, oz: float, vel_x: float, vel_z: float, dmg: float, pierce_left: int, range_m: float, bullet_flags: int = 0, oy: float = 1.05) -> int:
 	for i in capacity:
 		if alive[i] == 0:
 			alive[i] = 1
 			retire[i] = 0
 			x[i] = ox
+			y[i] = oy
 			z[i] = oz
 			prev_x[i] = ox
 			prev_z[i] = oz

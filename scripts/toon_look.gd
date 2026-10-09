@@ -16,6 +16,7 @@ var _base_shader: Shader
 var _toon_shader: Shader
 var _ramp: Texture2D
 var _outline_nodes: Array[MultiMeshInstance3D] = []
+var _extra_materials: Array[ShaderMaterial] = []
 
 
 func setup() -> void:
@@ -36,6 +37,14 @@ func setup() -> void:
 	apply()
 
 
+## Walker VAT materials follow the same cel and rim switch as the crowd.
+func track_material(mat: ShaderMaterial) -> void:
+	if mat == null or _extra_materials.has(mat):
+		return
+	_extra_materials.append(mat)
+	apply()
+
+
 func bind_outlines(nodes: Array) -> void:
 	_outline_nodes.clear()
 	for node in nodes:
@@ -47,7 +56,10 @@ func bind_outlines(nodes: Array) -> void:
 func apply() -> void:
 	var shader := _toon_shader if cel_enabled else _base_shader
 	var rim := 1.0 if rim_enabled else 0.0
-	for mat in [crowd_material, squad_material]:
+	var mats: Array[ShaderMaterial] = [crowd_material, squad_material]
+	for extra in _extra_materials:
+		mats.append(extra)
+	for mat in mats:
 		if mat == null:
 			continue
 		if mat.shader != shader:

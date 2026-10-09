@@ -6,7 +6,7 @@
 
 目录约定：
 
-- `assets/models/`：网格。杂兵目标约 300–500 三角面，精英 ≤1500，Boss ≤5000
+- `assets/models/`：网格。士兵和普通僵尸高模 ≤450，LOD1 ≤200，武器 ≤120，精英 ≤1500，Boss ≤5000
 - `assets/textures/`：调色板和顶点动画贴图。导入走 ETC2/ASTC
 - `assets/vfx/`：着色器。受击闪白和溶解走实例参数，不要为单个敌人换材质
 - `assets/ui/`：界面

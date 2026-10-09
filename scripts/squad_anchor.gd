@@ -236,6 +236,7 @@ func _emit_shot() -> void:
 		"spread": weapon.spread_degrees,
 		"offsets": offsets,
 		"origin": position,
+		"muzzle": weapon.muzzle_offset,
 		"split_level": split_level,
 		"split_count": WeaponMods.split_child_count(split_level),
 	})
