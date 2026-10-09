@@ -82,50 +82,55 @@ launch_app() {
   adb shell am start -n "${package}/com.godot.game.GodotAppLauncher"
 }
 
-launch_app
-ready=0
-restarts=0
-seen_pid=0
 # First launch translates the arm64 libgodot_android.so. Give it a couple of minutes.
 # grep -q on a live adb pipe trips pipefail (adb dies with SIGPIPE), so save the slice first.
-for i in $(seq 1 75); do
-  adb logcat -d -b main -v time -s godot:I Godot:V > "$out/logcat-live.txt" || true
-  if grep -a -q 'MENU_READY' "$out/logcat-live.txt"; then
-    ready=1
-    break
-  fi
-  pid_now="$(adb shell pidof "$package" 2>/dev/null | tr -d '\r' || true)"
-  if [[ -n "$pid_now" ]]; then
-    seen_pid=1
-  fi
-  died=0
-  if grep -a -q -E 'Force quitting Godot|!_start_success' "$out/logcat-live.txt"; then
-    died=1
-  fi
-  if [[ "$seen_pid" -eq 1 && -z "$pid_now" ]]; then
-    died=1
-  fi
-  if [[ "$died" -eq 1 && "$restarts" -lt 2 ]]; then
-    restarts=$((restarts + 1))
-    note "Godot exited during startup (restart ${restarts}); waiting for the package to settle"
-    tail -n 15 "$out/logcat-live.txt" || true
-    adb shell am force-stop "$package" || true
-    sleep 3
-    seen_pid=0
-    launch_app
+wait_for_menu() {
+  launch_app
+  ready=0
+  restarts=0
+  seen_pid=0
+  for i in $(seq 1 75); do
+    adb logcat -d -b main -v time -s godot:I Godot:V > "$out/logcat-live.txt" || true
+    if grep -a -q 'MENU_READY' "$out/logcat-live.txt"; then
+      ready=1
+      break
+    fi
+    pid_now="$(adb shell pidof "$package" 2>/dev/null | tr -d '\r' || true)"
+    if [[ -n "$pid_now" ]]; then
+      seen_pid=1
+    fi
+    died=0
+    if grep -a -q -E 'Force quitting Godot|!_start_success' "$out/logcat-live.txt"; then
+      died=1
+    fi
+    if [[ "$seen_pid" -eq 1 && -z "$pid_now" ]]; then
+      died=1
+    fi
+    if [[ "$died" -eq 1 && "$restarts" -lt 2 ]]; then
+      restarts=$((restarts + 1))
+      note "Godot exited during startup (restart ${restarts}); waiting for the package to settle"
+      tail -n 15 "$out/logcat-live.txt" || true
+      adb shell am force-stop "$package" || true
+      sleep 3
+      seen_pid=0
+      launch_app
+      sleep 2
+      continue
+    fi
+    if (( i % 15 == 0 )); then
+      note "still waiting for MENU_READY after $((i * 2))s pid=${pid_now:-missing} restarts=${restarts}"
+      tail -n 20 "$out/logcat-live.txt" || true
+    fi
     sleep 2
-    continue
+  done
+  # Let the GL surface present the canvas after the scene is ready.
+  if [[ "$ready" -eq 1 ]]; then
+    sleep 8
   fi
-  if (( i % 15 == 0 )); then
-    note "still waiting for MENU_READY after $((i * 2))s pid=${pid_now:-missing} restarts=${restarts}"
-    tail -n 20 "$out/logcat-live.txt" || true
-  fi
-  sleep 2
-done
-# Let the GL surface present the canvas after the scene is ready.
-if [[ "$ready" -eq 1 ]]; then
-  sleep 3
-fi
+}
+
+wait_for_menu
+release_ready="$ready"
 
 # adb exec-out screencap is binary, but some adb builds still mangle 0x0d.
 # A device-side file plus adb pull is the fallback when the stream is not a PNG.
@@ -150,6 +155,22 @@ adb shell input tap "$tap_level_x" "$tap_level_y"
 sleep 15
 capture_screen "$out/level1.png"
 
+# The release template can draw the 3D lane and still skip the canvas. Keep the
+# release screenshots, then install the debug template on the same emulator so
+# the artifact shows whether the missing menu is the release .so.
+if ! python3 "$ROOT/tools/release/check_menu_screenshot.py" "$out/menu.png"; then
+  cp "$out/logcat-live.txt" "$out/logcat-release.txt" || true
+  debug_apk="$(find "$ROOT/dist" -type f -name '*-android-debug.apk' | head -n 1)"
+  if [[ -n "$debug_apk" ]]; then
+    note "Release menu colors are missing. Installing $(basename "$debug_apk") for comparison."
+    adb shell am force-stop "$package" || true
+    adb install -r "$debug_apk"
+    wait_for_menu
+    capture_screen "$out/debug-menu.png"
+    python3 "$ROOT/tools/release/check_menu_screenshot.py" "$out/debug-menu.png" || true
+  fi
+fi
+
 pid="$(adb shell pidof "$package" 2>/dev/null | tr -d '\r' || true)"
 {
   echo "pid=${pid:-missing}"
@@ -163,7 +184,7 @@ pid="$(adb shell pidof "$package" 2>/dev/null | tr -d '\r' || true)"
 adb logcat -d -b crash -v time | tr -d '\r' > "$out/crash.txt" || true
 
 status=0
-if [[ "$ready" -ne 1 ]]; then
+if [[ "$release_ready" -ne 1 ]]; then
   echo "MENU_READY was not printed" >&2
   status=1
 fi

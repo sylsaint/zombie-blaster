@@ -253,7 +253,20 @@ func _show_menu() -> void:
 	_refresh_meta()
 	# The Android release smoke looks for this in logcat. The canvas can fail
 	# to draw while this still runs, so the screenshot check is separate.
+	# _ready is before the first layout, so the button rect is printed next frame.
 	print("MENU_READY")
+	get_tree().process_frame.connect(_print_menu_layout, CONNECT_ONE_SHOT)
+
+
+func _print_menu_layout() -> void:
+	var play_rect := Rect2()
+	var menu_visible := false
+	if menu_view != null:
+		menu_visible = menu_view.visible
+		var play := menu_view.get_node_or_null("%Play") as Control
+		if play != null:
+			play_rect = play.get_global_rect()
+	print("MENU_LAYOUT visible=%s rect=%s viewport=%s" % [menu_visible, play_rect, get_viewport().get_visible_rect()])
 
 
 func _show_select() -> void:
