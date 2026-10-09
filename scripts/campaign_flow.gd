@@ -38,11 +38,13 @@ func _ready() -> void:
 	store.path = save_path
 	profile = store.load_profile()
 	_show_menu()
-	# Refits the screens onto the visible viewport and replaces a theme that
-	# loaded but cannot draw (null panel texture, or a font with no title glyph).
-	var guard := UiVisibility.new()
-	guard.name = "UiVisibility"
-	add_child(guard)
+	# diag_nosafe keeps the scene's full-rect anchors and skips this refit.
+	if not OS.has_feature("diag_nosafe"):
+		# Refits the screens onto the visible viewport and replaces a theme that
+		# loaded but cannot draw (null panel texture, or a font with no title glyph).
+		var guard := UiVisibility.new()
+		guard.name = "UiVisibility"
+		add_child(guard)
 
 
 func _process(_delta: float) -> void:
