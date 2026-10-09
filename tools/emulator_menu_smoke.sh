@@ -76,9 +76,11 @@ note "Tap 开始 at ${tap_play_x},${tap_play_y} and 第 1 关 at ${tap_level_x},
 adb logcat -b all -c || true
 adb shell am start -n "${package}/com.godot.game.GodotAppLauncher"
 ready=0
-# First launch translates the arm64 libgodot_android.so. Give it several minutes.
-for i in $(seq 1 150); do
-  if adb logcat -d -b all | tr -d '\r' | grep -a -q 'MENU_READY'; then
+# First launch translates the arm64 libgodot_android.so. Give it a couple of minutes.
+# grep -q on a live adb pipe trips pipefail (adb dies with SIGPIPE), so save the slice first.
+for i in $(seq 1 60); do
+  adb logcat -d -b main -v time -s godot:I Godot:V > "$out/logcat-live.txt" || true
+  if grep -a -q 'MENU_READY' "$out/logcat-live.txt"; then
     ready=1
     break
   fi
