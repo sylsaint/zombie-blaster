@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Export release and debug APKs (arm64-v8a and x86_64), plus an arm64 profile APK.
+# Export arm64-v8a release and debug APKs, plus an arm64 profile APK.
+# Also export a CI-only x86_64 release APK for the emulator job. That file is
+# not the phone package: build/release stays arm64-only.
 # Release and profile use the release export template. Without the three
 # release keystore secrets, those APKs are signed with a generated debug
 # keystore so they can be installed. When all three secrets are set, they
@@ -174,6 +176,46 @@ mkdir -p "$(dirname "$profile_apk")"
 export_one release "Android Profile" "$profile_apk" "$release_ks" "$release_alias" "$release_pass"
 strip_baseline_profile "$profile_apk" "$release_ks" "$release_alias" "$release_pass"
 
+# Same Android preset, keystore, and baseline strip as the phone APK. The only
+# difference is the architecture, and that edit stays in this working copy.
+# The EXIT trap restores export_presets.cfg, so the committed preset stays arm64.
+smoke_apk="$ROOT/build/smoke/zombie-blaster-${tag}-android-smoke-x86_64.apk"
+mkdir -p "$(dirname "$smoke_apk")"
+python3 - "$preset" << 'PY'
+import re
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+text = path.read_text()
+start = text.find("[preset.0.options]")
+if start < 0:
+    raise SystemExit("export_presets.cfg is missing [preset.0.options]")
+end = text.find("\n[preset.", start + 1)
+if end < 0:
+    raise SystemExit("export_presets.cfg has no section after [preset.0.options]")
+section = text[start:end]
+
+def set_arch(body: str, name: str, value: str) -> str:
+    pattern = rf"(?m)^architectures/{re.escape(name)}=.*$"
+    updated, count = re.subn(pattern, f"architectures/{name}={value}", body, count=1)
+    if count != 1:
+        raise SystemExit(f"Android preset is missing architectures/{name}")
+    return updated
+
+section = set_arch(section, "armeabi-v7a", "false")
+section = set_arch(section, "arm64-v8a", "false")
+section = set_arch(section, "x86", "false")
+section = set_arch(section, "x86_64", "true")
+path.write_text(text[:start] + section + text[end:])
+rest = text[end:]
+if "architectures/arm64-v8a=true" not in rest or "architectures/x86_64=false" not in rest:
+    raise SystemExit("Refusing to export the smoke APK: the profile preset is no longer arm64-only")
+PY
+note "Exporting the CI-only x86_64 smoke APK. build/release stays arm64-only."
+export_one release "Android" "$smoke_apk" "$release_ks" "$release_alias" "$release_pass"
+strip_baseline_profile "$smoke_apk" "$release_ks" "$release_alias" "$release_pass"
+
 verify_apk() {
   local apk="$1"
   local package="$2"
@@ -184,17 +226,27 @@ verify_apk() {
     *"package: name='${package}'"*) ;;
     *) echo "$apk package name is not ${package}" >&2; exit 1 ;;
   esac
-  case "$badging" in
-    *"native-code:"*"'arm64-v8a'"*) ;;
-    *) echo "$apk is missing arm64-v8a" >&2; exit 1 ;;
-  esac
-  if [[ "${3:-}" == "x86_64" ]]; then
+  local abi="${3:-arm64}"
+  if [[ "$abi" == "arm64" ]]; then
     case "$badging" in
-      *"x86_64"*) ;;
-      *) echo "$apk is missing x86_64" >&2; exit 1 ;;
+      *"native-code: 'arm64-v8a'"*) ;;
+      *) echo "$apk is not arm64-v8a only" >&2; exit 1 ;;
     esac
-  elif [[ "$badging" == *x86_64* ]]; then
-    echo "$apk contains x86_64; this preset is arm64-v8a only." >&2
+    if [[ "$badging" == *x86_64* || "$badging" == *armeabi* || "$badging" == *"'x86'"* ]]; then
+      echo "$apk contains an ABI other than arm64-v8a" >&2
+      exit 1
+    fi
+  elif [[ "$abi" == "x86_64" ]]; then
+    case "$badging" in
+      *"native-code: 'x86_64'"*) ;;
+      *) echo "$apk is not x86_64 only" >&2; exit 1 ;;
+    esac
+    if [[ "$badging" == *arm64* || "$badging" == *armeabi* || "$badging" == *"'x86'"* ]]; then
+      echo "$apk smoke build contains an ABI other than x86_64" >&2
+      exit 1
+    fi
+  else
+    echo "unknown abi check '$abi'" >&2
     exit 1
   fi
   case "$badging" in
@@ -207,12 +259,15 @@ verify_apk() {
   note "$(basename "$apk"): $(wc -c < "$apk" | tr -d ' ') bytes"
 }
 
-verify_apk "$release_apk" "com.zombieblaster.game" x86_64
-verify_apk "$debug_apk" "com.zombieblaster.game" x86_64
-verify_apk "$profile_apk" "com.zombieblaster.game.profile"
+verify_apk "$release_apk" "com.zombieblaster.game" arm64
+verify_apk "$debug_apk" "com.zombieblaster.game" arm64
+verify_apk "$profile_apk" "com.zombieblaster.game.profile" arm64
+verify_apk "$smoke_apk" "com.zombieblaster.game" x86_64
 assert_project_data_packed "$release_apk" game
 assert_project_data_packed "$debug_apk" game
 assert_project_data_packed "$profile_apk" profile
+assert_project_data_packed "$smoke_apk" game
 note "Android export finished: $release_apk"
 note "Android export finished: $debug_apk"
 note "Android export finished: $profile_apk"
+note "Android export finished: $smoke_apk"

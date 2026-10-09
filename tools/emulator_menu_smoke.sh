@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Install the exported release APK on the booted emulator, screenshot the menu,
-# tap 开始 then 第 1 关, and screenshot level 1.
+# Install the CI-only x86_64 smoke APK on the booted emulator, screenshot the
+# menu, tap 开始 then 第 1 关, and screenshot level 1.
+# This is not the phone package. The arm64 release APK is a different artifact.
 # Runs under reactivecircus/android-emulator-runner (adb is already on PATH).
 # Godot draws UI in its own GL surface, so uiautomator has no button nodes.
 # Coordinates are the 1080x1920 viewport rects of %Play and %Level1.
@@ -10,9 +11,9 @@ ROOT="${GITHUB_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 out="$ROOT/build/emulator"
 mkdir -p "$out"
 
-apk="$(find "$ROOT/dist" -type f -name '*-android-release.apk' | head -n 1)"
+apk="$(find "$ROOT/dist" -type f -name '*-android-smoke-x86_64.apk' | head -n 1)"
 if [[ -z "$apk" ]]; then
-  echo "No *-android-release.apk under $ROOT/dist" >&2
+  echo "No *-android-smoke-x86_64.apk under $ROOT/dist" >&2
   exit 1
 fi
 
@@ -37,7 +38,12 @@ if ! adb install -r "$apk"; then
   exit 1
 fi
 note "device abi: $(adb shell getprop ro.product.cpu.abi | tr -d '\r')"
-note "package abi: $(adb shell dumpsys package "$package" | tr -d '\r' | awk '/primaryCpuAbi/{print; exit}')"
+package_abi="$(adb shell dumpsys package "$package" | tr -d '\r' | awk '/primaryCpuAbi/{print; exit}')"
+note "package abi: ${package_abi}"
+if [[ "$package_abi" != *x86_64* || "$package_abi" == *arm64* ]]; then
+  echo "Smoke APK is not running as x86_64 (${package_abi:-missing}). ARM translation would hide the canvas." >&2
+  exit 1
+fi
 
 # Pixel 2 is already 1080x1920. Forcing wm size or density relaunches the
 # activity while Godot is still creating the GL context, and the process dies.
@@ -84,7 +90,7 @@ launch_app() {
   adb shell am start -n "${package}/com.godot.game.GodotAppLauncher"
 }
 
-# First launch translates the arm64 libgodot_android.so. Give it a couple of minutes.
+# First launch still compiles shaders. Give it a couple of minutes.
 # grep -q on a live adb pipe trips pipefail (adb dies with SIGPIPE), so save the slice first.
 wait_for_menu() {
   launch_app
@@ -156,22 +162,6 @@ sleep 2
 adb shell input tap "$tap_level_x" "$tap_level_y"
 sleep 15
 capture_screen "$out/level1.png"
-
-# The release template can draw the 3D lane and still skip the canvas. Keep the
-# release screenshots, then install the debug template on the same emulator so
-# the artifact shows whether the missing menu is the release .so.
-if ! python3 "$ROOT/tools/release/check_menu_screenshot.py" "$out/menu.png"; then
-  cp "$out/logcat-live.txt" "$out/logcat-release.txt" || true
-  debug_apk="$(find "$ROOT/dist" -type f -name '*-android-debug.apk' | head -n 1)"
-  if [[ -n "$debug_apk" ]]; then
-    note "Release menu colors are missing. Installing $(basename "$debug_apk") for comparison."
-    adb shell am force-stop "$package" || true
-    adb install -r "$debug_apk"
-    wait_for_menu
-    capture_screen "$out/debug-menu.png"
-    python3 "$ROOT/tools/release/check_menu_screenshot.py" "$out/debug-menu.png" || true
-  fi
-fi
 
 pid="$(adb shell pidof "$package" 2>/dev/null | tr -d '\r' || true)"
 {
