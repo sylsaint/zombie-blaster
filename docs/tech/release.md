@@ -71,6 +71,16 @@ smoke APK 的工作副本额外带上 `--smoke-canvas`（正式预设的 `comman
 
 主场景的 3D 在根视口里，不在 `SubViewport`。`project.godot` 没有改这些项，有效值是引擎默认：`hdr_2d=false`，`transparent_background=false`，`scaling_3d/mode=0`（bilinear），`scaling_3d/scale=1`，`msaa_2d=0`，`msaa_3d=0`，`use_debanding=false`。
 
+x86_64 smoke 包在 swangle 上的测量：Godot 把菜单画进了视口纹理，`adb exec-out screencap` 没有截到。release 包不可调试，`run-as` 拿不到文件，`adb root` 拉下来的 PNG 和 logcat 里的比例一致。
+
+| 变体 | 引擎 `menu_ratio` | screencap `menu_ratio` |
+| --- | --- | --- |
+| 主菜单 | 0.0379（按钮像素 255,199,97） | 0.0000（按钮位置是地面色 127,99,48） |
+| 关掉 3D 车道和 WorldEnvironment | 0.0379（按钮像素仍是 255,199,97） | 0.0000 |
+| layer 100 的纯色 ColorRect | 0.9963（整屏 255,221,161） | 0.0000 |
+
+所以模拟器上缺的是截图这条路径，不是 Godot 没画 canvas。这仍然说明不了小米真机上的菜单问题，也不是修复。颜色检查不放宽，job 会继续因为 screencap 失败。
+
 查过 Godot 4.7 的 issue，没有一条对得上「release 模板在 Adreno 上只画 3D、不画 2D，debug 模板正常」。能对上 Adreno 的报告是 Vulkan / Mobile 渲染器的花屏或几何丢失（例如 [#115217](https://github.com/godotengine/godot/issues/115217)、[#120299](https://github.com/godotengine/godot/issues/120299)）。本工程桌面和手机都是 Compatibility（`gl_compatibility`），shader baker 也关着。字体和 text server 在 pck 里，debug 和 release 是同一份，所以不是资源被裁掉。
 
 如果去掉 profile 之后真机仍然只有 3D，剩下的差别就是 release 的 `libgodot_android.so`（优化和裁剪过的原生库）。那就要换自定义 release 模板，不是再改 pck。
