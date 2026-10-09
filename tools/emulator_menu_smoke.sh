@@ -37,8 +37,8 @@ if ! adb install -r "$apk"; then
   exit 1
 fi
 
-adb shell wm size 1080x1920 || true
-adb shell wm density 420 || true
+# Pixel 2 is already 1080x1920. Forcing wm size or density relaunches the
+# activity while Godot is still creating the GL context, and the process dies.
 size_text="$(adb shell wm size | tr -d '\r')"
 note "$size_text"
 screen_w=""
