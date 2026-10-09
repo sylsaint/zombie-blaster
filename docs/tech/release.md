@@ -6,8 +6,13 @@ Godot 版本钉在 `tools/godot.version`（当前 4.7.2 stable）。流水线是
 
 | 触发 | 做什么 |
 | --- | --- |
-| 推送 `v*` 标签，例如 `v0.1.0` | Android 和 iOS 都出包，并挂到**同名** GitHub Release |
-| Actions 里手动 `workflow_dispatch` | 只把包上传成 artifact，**不**创建 Release。可选输入 `artifact_tag` 用来拼文件名；留空时用 `manual-<短 SHA>` |
+| 推送 `v*` 标签，例如 `v0.1.0` | Android 和 iOS 都出包，并挂到**同名** GitHub Release。这是唯一会创建 Release 的路径 |
+| 改 `.github/workflows/release.yml` 或 `export_presets.cfg` 的 pull request | 只打 Android release / debug APK，上传成 artifact。不跑 iOS，不创建 Release |
+| Actions 里手动 `workflow_dispatch` | Android 和 iOS 都出包，只上传 artifact，**不**创建 Release。可选输入 `artifact_tag` 用来拼文件名；留空时用 `manual-<短 SHA>` |
+
+推送到 `master`（或其它分支）**不会**跑这条流水线。没有 `push.branches`。
+
+`GODOT_CACHE` 在 step 里写成 `$RUNNER_TEMP/godot-release-cache`。`runner` 上下文不能用在 job 级 `env` 上，step 里的 `path: ${{ runner.temp }}/...` 可以。`.github/workflows/test.yml` 的 `actionlint` job 会在每次 PR 上检查全部 workflow。
 
 文件名：
 
@@ -92,7 +97,7 @@ Job 跑在 `macos-latest`（镜像自带 Xcode）。先用 release 模板导出 
 
 有了 Apple Developer 账号之后，把上面四个 Secret 配齐即可，不用改流水线。
 
-发布 job 用 `needs: [android, ios]`，条件是 `always() && needs.android.result == 'success'`，并且只在 `v*` 标签推送时跑。iOS 失败或没有产物时，Release 仍然挂上 APK；IPA / 未签名 zip 有才附上（`fail_on_unmatched_files: false`）。`workflow_dispatch` 不创建 Release。
+发布 job 用 `needs: [android, ios]`，条件是 `always() && needs.android.result == 'success'`，并且只在 `v*` 标签推送时跑。iOS 失败或没有产物时，Release 仍然挂上 APK；IPA / 未签名 zip 有才附上（`fail_on_unmatched_files: false`）。pull request 不跑 iOS，也不创建 Release。`workflow_dispatch` 会跑 iOS，但不创建 Release。
 
 包名和 bundle id 都是 `com.zombieblaster.game`。iOS 最低版本 15.0（Godot 4.7 模板的下限），设备家族是 iPhone。
 
