@@ -33,4 +33,8 @@ var run_line: String = ""
 var total_line: String = ""
 var parts_line: String = ""
 var chest_line: String = ""
+## Fail hides the clear-coin line. The chest line is only there when it pays.
+var show_clear_line: bool = false
+var show_parts_line: bool = false
+var show_chest_line: bool = false
 var applied: bool = false

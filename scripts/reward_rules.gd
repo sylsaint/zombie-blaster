@@ -57,26 +57,32 @@ static func build(result: RunResult, profile: PlayerProfile) -> Settlement:
 		]
 		view.run_line = "局内金币  %d" % result.run_coins
 		view.total_line = "合计  %d" % view.payout_coins
+		view.show_clear_line = true
+		view.show_parts_line = true
 	else:
 		var progress := clampf(result.progress, 0.0, 1.0)
 		view.fail_coins = product_coins(result.base_clear_coins, result.fail_coin_ratio * progress)
 		view.payout_coins = view.fail_coins
 		view.clear_coins = 0
 		var pct := roundi(progress * 100.0)
-		view.clear_line = "通关金币  %d" % result.base_clear_coins
+		view.clear_line = ""
 		view.run_line = "进度  %d%%" % pct
 		view.total_line = "失败金币  %d" % view.fail_coins
+		view.show_clear_line = false
+		view.show_parts_line = false
 	view.grant_first_clear = view.won and not profile.has_first_clear(result.level_index)
 	view.parts = result.first_clear_parts if view.grant_first_clear else 0
-	view.parts_line = "首通零件  %d" % view.parts
+	view.parts_line = "首通零件  %d" % view.parts if view.show_parts_line else ""
+	# Chest is 2× the level's base clear coins. Run coins stay out of it.
 	var chest_base := chest_coins_for(result.base_clear_coins, result.three_star_chest_coin_multiplier)
 	view.chest_awarded = view.star_count == 3 and not profile.has_three_star(result.level_index)
+	view.show_chest_line = view.chest_awarded
 	if view.chest_awarded:
 		view.chest_coins = chest_base
 		view.chest_parts = result.three_star_chest_parts
 		view.chest_line = "三星宝箱  %d 金币 + %d 零件" % [view.chest_coins, view.chest_parts]
 	else:
-		view.chest_line = "三星宝箱  —"
+		view.chest_line = ""
 	view.can_retry = true
 	view.can_back = true
 	view.can_next = view.won and result.level_index + 1 <= LevelCatalog.PATHS.size()

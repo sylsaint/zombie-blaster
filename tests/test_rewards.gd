@@ -9,10 +9,15 @@ var _seq: int = 0
 
 func after_each() -> void:
 	for path in _paths:
-		if FileAccess.file_exists(path):
-			var dir := DirAccess.open("user://")
-			if dir != null:
-				dir.remove(path.get_file())
+		var dir := DirAccess.open("user://")
+		if dir == null:
+			continue
+		var suffixes: Array[String] = ["", SaveStore.BAK_SUFFIX, SaveStore.TMP_SUFFIX]
+		for suffix in suffixes:
+			var file_name: String = str(path) + suffix
+			file_name = file_name.get_file()
+			if dir.file_exists(file_name):
+				dir.remove(file_name)
 	_paths.clear()
 	var clock := get_node_or_null("/root/GameClock")
 	if clock != null and clock.hit_stop_remaining() > 0.0:
@@ -152,6 +157,7 @@ func test_ac_rw_01_results_screen_splits_chest_from_the_total() -> void:
 	assert_ne(total.get_parent(), chest.get_parent())
 	assert_eq(total.text, win.total_line)
 	assert_eq(chest.text, win.chest_line)
+	assert_true(chest.visible)
 	assert_true(chest.text.contains("200"))
 	assert_false(total.text.contains("200"))
 	assert_eq(screen.get_node("%Title").text, "胜利")
@@ -175,6 +181,11 @@ func test_ac_rw_01_results_screen_splits_chest_from_the_total() -> void:
 	var fail := RewardRules.build(_result(level, "lose", 0, 0, 0.5, 10), PlayerProfile.new())
 	screen.present(fail)
 	assert_eq(screen.get_node("%Title").text, "失败")
+	assert_false((screen.get_node("%ClearLine") as Label).visible)
+	assert_false((screen.get_node("%ClearLine") as Label).text.contains("通关金币"))
+	assert_true((screen.get_node("%RunLine") as Label).text.begins_with("进度"))
+	assert_true((screen.get_node("%TotalLine") as Label).text.begins_with("失败金币"))
+	assert_false((screen.get_node("%ChestLine") as Label).visible)
 	assert_true((screen.get_node("%Next") as Button).disabled)
 	assert_false((screen.get_node("%Retry") as Button).disabled)
 	assert_false((screen.get_node("%Back") as Button).disabled)
@@ -442,7 +453,8 @@ func test_ac_rw_05_upgrade_applies_next_run_apart_from_gate_and_skill_bonus() ->
 func test_ac_rw_06_clear_unlocks_the_next_level() -> void:
 	var flow := _flow(_scratch("unlock"))
 	assert_true(flow.menu_view.visible)
-	assert_eq(flow.menu_view.theme, GameTheme.load_theme())
+	assert_null(flow.menu_view.theme)
+	assert_eq(flow.menu_view.get_node("%Title").text, GameTitle.TEXT)
 	flow.menu_view.play_pressed.emit()
 	assert_true(flow.select_view.visible)
 	assert_false(flow.menu_view.visible)
@@ -565,13 +577,17 @@ func test_ac_rw_06_corrupt_and_old_save_do_not_crash() -> void:
 	file = FileAccess.open(path, FileAccess.WRITE)
 	file.store_string('{"version":99,"coins":8,"extra":{"nested":true},"attack_level":99}')
 	file.close()
+	var future_text := FileAccess.get_file_as_string(path)
 	var future := store.load_profile()
-	assert_eq(future.coins, 8)
-	assert_eq(future.attack_level, WeaponMods.META_ATTACK_CAP)
+	assert_eq(future.coins, 0)
+	assert_eq(future.attack_level, 0)
+	assert_false(store.save(future))
+	assert_eq(FileAccess.get_file_as_string(path), future_text)
 	var again := _flow(path)
-	assert_eq(again.profile.coins, 8)
+	assert_eq(again.profile.coins, 0)
 	again.begin_level(1)
-	assert_eq(again.host.session.sim.squad.meta_attack_levels, WeaponMods.META_ATTACK_CAP)
+	assert_eq(again.host.session.sim.squad.meta_attack_levels, 0)
+	assert_eq(FileAccess.get_file_as_string(path), future_text)
 
 
 func test_ac_sq_06_fail_results_within_one_gameplay_second() -> void:
@@ -618,21 +634,11 @@ func test_ac_sq_06_fail_screen_appears_while_gameplay_clock_is_frozen() -> void:
 	assert_eq(Engine.time_scale, 1.0)
 
 
-func test_portrait_theme_font_slots_are_empty() -> void:
+func test_portrait_uses_default_theme_and_placeholder_title() -> void:
 	assert_eq(ProjectSettings.get_setting("display/window/size/viewport_width"), 1080)
 	assert_eq(ProjectSettings.get_setting("display/window/size/viewport_height"), 1920)
-	var theme := GameTheme.load_theme()
-	assert_null(theme.default_font)
-	assert_eq(theme.get_type_variation_base(GameTheme.DISPLAY), &"Label")
-	assert_eq(theme.get_type_variation_base(GameTheme.BODY), &"Label")
-	assert_false(theme.has_font("font", GameTheme.DISPLAY))
-	assert_false(theme.has_font("font", GameTheme.BODY))
-	assert_true(theme.has_stylebox("normal", "Button"))
-	assert_true(theme.has_stylebox("hover", "Button"))
-	assert_true(theme.has_stylebox("pressed", "Button"))
-	assert_true(theme.has_stylebox("disabled", "Button"))
-	assert_true(theme.has_stylebox("focus", "Button"))
-	assert_true(theme.has_stylebox("panel", "PanelContainer"))
+	assert_eq(GameTitle.TEXT, "ZOMBIE BLASTER")
+	assert_false(FileAccess.file_exists("res://assets/ui/game_theme.tres"))
 	var dir := DirAccess.open("res://assets/ui")
 	assert_not_null(dir)
 	dir.list_dir_begin()
@@ -645,9 +651,311 @@ func test_portrait_theme_font_slots_are_empty() -> void:
 		"res://scenes/ui/results_screen.tscn",
 		"res://scenes/ui/main_menu.tscn",
 		"res://scenes/ui/level_select.tscn",
+		"res://scenes/ui/meta_panel.tscn",
 	]:
+		var text := FileAccess.get_file_as_string(scene_path)
+		assert_false(text.contains("theme_override_colors"))
+		assert_false(text.contains("theme_override_fonts"))
+		assert_false(text.contains("theme_override_font_sizes"))
+		assert_false(text.contains("Color("))
+		assert_false(text.contains("game_theme"))
 		var view := load(scene_path).instantiate() as Control
 		add_child_autofree(view)
-		assert_eq(view.theme, theme)
-		assert_almost_eq(view.anchor_right, 1.0, 0.001)
-		assert_almost_eq(view.anchor_bottom, 1.0, 0.001)
+		assert_null(view.theme)
+		_assert_named_controls(view)
+		if scene_path != "res://scenes/ui/meta_panel.tscn":
+			assert_almost_eq(view.anchor_right, 1.0, 0.001)
+			assert_almost_eq(view.anchor_bottom, 1.0, 0.001)
+	var menu := load("res://scenes/ui/main_menu.tscn").instantiate() as MainMenu
+	add_child_autofree(menu)
+	assert_eq((menu.get_node("%Title") as Label).text, "ZOMBIE BLASTER")
+
+
+func test_release_exclude_keeps_menu_and_level_select() -> void:
+	var text := FileAccess.get_file_as_string("res://export_presets.cfg")
+	var filters: Array[String] = []
+	for line in text.split("\n"):
+		if not line.begins_with("exclude_filter="):
+			continue
+		var raw := line.trim_prefix("exclude_filter=").strip_edges()
+		raw = raw.trim_prefix("\"").trim_suffix("\"")
+		for part in raw.split(","):
+			var pattern := part.strip_edges()
+			if not pattern.is_empty():
+				filters.append(pattern)
+	assert_gt(filters.size(), 0)
+	for scene_path in [
+		"scenes/ui/main_menu.tscn",
+		"scenes/ui/level_select.tscn",
+		"scenes/ui/results_screen.tscn",
+		"scenes/ui/meta_panel.tscn",
+	]:
+		assert_true(FileAccess.file_exists("res://" + scene_path))
+		for pattern in filters:
+			assert_false(scene_path.match(pattern))
+
+
+func test_qa_clear_coins_and_chest_use_base_only() -> void:
+	var level := LevelCatalog.load_index(1)
+	var profile := PlayerProfile.new()
+	var win := RewardRules.build(_result(level, "win", 20, 0, 1.0, 40), profile)
+	assert_eq(win.star_count, 3)
+	assert_almost_eq(win.star_multiplier, 1.5, 0.0001)
+	assert_eq(win.clear_coins, 150)
+	assert_eq(win.payout_coins, 190)
+	assert_eq(win.chest_coins, 200)
+	assert_eq(win.chest_coins, level.base_clear_coins * 2)
+	assert_ne(win.chest_coins, 200 + 40)
+	assert_true(win.show_chest_line)
+	var one := RewardRules.build(_result(level, "win", 10, 4, 1.0, 7), profile)
+	assert_eq(one.star_count, 1)
+	assert_eq(one.clear_coins, 100)
+	assert_eq(one.payout_coins, 107)
+	assert_eq(one.chest_coins, 0)
+	assert_false(one.show_chest_line)
+	var boss := LevelCatalog.load_index(3)
+	var chest := RewardRules.build(_result(boss, "win", 32, 0, 1.0, 99), profile)
+	assert_eq(boss.base_clear_coins, 140)
+	assert_eq(chest.clear_coins, 210)
+	assert_eq(chest.payout_coins, 309)
+	assert_eq(chest.chest_coins, 280)
+	assert_false(chest.total_line.contains("280"))
+
+
+func test_qa_first_clear_parts_are_five_or_fifteen() -> void:
+	var normal := LevelCatalog.load_index(1)
+	var second := LevelCatalog.load_index(2)
+	var boss := LevelCatalog.load_index(3)
+	assert_eq(normal.first_clear_parts, 5)
+	assert_eq(second.first_clear_parts, 5)
+	assert_eq(boss.first_clear_parts, 15)
+	var profile := PlayerProfile.new()
+	var first := RewardRules.build(_result(normal, "win", 10, 4, 1.0, 0), profile)
+	assert_eq(first.parts, 5)
+	RewardRules.apply(profile, first)
+	var again := RewardRules.build(_result(normal, "win", 20, 0, 1.0, 0), profile)
+	assert_eq(again.parts, 0)
+	var mid := RewardRules.build(_result(second, "win", 10, 4, 1.0, 0), profile)
+	assert_eq(mid.parts, 5)
+	RewardRules.apply(profile, mid)
+	var boss_clear := RewardRules.build(_result(boss, "win", 10, 4, 1.0, 0), profile)
+	assert_eq(boss_clear.parts, 15)
+	assert_false(boss_clear.chest_awarded)
+	RewardRules.apply(profile, boss_clear)
+	var boss_again := RewardRules.build(_result(boss, "win", 32, 0, 1.0, 0), profile)
+	assert_eq(boss_again.parts, 0)
+
+
+func test_qa_boss_failure_on_level_3_pays_full_thirty_percent() -> void:
+	var source := LevelCatalog.load_index(3)
+	assert_eq(source.base_clear_coins, 140)
+	assert_almost_eq(source.fail_coin_ratio, 0.3, 0.0001)
+	var level := source.duplicate(true) as LevelData
+	var found := false
+	for event in level.events:
+		if event.kind == "boss":
+			event.distance = 0.0
+			found = true
+	assert_true(found)
+	var clock = autofree(_Clock.new())
+	var session := LevelSession.new()
+	session.start(level, clock)
+	session.tick(0.05)
+	assert_ne(session.boss, null)
+	assert_almost_eq(session.progress_ratio(), 1.0, 0.001)
+	session.sim.squad.count = 0
+	session.tick(0.01)
+	assert_eq(session.result.outcome, "lose")
+	assert_almost_eq(session.result.progress, 1.0, 0.001)
+	assert_eq(session.result.base_clear_coins, 140)
+	var view := RewardRules.build(session.result, PlayerProfile.new())
+	assert_eq(view.fail_coins, 42)
+	assert_eq(view.payout_coins, 42)
+	assert_eq(view.parts, 0)
+	assert_false(view.chest_awarded)
+	assert_false(view.show_clear_line)
+	var untouched := LevelCatalog.load_index(3)
+	var boss_distance := -1.0
+	for event in untouched.events:
+		if event.kind == "boss":
+			boss_distance = event.distance
+	assert_almost_eq(boss_distance, 400.0, 0.001)
+
+
+func test_qa_three_star_chest_is_not_tied_to_first_clear() -> void:
+	var level := LevelCatalog.load_index(1)
+	var profile := PlayerProfile.new()
+	var one := RewardRules.build(_result(level, "win", 10, 4, 1.0, 3), profile)
+	assert_eq(one.star_count, 1)
+	assert_true(one.grant_first_clear)
+	assert_eq(one.parts, 5)
+	assert_false(one.chest_awarded)
+	assert_eq(one.chest_coins, 0)
+	assert_false(one.show_chest_line)
+	RewardRules.apply(profile, one)
+	assert_true(profile.has_first_clear(1))
+	assert_false(profile.has_three_star(1))
+	var three := RewardRules.build(_result(level, "win", 20, 1, 1.0, 9), profile)
+	assert_eq(three.star_count, 3)
+	assert_false(three.grant_first_clear)
+	assert_eq(three.parts, 0)
+	assert_true(three.chest_awarded)
+	assert_eq(three.chest_coins, 200)
+	assert_eq(three.chest_parts, 5)
+	assert_eq(three.payout_coins, 150 + 9)
+	assert_true(three.show_chest_line)
+	RewardRules.apply(profile, three)
+	assert_true(profile.has_three_star(1))
+	assert_eq(profile.parts, 10)
+	var replay := RewardRules.build(_result(level, "win", 20, 0, 1.0, 1), profile)
+	assert_eq(replay.star_count, 3)
+	assert_false(replay.chest_awarded)
+	assert_eq(replay.chest_coins, 0)
+	assert_false(replay.show_chest_line)
+	var coins := profile.coins
+	RewardRules.apply(profile, replay)
+	assert_eq(profile.coins, coins + replay.payout_coins)
+	assert_eq(profile.parts, 10)
+
+
+func test_qa_attack_costs_for_the_first_five_levels() -> void:
+	assert_eq(MetaUpgrade.cost_for_level(1), 50)
+	assert_eq(MetaUpgrade.cost_for_level(2), 60)
+	assert_eq(MetaUpgrade.cost_for_level(3), 70)
+	assert_eq(MetaUpgrade.cost_for_level(4), 90)
+	assert_eq(MetaUpgrade.cost_for_level(5), 120)
+	var profile := PlayerProfile.new()
+	profile.coins = 50 + 60 + 70 + 90 + 120
+	var costs: Array[int] = [50, 60, 70, 90, 120]
+	for cost in costs:
+		assert_eq(MetaUpgrade.next_cost(profile.attack_level), cost)
+		assert_true(MetaUpgrade.try_buy(profile))
+	assert_eq(profile.attack_level, 5)
+	assert_eq(profile.coins, 0)
+
+
+func test_qa_bad_save_falls_back_without_touching_backup() -> void:
+	var path := _scratch("fallback")
+	var store := SaveStore.new()
+	store.path = path
+	var older := PlayerProfile.new()
+	older.coins = 15
+	older.parts = 3
+	assert_true(store.save(older))
+	var newer := PlayerProfile.new()
+	newer.coins = 40
+	assert_true(store.save(newer))
+	var bak := FileAccess.get_file_as_string(path + SaveStore.BAK_SUFFIX)
+	assert_true(bak.contains("\"coins\": 15"))
+	for bad in ["", "   \n", "{", "{\"version\":1,\"coins\":", "null", "[1,2]", "{ this is not json"]:
+		var file := FileAccess.open(path, FileAccess.WRITE)
+		file.store_string(bad)
+		file.close()
+		var loaded := store.load_profile()
+		assert_eq(loaded.coins, 15)
+		assert_eq(loaded.parts, 3)
+		assert_eq(FileAccess.get_file_as_string(path + SaveStore.BAK_SUFFIX), bak)
+		assert_true(store.save(loaded))
+		assert_eq(FileAccess.get_file_as_string(path + SaveStore.BAK_SUFFIX), bak)
+		assert_true(FileAccess.get_file_as_string(path).contains("\"coins\": 15"))
+	var dir := DirAccess.open("user://")
+	dir.remove(path.get_file())
+	var from_bak := store.load_profile()
+	assert_eq(from_bak.coins, 15)
+	assert_eq(FileAccess.get_file_as_string(path + SaveStore.BAK_SUFFIX), bak)
+	var junk_main := "{"
+	var junk_bak := "trunc"
+	var main_file := FileAccess.open(path, FileAccess.WRITE)
+	main_file.store_string(junk_main)
+	main_file.close()
+	var bak_file := FileAccess.open(path + SaveStore.BAK_SUFFIX, FileAccess.WRITE)
+	bak_file.store_string(junk_bak)
+	bak_file.close()
+	var fresh := store.load_profile()
+	assert_eq(fresh.coins, 0)
+	assert_eq(fresh.unlocked_through, 1)
+	assert_eq(FileAccess.get_file_as_string(path), junk_main)
+	assert_eq(FileAccess.get_file_as_string(path + SaveStore.BAK_SUFFIX), junk_bak)
+
+
+func test_qa_old_save_migrates_and_newer_save_is_kept() -> void:
+	var path := _scratch("versions")
+	var store := SaveStore.new()
+	store.path = path
+	var old_text := '{"version":0,"gold":40,"weapon_parts":7,"attack":2,"progress":2,"cleared":[true,false,false],"three_star":{"3":true}}'
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(old_text)
+	file.close()
+	var migrated := store.load_profile()
+	assert_eq(migrated.coins, 40)
+	assert_eq(migrated.parts, 7)
+	assert_eq(migrated.attack_level, 2)
+	assert_eq(migrated.unlocked_through, 2)
+	assert_true(migrated.has_first_clear(1))
+	assert_false(migrated.has_first_clear(2))
+	assert_true(migrated.has_three_star(3))
+	assert_true(store.save(migrated))
+	var written: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	assert_eq(typeof(written), TYPE_DICTIONARY)
+	var written_data: Dictionary = written
+	assert_eq(int(written_data["version"]), SaveStore.VERSION)
+	assert_eq(int(written_data["coins"]), 40)
+	assert_eq(int(written_data["parts"]), 7)
+	assert_eq(FileAccess.get_file_as_string(path + SaveStore.BAK_SUFFIX), old_text)
+	var future := '{"version":99,"coins":8,"extra":{"nested":true},"attack_level":99}'
+	file = FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(future)
+	file.close()
+	var bak_now := FileAccess.get_file_as_string(path + SaveStore.BAK_SUFFIX)
+	var loaded := store.load_profile()
+	assert_eq(loaded.coins, 0)
+	assert_eq(loaded.parts, 0)
+	assert_eq(loaded.attack_level, 0)
+	assert_eq(loaded.unlocked_through, 1)
+	loaded.coins = 123
+	assert_false(store.save(loaded))
+	assert_eq(FileAccess.get_file_as_string(path), future)
+	assert_eq(FileAccess.get_file_as_string(path + SaveStore.BAK_SUFFIX), bak_now)
+	assert_false(FileAccess.file_exists(path + SaveStore.TMP_SUFFIX))
+
+
+func test_qa_save_writes_are_atomic_and_ignore_stale_tmp() -> void:
+	var path := _scratch("atomic")
+	var store := SaveStore.new()
+	store.path = path
+	var first := PlayerProfile.new()
+	first.coins = 11
+	first.parts = 2
+	assert_true(store.save(first))
+	assert_true(FileAccess.file_exists(path))
+	assert_false(FileAccess.file_exists(path + SaveStore.TMP_SUFFIX))
+	var tmp := FileAccess.open(path + SaveStore.TMP_SUFFIX, FileAccess.WRITE)
+	tmp.store_string('{"version":1,"coins":999}')
+	tmp.close()
+	var loaded := store.load_profile()
+	assert_eq(loaded.coins, 11)
+	assert_eq(loaded.parts, 2)
+	assert_eq(FileAccess.get_file_as_string(path + SaveStore.TMP_SUFFIX), '{"version":1,"coins":999}')
+	loaded.coins = 22
+	assert_true(store.save(loaded))
+	assert_false(FileAccess.file_exists(path + SaveStore.TMP_SUFFIX))
+	assert_true(FileAccess.file_exists(path + SaveStore.BAK_SUFFIX))
+	var main: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	var bak: Variant = JSON.parse_string(FileAccess.get_file_as_string(path + SaveStore.BAK_SUFFIX))
+	assert_eq(typeof(main), TYPE_DICTIONARY)
+	assert_eq(typeof(bak), TYPE_DICTIONARY)
+	var main_data: Dictionary = main
+	var bak_data: Dictionary = bak
+	assert_eq(int(main_data["coins"]), 22)
+	assert_eq(int(main_data["version"]), SaveStore.VERSION)
+	assert_eq(int(bak_data["coins"]), 11)
+	assert_eq(int(bak_data["parts"]), 2)
+
+
+func _assert_named_controls(node: Node) -> void:
+	if node is Control:
+		var control := node as Control
+		var named := not str(node.name).is_empty() and not str(node.name).begins_with("@")
+		assert_true(named or control.theme_type_variation != StringName())
+	for child in node.get_children():
+		_assert_named_controls(child)

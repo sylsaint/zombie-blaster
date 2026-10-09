@@ -1,10 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://scripts/meta_panel.gd" id="1_meta"]
-[ext_resource type="Theme" path="res://assets/ui/game_theme.tres" id="2_theme"]
 
 [node name="MetaPanel" type="VBoxContainer"]
-theme = ExtResource("2_theme")
 theme_override_constants/separation = 16
 script = ExtResource("1_meta")
 

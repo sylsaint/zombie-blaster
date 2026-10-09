@@ -1,7 +1,6 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/main_menu.gd" id="1_menu"]
-[ext_resource type="Theme" path="res://assets/ui/game_theme.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://scenes/ui/meta_panel.tscn" id="3_meta"]
 
 [node name="MainMenu" type="Control"]
@@ -11,18 +10,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme = ExtResource("2_theme")
 script = ExtResource("1_menu")
-
-[node name="Dimmer" type="ColorRect" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 0
-color = Color(0.05, 0.07, 0.1, 0.55)
 
 [node name="Margin" type="MarginContainer" parent="."]
 layout_mode = 1
@@ -36,31 +24,35 @@ theme_override_constants/margin_top = 160
 theme_override_constants/margin_right = 72
 theme_override_constants/margin_bottom = 120
 
-[node name="Column" type="VBoxContainer" parent="Margin"]
+[node name="Sheet" type="PanelContainer" parent="Margin"]
+layout_mode = 2
+
+[node name="Column" type="VBoxContainer" parent="Margin/Sheet"]
 layout_mode = 2
 theme_override_constants/separation = 36
 
-[node name="Title" type="Label" parent="Margin/Column"]
+[node name="Title" type="Label" parent="Margin/Sheet/Column"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"Display"
-text = "僵尸开炮"
+text = "ZOMBIE BLASTER"
 horizontal_alignment = 1
 
-[node name="Subtitle" type="Label" parent="Margin/Column"]
+[node name="Subtitle" type="Label" parent="Margin/Sheet/Column"]
 layout_mode = 2
 theme_type_variation = &"Body"
 text = "第 1 章"
 horizontal_alignment = 1
 
-[node name="Meta" parent="Margin/Column" instance=ExtResource("3_meta")]
+[node name="Meta" parent="Margin/Sheet/Column" instance=ExtResource("3_meta")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Spacer" type="Control" parent="Margin/Column"]
+[node name="Spacer" type="Control" parent="Margin/Sheet/Column"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Play" type="Button" parent="Margin/Column"]
+[node name="Play" type="Button" parent="Margin/Sheet/Column"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 140)
 layout_mode = 2

@@ -21,10 +21,13 @@ func present(view: Settlement) -> void:
 	%StarClear.text = _mark(view.star_clear) + "通关"
 	%StarSquad.text = _mark(view.star_squad) + "人数 %d / %d" % [view.headcount, view.star2_target]
 	%StarHits.text = _mark(view.star_hits) + "关底受击 %d" % view.finale_skill_hits
+	%ClearLine.visible = view.show_clear_line
 	%ClearLine.text = view.clear_line
 	%RunLine.text = view.run_line
 	%TotalLine.text = view.total_line
+	%PartsLine.visible = view.show_parts_line
 	%PartsLine.text = view.parts_line
+	%ChestLine.visible = view.show_chest_line
 	%ChestLine.text = view.chest_line
 	%Retry.disabled = not view.can_retry
 	%Next.disabled = not view.can_next

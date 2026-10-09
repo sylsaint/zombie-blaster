@@ -8,6 +8,7 @@ signal upgrade_pressed
 
 
 func _ready() -> void:
+	%Title.text = GameTitle.TEXT
 	%Play.pressed.connect(func() -> void: play_pressed.emit())
 	%Meta.upgrade_pressed.connect(func() -> void: upgrade_pressed.emit())
 
