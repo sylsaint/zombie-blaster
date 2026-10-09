@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="WeaponStats" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapon_stats.gd" id="1_weapon"]
+
+[resource]
+script = ExtResource("1_weapon")
+weapon_name = "火箭炮"
+tier = 5
+outfit_tier = 3
+damage = 60.0
+interval = 0.7
+pellets = 1
+spread_degrees = 0.0
+bullet_speed = 30.0
+bullet_range = 30.0
+pierce = 0
+explosion_radius = 2.0
+body_mesh_path = "res://assets/models/chr_soldier_body_t3.glb"
+weapon_mesh_path = "res://assets/models/wpn_rocket.glb"

@@ -27,7 +27,7 @@ func test_offset_circle_contacts_on_the_left_and_right() -> void:
 	var arch := _arch()
 	var center_x := arch.offset_x
 	var center_z := arch.offset_z
-	var radius := arch.collision_radius
+	var radius := arch.radius
 	assert_almost_eq(radius, 2.7, 0.001)
 	assert_almost_eq(center_x, 0.4, 0.001)
 	assert_almost_eq(center_z, -0.6, 0.001)
@@ -51,7 +51,7 @@ func test_offset_circle_contacts_on_the_left_and_right() -> void:
 	fight.z = 0.0
 	fight._refresh_center()
 	fight.tick(0.02, left_inside, fight.center_z, 30, 0.0)
-	assert_eq(fight.take_squad_loss(), arch.contact_loss)
+	assert_eq(fight.take_squad_loss(), arch.touch_damage)
 	fight.tick(0.02, left_outside, fight.center_z, 30, 0.0)
 	assert_eq(fight.take_squad_loss(), 0)
 	fight._contact_ready = 0.0
@@ -59,7 +59,7 @@ func test_offset_circle_contacts_on_the_left_and_right() -> void:
 	fight.z = 0.0
 	fight._refresh_center()
 	fight.tick(0.02, right_inside, fight.center_z, 30, 0.0)
-	assert_eq(fight.take_squad_loss(), arch.contact_loss)
+	assert_eq(fight.take_squad_loss(), arch.touch_damage)
 	fight._contact_ready = 0.0
 	fight.x = 0.0
 	fight.z = 0.0
@@ -77,8 +77,8 @@ func test_charge_impact_uses_the_offset_circle_on_both_sides() -> void:
 	fight.tick(0.02, 0.0, 0.0, 20, 0.0)
 	assert_true(fight.telegraph.active)
 	assert_eq(fight.telegraph.kind, "charge")
-	var left_inside := arch.offset_x - arch.collision_radius + 0.05
-	var left_outside := arch.offset_x - arch.collision_radius - 0.12
+	var left_inside := arch.offset_x - arch.radius + 0.05
+	var left_outside := arch.offset_x - arch.radius - 0.12
 	fight.tick(BossFight.CHARGE_WARN, left_inside, 0.0, 20, 0.0)
 	assert_false(fight.telegraph.active)
 	assert_true(fight.last_charge_body_hit, "charge body reaches the left lip")
@@ -97,8 +97,8 @@ func test_charge_impact_uses_the_offset_circle_on_both_sides() -> void:
 	right._skill_flip = 1
 	right._next_skill_at = right.elapsed
 	right.tick(0.02, 0.0, 0.0, 20, 0.0)
-	var right_inside := arch.offset_x + arch.collision_radius - 0.05
-	var right_outside := arch.offset_x + arch.collision_radius + 0.12
+	var right_inside := arch.offset_x + arch.radius - 0.05
+	var right_outside := arch.offset_x + arch.radius + 0.12
 	right.tick(BossFight.CHARGE_WARN, right_inside, 0.0, 20, 0.0)
 	assert_true(right.last_charge_body_hit, "charge body reaches the right lip")
 	var right_miss := _fight(_clock())
@@ -110,7 +110,7 @@ func test_charge_impact_uses_the_offset_circle_on_both_sides() -> void:
 	assert_false(right_miss.last_charge_body_hit, "charge body misses just right of the circle")
 
 
-func test_warnings_meet_the_table_and_leave_a_safe_lane() -> void:
+func test_ac_en_04_05_skill_telegraphs_and_safe_lanes() -> void:
 	var fight := _fight(_clock())
 	_arrive(fight)
 	var count := 12
@@ -141,6 +141,8 @@ func test_warnings_meet_the_table_and_leave_a_safe_lane() -> void:
 			assert_gte(duration, 1.2)
 			assert_almost_eq(fight.telegraph.CHARGE_WIDTH, 2.5, 0.001)
 		i += 1
+	assert_lt(slam_min, 100.0, "a slam telegraph was recorded")
+	assert_lt(charge_min, 100.0, "a charge telegraph was recorded")
 	assert_gte(slam_min, 1.0)
 	assert_gte(charge_min, 1.2)
 	var elite := EliteCaster.new()
@@ -154,7 +156,7 @@ func test_warnings_meet_the_table_and_leave_a_safe_lane() -> void:
 	assert_gte(float(elite.warning_safe[0]), diameter)
 
 
-func test_charge_band_costs_thirty_five_percent_and_stuns() -> void:
+func test_ac_en_05_squad_outside_the_charge_band_takes_no_damage() -> void:
 	var fight := _fight(_clock())
 	_arrive(fight)
 	fight._skill_flip = 1
@@ -172,9 +174,19 @@ func test_charge_band_costs_thirty_five_percent_and_stuns() -> void:
 	dodged._skill_flip = 1
 	dodged._next_skill_at = dodged.elapsed
 	dodged.tick(0.02, 0.0, 0.0, 20, 0.4)
-	dodged.tick(BossFight.CHARGE_WARN, 3.0, 0.0, 20, 0.4)
+	var outside := dodged.telegraph.aim_x + SkillTelegraph.CHARGE_WIDTH * 0.5 + 0.2
+	dodged.tick(BossFight.CHARGE_WARN, outside, 0.0, 20, 0.4)
+	assert_false(dodged.telegraph.contains_squad(outside))
 	assert_eq(dodged.skill_hits, 0)
-	assert_eq(dodged.take_squad_loss(), 0)
+	assert_eq(dodged.take_squad_loss(), 0, "outside the 2.5 m band takes no damage")
+	var inside := _fight(_clock())
+	_arrive(inside)
+	inside._skill_flip = 1
+	inside._next_skill_at = inside.elapsed
+	inside.tick(0.02, 0.0, 0.0, 20, 0.4)
+	var lip := inside.telegraph.aim_x + SkillTelegraph.CHARGE_WIDTH * 0.5 - 0.05
+	inside.tick(BossFight.CHARGE_WARN, lip, 0.0, 20, 0.4)
+	assert_gt(inside.take_squad_loss(), 0, "inside the 2.5 m band still hits")
 
 
 func test_slam_costs_twenty_five_percent() -> void:
@@ -189,7 +201,7 @@ func test_slam_costs_twenty_five_percent() -> void:
 	assert_gte(loss, 3)
 
 
-func test_mini_boss_has_one_transition_and_supply_gates() -> void:
+func test_ac_en_06_phase_two_invulnerability_and_supply_gates() -> void:
 	var fight := _fight(_clock(), 1000.0)
 	_arrive(fight)
 	fight.apply_damage(5000.0)
@@ -213,14 +225,52 @@ func test_mini_boss_has_one_transition_and_supply_gates() -> void:
 	assert_lt(fight.hp, 600.0)
 	assert_gt(fight.hp, 0.0)
 	assert_eq(fight.summon_count, 0)
+	var level := LevelData.new()
+	level.level_index = 3
+	level.boss_hp = 1000.0
+	level.boss_summon = false
+	var event := LevelEvent.new()
+	event.distance = 0.0
+	event.kind = "boss"
+	var events: Array[LevelEvent] = [event]
+	level.events = events
+	var session := LevelSession.new()
+	session.start(level, _clock())
+	session.incoming_damage = false
+	session.tick(10.0)
+	assert_eq(session.boss.stage, BossFight.Stage.FIGHT)
+	var before := session.sim.squad.count
+	session.boss.apply_damage(900.0)
+	assert_eq(session.boss.phase_index, 2)
+	assert_almost_eq(session.boss.invulnerable_left, 1.5, 0.001)
+	assert_true(session.boss.supply_pending)
+	session.sim.squad.target_x = 0.0
+	session.tick(0.05)
+	assert_true(session.supply_active, "phase 2 slides a supply pair out from behind the boss")
+	var launched: float = session._supply_z[0]
+	session.tick(0.25)
+	assert_gt(session._supply_z[0], launched)
+	var steps := 0
+	while session.weapon_level < 2 and steps < 80:
+		session.tick(0.05)
+		steps += 1
+	assert_true(steps < 80)
+	assert_gte(session.sim.squad.count, before + level.add_gate_amount())
+	assert_eq(session.sim.squad.weapon.weapon_name, "步枪")
+	assert_almost_eq(session.sim.squad.damage_bonus, 0.0, 0.001)
+	assert_almost_eq(session.sim.squad.skill_damage_bonus, 0.0, 0.001)
 
 
-func test_stun_doubles_damage_and_hit_stop_is_gated() -> void:
+func test_ac_fx_02_hit_stop_only_during_stun_and_once_per_half_second() -> void:
 	var saved := Engine.time_scale
 	var clock = _clock()
 	var fight := _fight(clock, 5000.0)
 	_arrive(fight)
 	fight._next_skill_at = fight.elapsed + 100.0
+	var plain := fight.hp
+	fight.apply_damage(10.0)
+	assert_almost_eq(fight.hp, plain - 10.0, 0.01)
+	assert_eq(clock.hit_stop_remaining(), 0.0, "a hit outside the stun does not freeze")
 	fight.stun_left = 2.0
 	fight.weakpoint_glow = true
 	var hp := fight.hp
@@ -242,6 +292,42 @@ func test_stun_doubles_damage_and_hit_stop_is_gated() -> void:
 	assert_gt(clock.hit_stop_remaining(), 0.02)
 	assert_eq(Engine.time_scale, saved)
 	assert_eq(Engine.time_scale, 1.0)
+
+
+func test_stun_double_includes_gate_and_skill_damage() -> void:
+	var clock = _clock()
+	var fight := _fight(clock, 8000.0)
+	_arrive(fight)
+	fight.phase_index = 2
+	fight._next_skill_at = fight.elapsed + 100.0
+	var sim := CombatSim.new(clock, 4, 4)
+	sim.separation_enabled = false
+	sim.contact_enabled = false
+	sim.loss_enabled = false
+	sim.boss_fight = fight
+	sim.squad.forward_speed = 0.0
+	sim.squad.count = 1
+	sim.squad.weapon = WeaponCatalog.tier(1)
+	GateRules.apply_weapon(sim.squad)
+	GateRules.apply_weapon(sim.squad)
+	sim.skills.apply(SkillCard.POWER, sim.squad)
+	assert_eq(sim.squad.weapon.tier, 2)
+	assert_almost_eq(sim.squad.damage_bonus, 0.20, 0.001)
+	assert_almost_eq(sim.squad.skill_damage_bonus, 0.20, 0.001)
+	var shot := SquadAnchor.shot_damage(sim.squad.weapon.damage, 1, sim.squad.total_damage_bonus())
+	assert_almost_eq(shot, 12.0 * 1.4, 0.02)
+	sim.squad.position = Vector3(fight.center_x, 0.0, fight.center_z + 2.0)
+	sim.squad.target_x = fight.center_x
+	sim.squad.set_cooldown(0.0)
+	var hp := fight.hp
+	sim.tick(0.1)
+	assert_almost_eq(fight.hp, hp - shot, 0.05)
+	assert_eq(clock.hit_stop_remaining(), 0.0)
+	fight.stun_left = 2.0
+	sim.squad.set_cooldown(0.0)
+	var stunned := fight.hp
+	sim.tick(0.1)
+	assert_almost_eq(fight.hp, stunned - shot * 2.0, 0.05, "x2 applies on top of gate and skill bonuses")
 
 
 func test_enrage_halves_the_interval_and_tints_the_shader() -> void:
@@ -351,4 +437,4 @@ func test_bullets_hit_the_offset_circle_from_both_sides() -> void:
 	sim.tick(0.1)
 	assert_lt(right_fight.hp, hp3, "bullet along the right lip hits")
 	assert_eq(Engine.time_scale, 1.0)
-	assert_gt(arch.collision_radius, 2.0)
+	assert_gt(arch.radius, 2.0)

@@ -95,7 +95,7 @@ func start(arch: EnemyArchetype, squad_z: float, hit_points: float, is_mini: boo
 		display_name = arch.display_name
 	hp_max = maxf(hit_points, 1.0)
 	hp = hp_max
-	collision_radius = arch.collision_radius if arch != null else 2.7
+	collision_radius = arch.radius if arch != null else 2.7
 	_squad_z = squad_z
 	x = 0.0
 	z = squad_z - APPROACH_DISTANCE
@@ -244,11 +244,11 @@ func _tick_contact(step: float, squad_x: float, squad_z: float, squad_count: int
 		return
 	var loss := 2
 	if archetype != null:
-		loss = archetype.contact_loss
+		loss = archetype.touch_damage
 	pending_squad_loss += mini(loss, squad_count)
 	var interval := 0.5
-	if archetype != null:
-		interval = archetype.contact_interval
+	if archetype != null and archetype.touch_period > 0.0:
+		interval = archetype.touch_period
 	_contact_ready = interval
 
 
@@ -395,6 +395,6 @@ func _refresh_center() -> void:
 	if archetype != null:
 		ox = archetype.offset_x
 		oz = archetype.offset_z
-		collision_radius = archetype.collision_radius
+		collision_radius = archetype.radius
 	center_x = x + ox
 	center_z = z + oz

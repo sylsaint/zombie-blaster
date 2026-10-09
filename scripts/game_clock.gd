@@ -55,6 +55,14 @@ func ramp_to_zero(duration: float) -> void:
 	scale = from
 
 
+func ramp_complete() -> bool:
+	if not _ramping:
+		return false
+	if _ramp_duration <= 0.0:
+		return true
+	return _ramp_elapsed >= _ramp_duration - 0.0000001
+
+
 func restore() -> void:
 	_ramping = false
 	_ramp_elapsed = 0.0

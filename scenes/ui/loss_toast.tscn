@@ -1,0 +1,22 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/loss_toast.gd" id="1_toast"]
+
+[node name="LossToast" type="Label"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -180.0
+offset_top = 280.0
+offset_right = 180.0
+offset_bottom = 420.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.94, 0.22, 0.28, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0, 0, 0.9)
+theme_override_constants/outline_size = 12
+theme_override_font_sizes/font_size = 96
+text = "-1"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = ExtResource("1_toast")
+visible = false

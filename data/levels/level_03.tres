@@ -24,13 +24,13 @@ gates = Array[Resource]([])
 
 [sub_resource type="Resource" id="g2"]
 script = ExtResource("2_gate")
-gate_type = "add"
+kind = 1
 amount = 9.0000
 side = "left"
 
 [sub_resource type="Resource" id="g3"]
 script = ExtResource("2_gate")
-gate_type = "weapon"
+kind = 4
 amount = 1.0000
 side = "right"
 
@@ -63,13 +63,13 @@ gates = Array[Resource]([])
 
 [sub_resource type="Resource" id="g7"]
 script = ExtResource("2_gate")
-gate_type = "subtract"
+kind = 3
 amount = 9.0000
 side = "left"
 
 [sub_resource type="Resource" id="g8"]
 script = ExtResource("2_gate")
-gate_type = "add"
+kind = 1
 amount = 9.0000
 side = "right"
 
@@ -120,13 +120,13 @@ gates = Array[Resource]([])
 
 [sub_resource type="Resource" id="g14"]
 script = ExtResource("2_gate")
-gate_type = "fire_rate"
+kind = 5
 amount = 0.1500
 side = "left"
 
 [sub_resource type="Resource" id="g15"]
 script = ExtResource("2_gate")
-gate_type = "subtract"
+kind = 3
 amount = 9.0000
 side = "right"
 
@@ -177,13 +177,13 @@ gates = Array[Resource]([])
 
 [sub_resource type="Resource" id="g21"]
 script = ExtResource("2_gate")
-gate_type = "weapon"
+kind = 4
 amount = 1.0000
 side = "left"
 
 [sub_resource type="Resource" id="g22"]
 script = ExtResource("2_gate")
-gate_type = "add"
+kind = 1
 amount = 9.0000
 side = "right"
 
@@ -225,13 +225,13 @@ gates = Array[Resource]([])
 
 [sub_resource type="Resource" id="g27"]
 script = ExtResource("2_gate")
-gate_type = "multiply"
+kind = 2
 amount = 2.0000
 side = "left"
 
 [sub_resource type="Resource" id="g28"]
 script = ExtResource("2_gate")
-gate_type = "fire_rate"
+kind = 5
 amount = 0.1500
 side = "right"
 
@@ -264,13 +264,13 @@ gates = Array[Resource]([])
 
 [sub_resource type="Resource" id="g32"]
 script = ExtResource("2_gate")
-gate_type = "add"
+kind = 1
 amount = 9.0000
 side = "left"
 
 [sub_resource type="Resource" id="g33"]
 script = ExtResource("2_gate")
-gate_type = "subtract"
+kind = 3
 amount = 9.0000
 side = "right"
 

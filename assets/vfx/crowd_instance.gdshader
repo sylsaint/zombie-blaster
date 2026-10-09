@@ -13,6 +13,12 @@ uniform sampler2D vat_positions : hint_default_black, filter_nearest, repeat_dis
 uniform float vat_enabled = 0.0;
 uniform float vat_frame_count = 1.0;
 uniform vec3 flash_color : source_color = vec3(1.0, 0.96, 0.9);
+uniform float rim_enabled = 0.0;
+uniform vec3 rim_color : source_color = vec3(0.82, 0.92, 1.0);
+uniform float rim_power = 2.5;
+uniform float use_uniform_color = 0.0;
+uniform vec3 uniform_color : source_color = vec3(0.184, 0.435, 0.816);
+uniform float wobble_enabled = 1.0;
 
 void vertex() {
 	inst_custom = INSTANCE_CUSTOM;
@@ -21,7 +27,7 @@ void vertex() {
 		float v = (frame + 0.5) / max(vat_frame_count, 1.0);
 		vec3 baked = texture(vat_positions, vec2(UV2.x, v)).rgb;
 		VERTEX = baked;
-	} else {
+	} else if (wobble_enabled > 0.5) {
 		float phase = inst_custom.b * 6.2831853 * 4.0;
 		VERTEX.x += sin(phase + VERTEX.y * 5.0) * 0.03;
 		VERTEX.z += cos(phase * 0.5 + VERTEX.y * 3.0) * 0.02;
@@ -37,6 +43,14 @@ void fragment() {
 		discard;
 	}
 	vec3 albedo = texture(palette, vec2(variant, 0.5)).rgb;
+	if (use_uniform_color > 0.5) {
+		albedo = uniform_color;
+	}
 	ALBEDO = mix(albedo, flash_color, flash);
 	ROUGHNESS = 0.9;
+	if (rim_enabled > 0.5) {
+		float facing = clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
+		float fresnel = pow(1.0 - facing, rim_power);
+		EMISSION += rim_color * fresnel;
+	}
 }

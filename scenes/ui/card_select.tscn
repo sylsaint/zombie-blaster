@@ -1,0 +1,135 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/card_select.gd" id="1_cards"]
+
+[sub_resource type="StyleBoxFlat" id="StyleCard0"]
+bg_color = Color(0.16, 0.36, 0.5, 1)
+border_color = Color(0.55, 0.78, 0.9, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+content_margin_left = 28.0
+content_margin_top = 22.0
+content_margin_right = 28.0
+content_margin_bottom = 22.0
+
+[sub_resource type="StyleBoxFlat" id="StyleCard1"]
+bg_color = Color(0.42, 0.28, 0.16, 1)
+border_color = Color(0.93, 0.72, 0.38, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+content_margin_left = 28.0
+content_margin_top = 22.0
+content_margin_right = 28.0
+content_margin_bottom = 22.0
+
+[sub_resource type="StyleBoxFlat" id="StyleCard2"]
+bg_color = Color(0.33, 0.2, 0.42, 1)
+border_color = Color(0.78, 0.55, 0.9, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+content_margin_left = 28.0
+content_margin_top = 22.0
+content_margin_right = 28.0
+content_margin_bottom = 22.0
+
+[node name="CardSelect" type="Control"]
+process_mode = 3
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("1_cards")
+
+[node name="Dimmer" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0.03, 0.04, 0.07, 0.72)
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 48
+theme_override_constants/margin_top = 180
+theme_override_constants/margin_right = 48
+theme_override_constants/margin_bottom = 80
+
+[node name="Column" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 28
+
+[node name="Title" type="Label" parent="Margin/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.97, 0.97, 0.94, 1)
+theme_override_font_sizes/font_size = 64
+text = "选择强化"
+horizontal_alignment = 1
+
+[node name="Card0" type="Button" parent="Margin/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 340)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.98, 0.98, 0.96, 1)
+theme_override_font_sizes/font_size = 40
+theme_override_styles/normal = SubResource("StyleCard0")
+theme_override_styles/hover = SubResource("StyleCard0")
+theme_override_styles/pressed = SubResource("StyleCard0")
+theme_override_styles/focus = SubResource("StyleCard0")
+autowrap_mode = 3
+text = "卡牌一"
+
+[node name="Card1" type="Button" parent="Margin/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 340)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.98, 0.98, 0.96, 1)
+theme_override_font_sizes/font_size = 40
+theme_override_styles/normal = SubResource("StyleCard1")
+theme_override_styles/hover = SubResource("StyleCard1")
+theme_override_styles/pressed = SubResource("StyleCard1")
+theme_override_styles/focus = SubResource("StyleCard1")
+autowrap_mode = 3
+text = "卡牌二"
+
+[node name="Card2" type="Button" parent="Margin/Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 340)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.98, 0.98, 0.96, 1)
+theme_override_font_sizes/font_size = 40
+theme_override_styles/normal = SubResource("StyleCard2")
+theme_override_styles/hover = SubResource("StyleCard2")
+theme_override_styles/pressed = SubResource("StyleCard2")
+theme_override_styles/focus = SubResource("StyleCard2")
+autowrap_mode = 3
+text = "卡牌三"

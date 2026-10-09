@@ -21,10 +21,10 @@ func _events(items: Array) -> Array[LevelEvent]:
 	return out
 
 
-func _has_gate(level: LevelData, gate_type: String) -> bool:
+func _has_gate(level: LevelData, kind: int) -> bool:
 	for group in level.gate_groups():
 		for gate in group.gates:
-			if gate.gate_type == gate_type:
+			if gate.kind == kind:
 				return true
 	return false
 
@@ -76,15 +76,15 @@ func test_catalog_matches_the_chapter_table() -> void:
 		assert_true(level.has_buff_in_every_group(), "AC-GT-03 level %d" % level.level_index)
 		assert_false(level.wave_inside_gate_clearance(), "AC-GT-04 level %d" % level.level_index)
 		i += 1
-	assert_false(_has_gate(levels[0], "multiply"))
-	assert_false(_has_gate(levels[0], "subtract"))
-	assert_false(_has_gate(levels[0], "fire_rate"))
+	assert_false(_has_gate(levels[0], GateRules.MULTIPLY))
+	assert_false(_has_gate(levels[0], GateRules.SUBTRACT))
+	assert_false(_has_gate(levels[0], GateRules.FIRE_RATE))
 	assert_false(_has_enemy(levels[0], "enm_runner_a"))
-	assert_true(_has_gate(levels[1], "multiply"))
-	assert_true(_has_gate(levels[1], "subtract"))
+	assert_true(_has_gate(levels[1], GateRules.MULTIPLY))
+	assert_true(_has_gate(levels[1], GateRules.SUBTRACT))
 	assert_true(_has_enemy(levels[1], "enm_runner_a"))
 	assert_eq(levels[1].count_kind("elite_wall"), 1)
-	assert_true(_has_gate(levels[2], "fire_rate"))
+	assert_true(_has_gate(levels[2], GateRules.FIRE_RATE))
 	assert_true(_has_enemy(levels[2], "enm_runner_a"))
 	assert_eq(levels[2].count_kind("boss"), 1)
 	var tradeoff := false
@@ -92,9 +92,9 @@ func test_catalog_matches_the_chapter_table() -> void:
 		var saw_add := false
 		var saw_weapon := false
 		for gate in group.gates:
-			if gate.gate_type == "add":
+			if gate.kind == GateRules.ADD:
 				saw_add = true
-			if gate.gate_type == "weapon":
+			if gate.kind == GateRules.WEAPON:
 				saw_weapon = true
 		if saw_add and saw_weapon:
 			tradeoff = true
@@ -133,11 +133,11 @@ func test_wave_inside_clearance_waits_for_the_gate() -> void:
 	gate.distance = 16.0
 	gate.kind = "gate_group"
 	var add := GateSpec.new()
-	add.gate_type = "add"
+	add.kind = GateRules.ADD
 	add.amount = 6.0
 	add.side = "left"
 	var weapon := GateSpec.new()
-	weapon.gate_type = "weapon"
+	weapon.kind = GateRules.WEAPON
 	weapon.amount = 1.0
 	weapon.side = "right"
 	var gates: Array[GateSpec] = [add, weapon]
@@ -238,6 +238,8 @@ func test_expected_dps_kills_elites_in_five_to_eight_seconds() -> void:
 		var clock = _clock()
 		var sim := CombatSim.new(clock, 4, 8)
 		sim.separation_enabled = false
+		sim.contact_enabled = false
+		sim.loss_enabled = false
 		sim.squad.forward_speed = 0.0
 		ExpectedSquad.configure(sim.squad, level.expected_dps)
 		# One body on the firing line. Count 48 spreads pellets across the lane
@@ -248,6 +250,9 @@ func test_expected_dps_kills_elites_in_five_to_eight_seconds() -> void:
 		var realized := ExpectedSquad.realized_dps(sim.squad)
 		assert_almost_eq(realized, level.expected_dps, level.expected_dps * 0.01)
 		var id := sim.spawn_at(EnemyPool.Archetype.ELITE, 0.0, -1.5, level.elite_hp, 0.0, 0.7, 0.85)
+		sim.enemies.slam_interval[id] = 0.0
+		sim.enemies.speed[id] = 0.0
+		sim.enemies.cruise_speed[id] = 0.0
 		var t := 0.0
 		while sim.enemies.state[id] == EnemyPool.State.ALIVE and t < 12.0:
 			sim.tick(0.01)
