@@ -214,8 +214,10 @@ section = set_arch(section, "armeabi-v7a", "false")
 section = set_arch(section, "arm64-v8a", "false")
 section = set_arch(section, "x86", "false")
 section = set_arch(section, "x86_64", "true")
-# User arg, so the phone preset's command_line/extra_args stays empty.
-section = set_line(section, "command_line/extra_args", '"-- --smoke-canvas"')
+# User args, so the phone preset's command_line/extra_args stays empty.
+# --smoke-present=baseline makes this APK capture the menu once. The other
+# presentation APKs are patched copies and replace that name.
+section = set_line(section, "command_line/extra_args", '"-- --smoke-canvas --smoke-present=baseline"')
 path.write_text(text[:start] + section + text[end:])
 rest = text[end:]
 if "architectures/arm64-v8a=true" not in rest or "architectures/x86_64=false" not in rest:
@@ -224,6 +226,63 @@ PY
 note "Exporting the CI-only x86_64 smoke APK. build/release stays arm64-only."
 export_one release "Android" "$smoke_apk" "$release_ks" "$release_alias" "$release_pass"
 strip_baseline_profile "$smoke_apk" "$release_ks" "$release_alias" "$release_pass"
+
+align_and_sign() {
+  local src="$1" dest="$2" ks="$3" alias="$4" pass="$5"
+  local work aligned
+  work="$(mktemp -d)"
+  aligned="$work/aligned.apk"
+  local align_help
+  align_help="$("$zipalign" -h 2>&1 || true)"
+  if grep -q -- '-P ' <<<"$align_help"; then
+    "$zipalign" -P 16 -f 4 "$src" "$aligned"
+  else
+    "$zipalign" -f -p 4 "$src" "$aligned"
+  fi
+  APKSIGNER_PASS="$pass" "$apksigner" sign \
+    --ks "$ks" \
+    --ks-key-alias "$alias" \
+    --ks-pass env:APKSIGNER_PASS \
+    --key-pass env:APKSIGNER_PASS \
+    --out "$dest" \
+    "$aligned"
+  rm -rf "$work"
+}
+
+# Same x86_64 library and resources. Each copy changes project.binary and/or
+# _cl_ so the emulator can compare presentation settings. These files stay in
+# build/smoke and are not the phone APK.
+encoded_settings="$ROOT/build/smoke/present-settings.binary"
+note "Encoding presentation settings for the smoke variants"
+"$GODOT_BIN" --headless --path "$ROOT" --script "$ROOT/tools/release/encode_present_settings.gd" -- \
+  --out="$encoded_settings" \
+  --set=display/window/frame_pacing/android/enable_frame_pacing=bool:false \
+  --set=display/window/vsync/vsync_mode=int:0 \
+  --set=rendering/gl_compatibility/driver=string:opengl3_es \
+  --set=rendering/gl_compatibility/driver.android=string:opengl3_es \
+  --set=rendering/gl_compatibility/fallback_to_angle=bool:false \
+  --set=rendering/gl_compatibility/fallback_to_gles=bool:false \
+  --set=rendering/gl_compatibility/fallback_to_native=bool:false \
+  --set=rendering/driver/threads/thread_model=int:2
+mapfile -t unsigned_variants < <(python3 "$ROOT/tools/release/patch_present_apks.py" \
+  --apk "$smoke_apk" \
+  --encoded "$encoded_settings" \
+  --out-dir "$(dirname "$smoke_apk")")
+smoke_variants=()
+for unsigned in "${unsigned_variants[@]}"; do
+  if [[ -z "$unsigned" ]]; then
+    continue
+  fi
+  final="${unsigned%.unsigned.apk}.apk"
+  note "Signing presentation variant $(basename "$final")"
+  align_and_sign "$unsigned" "$final" "$release_ks" "$release_alias" "$release_pass"
+  rm -f "$unsigned"
+  smoke_variants+=("$final")
+done
+if [[ "${#smoke_variants[@]}" -ne 6 ]]; then
+  echo "expected 6 presentation variants, got ${#smoke_variants[@]}" >&2
+  exit 1
+fi
 
 verify_apk() {
   local apk="$1"
@@ -272,11 +331,20 @@ verify_apk "$release_apk" "com.zombieblaster.game" arm64
 verify_apk "$debug_apk" "com.zombieblaster.game" arm64
 verify_apk "$profile_apk" "com.zombieblaster.game.profile" arm64
 verify_apk "$smoke_apk" "com.zombieblaster.game" x86_64
+for variant_apk in "${smoke_variants[@]}"; do
+  verify_apk "$variant_apk" "com.zombieblaster.game" x86_64
+done
 assert_project_data_packed "$release_apk" game
 assert_project_data_packed "$debug_apk" game
 assert_project_data_packed "$profile_apk" profile
 assert_project_data_packed "$smoke_apk" game
+for variant_apk in "${smoke_variants[@]}"; do
+  assert_project_data_packed "$variant_apk" game
+done
 note "Android export finished: $release_apk"
 note "Android export finished: $debug_apk"
 note "Android export finished: $profile_apk"
 note "Android export finished: $smoke_apk"
+for variant_apk in "${smoke_variants[@]}"; do
+  note "Android export finished: $variant_apk"
+done

@@ -268,22 +268,43 @@ func _show_menu() -> void:
 
 
 func _wants_canvas_probe() -> bool:
+	return _cmdline_has("--smoke-canvas")
+
+
+func _smoke_present_name() -> String:
 	for arg in OS.get_cmdline_user_args():
-		if arg.contains("--smoke-canvas"):
+		if arg.begins_with("--smoke-present="):
+			return arg.trim_prefix("--smoke-present=")
+	for arg in OS.get_cmdline_args():
+		if arg.begins_with("--smoke-present="):
+			return arg.trim_prefix("--smoke-present=")
+	return ""
+
+
+func _cmdline_has(needle: String) -> bool:
+	for arg in OS.get_cmdline_user_args():
+		if arg.contains(needle):
 			return true
 	for arg in OS.get_cmdline_args():
-		if arg.contains("--smoke-canvas"):
+		if arg.contains(needle):
 			return true
 	return false
 
 
 func _run_canvas_probe() -> void:
 	_print_canvas_settings()
-	await _capture_canvas_variant("menu", "user://menu_engine.png")
+	var present := _smoke_present_name()
+	if present != "":
+		# Presentation variants only need the menu frame. The 3-way probe stays
+		# for a smoke APK that passes --smoke-canvas without a present name.
+		await _capture_canvas_variant(present, "user://menu_engine.png", 8.0)
+		print("MENU_CANVAS_DONE")
+		return
+	await _capture_canvas_variant("menu", "user://menu_engine.png", 12.0)
 	_disable_lane_for_probe()
-	await _capture_canvas_variant("no3d", "user://menu_engine_no3d.png")
+	await _capture_canvas_variant("no3d", "user://menu_engine_no3d.png", 12.0)
 	_add_plain_canvas_for_probe()
-	await _capture_canvas_variant("plain", "user://menu_engine_plain.png")
+	await _capture_canvas_variant("plain", "user://menu_engine_plain.png", 12.0)
 	_restore_after_canvas_probe()
 	print("MENU_CANVAS_DONE")
 
@@ -297,6 +318,14 @@ func _print_canvas_settings() -> void:
 		"rendering/anti_aliasing/quality/msaa_2d",
 		"rendering/anti_aliasing/quality/msaa_3d",
 		"rendering/anti_aliasing/quality/use_debanding",
+		"display/window/frame_pacing/android/enable_frame_pacing",
+		"display/window/vsync/vsync_mode",
+		"rendering/gl_compatibility/driver",
+		"rendering/gl_compatibility/driver.android",
+		"rendering/gl_compatibility/fallback_to_angle",
+		"rendering/gl_compatibility/fallback_to_gles",
+		"rendering/gl_compatibility/fallback_to_native",
+		"rendering/driver/threads/thread_model",
 	]
 	var parts: PackedStringArray = []
 	for key in keys:
@@ -310,9 +339,10 @@ func _print_canvas_settings() -> void:
 		"MENU_SETTINGS %s subviewports=%d main_in_subviewport=%s user_dir=%s"
 		% [" ".join(parts), subs.size(), in_sub, OS.get_user_data_dir()]
 	)
+	print("MENU_CMDLINE %s" % " ".join(OS.get_cmdline_args()))
 
 
-func _capture_canvas_variant(variant_name: String, user_path: String) -> void:
+func _capture_canvas_variant(variant_name: String, user_path: String, hold_sec: float) -> void:
 	# process_frame runs before the draw. Two post-draw frames is the rendered image.
 	for _i in 2:
 		await RenderingServer.frame_post_draw
@@ -321,7 +351,7 @@ func _capture_canvas_variant(variant_name: String, user_path: String) -> void:
 	var image: Image = texture.get_image() if texture != null else null
 	if image == null or image.get_width() <= 0:
 		print("MENU_ENGINE name=%s ratio=missing save=empty file=%s" % [variant_name, user_path])
-		await get_tree().create_timer(12.0).timeout
+		await get_tree().create_timer(hold_sec).timeout
 		return
 	var err := image.save_png(user_path)
 	var ratio := _menu_pixel_ratio(image)
@@ -338,8 +368,8 @@ func _capture_canvas_variant(variant_name: String, user_path: String) -> void:
 			err,
 		]
 	)
-	# Hold this frame so adb screencap and the viewport image are the same variant.
-	await get_tree().create_timer(12.0).timeout
+	# Hold this frame so both captures see the same presented menu.
+	await get_tree().create_timer(hold_sec).timeout
 
 
 func _menu_pixel_ratio(image: Image) -> float:

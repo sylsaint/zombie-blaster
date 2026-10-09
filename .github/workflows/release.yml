@@ -136,10 +136,11 @@ jobs:
           ram-size: 4096M
           disable-animations: true
           emulator-boot-timeout: 600
-          # SwiftShader GLES cannot link Godot's canvas shader. swangle links it
-          # and still does not present canvas pixels to screencap, even when the
-          # APK is x86_64-native. The color check stays strict. The smoke script
-          # restarts if the first launch dies on CONFIG_ASSETS_PATHS.
+          # SwiftShader GLES cannot link Godot's canvas shader. swangle links it.
+          # The script installs the baseline smoke APK and the presentation
+          # copies, and records screencap plus `adb emu screenrecord screenshot`
+          # for each. The color check stays strict and only looks at screencap.
+          # The script restarts if the first launch dies on CONFIG_ASSETS_PATHS.
           emulator-options: -no-window -gpu swangle_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: ./tools/emulator_menu_smoke.sh
 
