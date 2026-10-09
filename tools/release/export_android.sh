@@ -145,5 +145,7 @@ verify_apk() {
 
 verify_apk "$release_apk"
 verify_apk "$debug_apk"
+assert_project_data_packed "$release_apk"
+assert_project_data_packed "$debug_apk"
 note "Android export finished: $release_apk"
 note "Android export finished: $debug_apk"

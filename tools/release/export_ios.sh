@@ -152,6 +152,38 @@ PY
   trap cleanup_keychain EXIT
 fi
 
+# Godot 4.7 fails the whole iOS export when icons/icon_1024x1024 points at a
+# file that is not in the tree (it tries to scale the other slots from it).
+# The committed preset keeps the branding path. This working copy falls back
+# to the engine icon until assets/branding/icon_ios_1024.png exists.
+if [[ ! -f "$ROOT/assets/branding/icon_ios_1024.png" ]]; then
+  note "assets/branding/icon_ios_1024.png is missing. Clearing the iOS icon paths in this working copy so the export stays green."
+  python3 - "$preset" << 'PY'
+import pathlib, sys
+path = sys.argv[1]
+text = pathlib.Path(path).read_text()
+
+def set_line(text, key, value):
+    lines = text.splitlines()
+    found = False
+    out = []
+    prefix = key + "="
+    for line in lines:
+        if line.startswith(prefix):
+            out.append(f"{key}={value}")
+            found = True
+        else:
+            out.append(line)
+    if not found:
+        raise SystemExit(f"export_presets.cfg is missing {key}")
+    return "\n".join(out) + ("\n" if text.endswith("\n") else "")
+
+text = set_line(text, "icons/icon_1024x1024", '""')
+text = set_line(text, "icons/app_store_1024x1024", '""')
+pathlib.Path(path).write_text(text)
+PY
+fi
+
 ensure_godot
 note "Importing project"
 "$GODOT_BIN" --headless --path "$ROOT" --import
@@ -167,6 +199,12 @@ if [[ ! -d "$proj" || ! -d "$app_dir" ]]; then
   echo "Godot did not write $proj" >&2
   exit 1
 fi
+pck="$ios_dir/${scheme}.pck"
+if [[ ! -s "$pck" ]]; then
+  echo "Godot did not write $pck" >&2
+  exit 1
+fi
+assert_project_data_packed "$pck"
 
 if [[ "$sign" == "1" ]]; then
   archive="$ios_dir/${scheme}.xcarchive"
@@ -201,16 +239,29 @@ if [[ "$sign" == "1" ]]; then
   note "iOS IPA: $dest ($(wc -c < "$dest" | tr -d ' ') bytes)"
 else
   dest="$out_dir/zombie-blaster-${tag}-ios-xcode-unsigned.zip"
-  python3 - "$ios_dir" "$scheme" "$dest" << 'PY'
+  # The Xcode project links sibling files Godot writes next to it, including
+  # the pck that holds data/levels and assets. Zip the whole export directory.
+  python3 - "$ios_dir" "$dest" << 'PY'
 import pathlib, sys, zipfile
-ios_dir, scheme, dest = sys.argv[1:]
+ios_dir, dest = sys.argv[1:]
 root = pathlib.Path(ios_dir)
-include = [root / f"{scheme}.xcodeproj", root / scheme]
-with zipfile.ZipFile(dest, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-    for base in include:
-        for path in base.rglob("*"):
-            if path.is_file():
-                zf.write(path, path.relative_to(root).as_posix())
+with zipfile.ZipFile(dest, "w") as zf:
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        # Archives and a previous zip are not part of the project.
+        if path.suffix in {".xcarchive", ".zip", ".ipa"}:
+            continue
+        # Framework binaries are already compressed; store them.
+        compress = zipfile.ZIP_STORED if path.stat().st_size > 1_000_000 else zipfile.ZIP_DEFLATED
+        zf.write(path, path.relative_to(root).as_posix(), compress_type=compress)
+PY
+  python3 - "$dest" << 'PY'
+import sys, zipfile
+names = zipfile.ZipFile(sys.argv[1]).namelist()
+if not any(name.endswith("zombie-blaster.pck") for name in names):
+    raise SystemExit("unsigned Xcode zip is missing zombie-blaster.pck")
+print("unsigned Xcode zip includes zombie-blaster.pck")
 PY
   note "Unsigned Xcode project: $dest ($(wc -c < "$dest" | tr -d ' ') bytes)"
 fi

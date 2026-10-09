@@ -26,7 +26,8 @@ Job 跑在 `ubuntu-24.04`：
 2. 安装 Temurin JDK 17 和 Android SDK（`platform-tools`，以及 target SDK 36 对应的 `build-tools`；36 装不上时退回 35）。
 3. `--export-release` 打 release 模板的 APK。真机性能只认这个包。再 `--export-debug` 打一个 debug 模板的包，用来排查。
 4. 架构只有 **arm64-v8a**。要 32 位时再把预设里的 `architectures/armeabi-v7a` 改成 true。
-5. `gradle_build/use_gradle_build` 保持关闭，产物是 APK。上架 Play 的 AAB 以后再开 Gradle。
+5. `export_filter` 是 `all_resources`，所以 `data/levels/`（`level_01`–`level_03`）和 `assets/`（模型、贴图、vfx）会打进 APK。脚本在导出后检查这些路径还在；缺了就失败。`build/` 里放了 `.gdignore`，导出目录不会再被扫回去。
+6. `gradle_build/use_gradle_build` 保持关闭，产物是 APK。上架 Play 的 AAB 以后再开 Gradle。
 
 签名：
 
@@ -84,7 +85,7 @@ Job 跑在 `macos-latest`（镜像自带 Xcode）。先用 release 模板导出 
 
 ## 品牌资源
 
-`export_presets.cfg` 已经按下面的路径写好。换图时只改对应那一行，不要把密钥写进预设。文件还不在仓库里时，Godot 导出图标会退回工程图标 `icon.svg`，不会因此让导出失败。
+`export_presets.cfg` 已经按下面的路径写好。换图时只改对应那一行，不要把密钥写进预设。文件还不在仓库里时，Android 导出退回工程图标 `icon.svg`。iOS 不一样：`icons/icon_1024x1024` 指向缺失文件会让整个导出失败，所以 `tools/release/export_ios.sh` 在工作副本里把这两行清空（提交回去的预设不变），job 仍然成功。
 
 | 文件 | 尺寸 | 用在 |
 | --- | --- | --- |

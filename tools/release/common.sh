@@ -41,6 +41,60 @@ note() {
   fi
 }
 
+# Fail the export if the package dropped the level data or the assets tree.
+# Android stores them as loose files under assets/. iOS stores them in the pck.
+assert_project_data_packed() {
+  python3 - "$1" << 'PY'
+import struct, sys, zipfile
+from pathlib import Path
+
+target = Path(sys.argv[1])
+needles = (
+    "data/levels/level_01",
+    "data/levels/level_02",
+    "data/levels/level_03",
+    "assets/vfx/",
+    "assets/textures/",
+    "assets/models/",
+)
+
+def pck_paths(blob: bytes):
+    magic = blob.find(b"GDPC")
+    if magic < 0:
+        raise SystemExit(f"{target} has no Godot PCK header")
+    version = struct.unpack_from("<I", blob, magic + 4)[0]
+    if version < 2 or version > 4:
+        raise SystemExit(f"{target} has unsupported PCK version {version}")
+    if version >= 3:
+        dir_offset = struct.unpack_from("<Q", blob, magic + 4 + 4 + 12 + 4 + 8)[0]
+        pos = magic + dir_offset
+    else:
+        pos = magic + 4 + 4 + 12 + 4 + 8 + 64
+    count = struct.unpack_from("<I", blob, pos)[0]
+    pos += 4
+    paths = []
+    for _ in range(count):
+        slen = struct.unpack_from("<I", blob, pos)[0]
+        pos += 4
+        paths.append(blob[pos:pos + slen].decode("utf-8", "replace").rstrip("\0"))
+        pos += slen + 8 + 8 + 16 + 4
+    return paths
+
+if target.suffix == ".apk":
+    with zipfile.ZipFile(target) as zf:
+        names = zf.namelist()
+elif target.suffix == ".pck":
+    names = pck_paths(target.read_bytes())
+else:
+    raise SystemExit(f"Don't know how to read resources from {target}")
+
+missing = [needle for needle in needles if not any(needle in name for name in names)]
+if missing:
+    raise SystemExit(f"{target.name} is missing packed project data: {', '.join(missing)}")
+print(f"{target.name} includes data/levels and assets ({len(names)} entries)")
+PY
+}
+
 resolve_artifact_tag() {
   if [[ -n "${ARTIFACT_TAG:-}" ]]; then
     printf '%s' "$ARTIFACT_TAG"

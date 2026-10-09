@@ -32,8 +32,9 @@ mono_crash.*.json
 *.p12
 *.mobileprovision
 
-# Export artifacts
-/build/
+# Export artifacts. .gdignore stays so Godot does not import or pack this tree.
+/build/*
+!/build/.gdignore
 /builds/
 *.apk
 *.aab
