@@ -407,11 +407,11 @@ func test_bullets_hit_the_offset_circle_from_both_sides() -> void:
 	sim.squad.count = 1
 	sim.squad.weapon = WeaponStats.pistol()
 	sim.squad.weapon.damage = 50.0
-	var muzzle: Vector2 = sim.squad.weapon.muzzle_offset
+	var muzzle: Vector3 = sim.squad.weapon.muzzle_offset
 	var left := fight.center_x - fight.collision_radius + 0.15
 	# The shot leaves the muzzle, not the feet. Park the squad so the bullet
-	# still starts on the authored lip.
-	sim.squad.position = Vector3(left - muzzle.x, 0.0, fight.center_z + 2.0 - muzzle.y)
+	# still starts on the authored lip. Height does not move the lane circle.
+	sim.squad.position = Vector3(left - muzzle.x, 0.0, fight.center_z + 2.0 - muzzle.z)
 	sim.squad.target_x = left - muzzle.x
 	sim.squad.set_cooldown(0.0)
 	var hp := fight.hp
@@ -422,7 +422,7 @@ func test_bullets_hit_the_offset_circle_from_both_sides() -> void:
 	missed._next_skill_at = missed.elapsed + 100.0
 	sim.boss_fight = missed
 	var outside := missed.center_x - missed.collision_radius - 0.4
-	sim.squad.position = Vector3(outside - muzzle.x, 0.0, missed.center_z + 2.0 - muzzle.y)
+	sim.squad.position = Vector3(outside - muzzle.x, 0.0, missed.center_z + 2.0 - muzzle.z)
 	sim.squad.target_x = outside - muzzle.x
 	sim.squad.set_cooldown(0.0)
 	var hp2 := missed.hp
@@ -433,7 +433,7 @@ func test_bullets_hit_the_offset_circle_from_both_sides() -> void:
 	right_fight._next_skill_at = right_fight.elapsed + 100.0
 	sim.boss_fight = right_fight
 	var right := right_fight.center_x + right_fight.collision_radius - 0.15
-	sim.squad.position = Vector3(right - muzzle.x, 0.0, right_fight.center_z + 2.0 - muzzle.y)
+	sim.squad.position = Vector3(right - muzzle.x, 0.0, right_fight.center_z + 2.0 - muzzle.z)
 	sim.squad.target_x = right - muzzle.x
 	sim.squad.set_cooldown(0.0)
 	var hp3 := right_fight.hp

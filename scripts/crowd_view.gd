@@ -536,7 +536,7 @@ func _write_bullets(sim: CombatSim) -> int:
 			buf[o + 4] = 0.0
 			buf[o + 5] = 1.0
 			buf[o + 6] = 0.0
-			buf[o + 7] = 1.05
+			buf[o + 7] = pool.y[i]
 			buf[o + 8] = 0.0
 			buf[o + 9] = 0.0
 			buf[o + 10] = 1.0

@@ -141,16 +141,20 @@ func test_weapons_share_the_soldier_transform_and_bullets_leave_the_muzzle() -> 
 	assert_almost_eq(view._buf_squad[11], view._buf_weapon[11], 0.0001)
 	sim.squad.set_cooldown(0.0)
 	sim.tick(0.0)
-	var muzzle: Vector2 = sim.squad.weapon.muzzle_offset
+	var muzzle: Vector3 = sim.squad.weapon.muzzle_offset
 	var found := false
 	var i := 0
 	while i < sim.bullets.capacity:
 		if sim.bullets.alive[i] != 0:
 			found = true
 			assert_almost_eq(sim.bullets.x[i], sim.squad.position.x + muzzle.x, 0.001)
-			assert_almost_eq(sim.bullets.z[i], sim.squad.position.z + muzzle.y, 0.001)
+			assert_almost_eq(sim.bullets.y[i], sim.squad.position.y + muzzle.y, 0.001)
+			assert_almost_eq(sim.bullets.z[i], sim.squad.position.z + muzzle.z, 0.001)
+			assert_gt(sim.bullets.y[i], 0.4)
 		i += 1
 	assert_true(found)
+	view.sync(sim)
+	assert_almost_eq(view._buf_bullet[7], sim.squad.position.y + muzzle.y, 0.001)
 
 
 func _tris(mesh: Mesh) -> int:

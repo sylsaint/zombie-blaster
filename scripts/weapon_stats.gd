@@ -18,9 +18,9 @@ extends Resource
 @export var explosion_radius: float = 0.0
 @export var body_mesh_path: String = "res://assets/models/chr_soldier_a.glb"
 @export var weapon_mesh_path: String = "res://assets/models/wpn_pistol.glb"
-## Soldier-local muzzle. x is the gun axis (+0.33 m). y is forward Z from the
-## glb bounds (minimum Z; the mesh faces -Z), rounded to a millimeter.
-@export var muzzle_offset: Vector2 = Vector2(0.33, -0.728)
+## Soldier-local muzzle, metres. x is the gun axis (+0.33). y is height above
+## the feet. z is forward from the glb bounds (minimum Z; the mesh faces -Z).
+@export var muzzle_offset: Vector3 = Vector3(0.33, 0.56, -0.728)
 
 
 static func solo_dps(weapon: WeaponStats) -> float:
@@ -30,28 +30,28 @@ static func solo_dps(weapon: WeaponStats) -> float:
 
 
 static func pistol() -> WeaponStats:
-	return _armed(1, 1, "手枪", 10.0, 0.4, 1, 0.0, 0.0, "res://assets/models/chr_soldier_a.glb", "res://assets/models/wpn_pistol.glb", -0.728)
+	return _armed(1, 1, "手枪", 10.0, 0.4, 1, 0.0, 0.0, "res://assets/models/chr_soldier_a.glb", "res://assets/models/wpn_pistol.glb", Vector3(0.33, 0.56, -0.728))
 
 
 static func rifle() -> WeaponStats:
-	return _armed(2, 2, "步枪", 12.0, 0.2, 1, 0.0, 0.0, "res://assets/models/chr_soldier_b.glb", "res://assets/models/wpn_rifle.glb", -1.157)
+	return _armed(2, 2, "步枪", 12.0, 0.2, 1, 0.0, 0.0, "res://assets/models/chr_soldier_b.glb", "res://assets/models/wpn_rifle.glb", Vector3(0.33, 0.57, -1.157))
 
 
 static func shotgun() -> WeaponStats:
-	return _armed(3, 2, "霰弹枪", 9.0, 0.55, 5, 30.0, 0.0, "res://assets/models/chr_soldier_b.glb", "res://assets/models/wpn_shotgun.glb", -1.240)
+	return _armed(3, 2, "霰弹枪", 9.0, 0.55, 5, 30.0, 0.0, "res://assets/models/chr_soldier_b.glb", "res://assets/models/wpn_shotgun.glb", Vector3(0.33, 0.59, -1.240))
 
 
 static func gatling() -> WeaponStats:
-	return _armed(4, 3, "加特林", 10.0, 0.08, 1, 6.0, 0.0, "res://assets/models/chr_soldier_c.glb", "res://assets/models/wpn_gatling.glb", -1.288)
+	return _armed(4, 3, "加特林", 10.0, 0.08, 1, 6.0, 0.0, "res://assets/models/chr_soldier_c.glb", "res://assets/models/wpn_gatling.glb", Vector3(0.33, 0.57, -1.288))
 
 
 static func rocket() -> WeaponStats:
-	return _armed(5, 3, "火箭炮", 60.0, 0.7, 1, 0.0, 2.0, "res://assets/models/chr_soldier_c.glb", "res://assets/models/wpn_rocket.glb", -1.086)
+	return _armed(5, 3, "火箭炮", 60.0, 0.7, 1, 0.0, 2.0, "res://assets/models/chr_soldier_c.glb", "res://assets/models/wpn_rocket.glb", Vector3(0.33, 0.59, -1.086))
 
 
-static func _armed(tier_n: int, outfit: int, title: String, dmg: float, gap: float, pellet_count: int, spread: float, blast: float, body_path: String, gun_path: String, muzzle_z: float) -> WeaponStats:
+static func _armed(tier_n: int, outfit: int, title: String, dmg: float, gap: float, pellet_count: int, spread: float, blast: float, body_path: String, gun_path: String, muzzle: Vector3) -> WeaponStats:
 	var weapon := _make(tier_n, outfit, title, dmg, gap, pellet_count, spread, blast, body_path, gun_path)
-	weapon.muzzle_offset = Vector2(0.33, muzzle_z)
+	weapon.muzzle_offset = muzzle
 	return weapon
 
 
