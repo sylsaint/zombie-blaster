@@ -137,14 +137,91 @@ wait_for_menu() {
     fi
     sleep 2
   done
-  # Let the GL surface present the canvas after the scene is ready.
-  if [[ "$ready" -eq 1 ]]; then
-    sleep 8
-  fi
 }
 
 wait_for_menu
 release_ready="$ready"
+
+refresh_log() {
+  adb logcat -d -b main -v time -s godot:I Godot:V > "$out/logcat-live.txt" || true
+}
+
+wait_for_marker() {
+  local pattern="$1"
+  local i
+  for i in $(seq 1 180); do
+    refresh_log
+    if grep -a -q "$pattern" "$out/logcat-live.txt"; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "timed out waiting for $pattern" >&2
+  return 1
+}
+
+engine_field() {
+  local name="$1"
+  local key="$2"
+  awk -v n="$name" -v key="$key" '
+    index($0, "MENU_ENGINE name=" n " ") {
+      for (i = 1; i <= NF; i++) {
+        if (index($i, key "=") == 1) {
+          print substr($i, length(key) + 2)
+          exit
+        }
+      }
+    }
+  ' "$out/logcat-live.txt"
+}
+
+report_screencap() {
+  local name="$1"
+  local file="$2"
+  local line="missing"
+  if [[ -s "$file" ]]; then
+    line="$(python3 "$ROOT/tools/release/check_menu_screenshot.py" --report "$file" 2>&1 || true)"
+  fi
+  note "screencap ${name}: ${line}"
+  printf 'screencap %s %s\n' "$name" "$line" >> "$out/ratios.txt"
+}
+
+is_png() {
+  python3 -c 'import sys; raise SystemExit(0 if open(sys.argv[1],"rb").read(8).startswith(b"\x89PNG") else 1)' "$1"
+}
+
+pull_engine_png() {
+  local name="$1"
+  local dest="$2"
+  local remote
+  remote="$(engine_field "$name" file)"
+  if [[ -z "$remote" ]]; then
+    note "no engine file path for ${name}"
+    return 1
+  fi
+  local base
+  base="$(basename "$remote")"
+  : > "$dest"
+  if adb exec-out run-as "$package" cat "files/${base}" > "$dest" 2>"$out/run-as-${name}.txt"; then
+    if is_png "$dest"; then
+      note "pulled ${base} via run-as"
+      return 0
+    fi
+  fi
+  note "run-as did not return ${base} ($(tr -d '\r' < "$out/run-as-${name}.txt" | head -n 1))"
+  if [[ "${adb_rooted:-0}" -ne 1 ]]; then
+    adb root >/dev/null 2>&1 || true
+    adb wait-for-device
+    sleep 2
+    adb_rooted=1
+  fi
+  if adb pull "$remote" "$dest" >/dev/null && is_png "$dest"; then
+    note "pulled ${base} via adb root"
+    return 0
+  fi
+  note "could not pull ${remote}"
+  return 1
+}
 
 # adb exec-out screencap is binary, but some adb builds still mangle 0x0d.
 # A device-side file plus adb pull is the fallback when the stream is not a PNG.
@@ -161,7 +238,37 @@ capture_screen() {
   adb shell rm -f /sdcard/zb_smoke.png
 }
 
-capture_screen "$out/menu.png"
+: > "$out/ratios.txt"
+adb_rooted=0
+for variant in menu no3d plain; do
+  if ! wait_for_marker "MENU_ENGINE name=${variant} "; then
+    printf 'engine %s missing\n' "$variant" >> "$out/ratios.txt"
+    continue
+  fi
+  ratio="$(engine_field "$variant" ratio)"
+  play="$(engine_field "$variant" play)"
+  note "engine ${variant}: ratio=${ratio:-missing} play=${play:-missing}"
+  printf 'engine %s ratio=%s play=%s\n' "$variant" "${ratio:-missing}" "${play:-missing}" >> "$out/ratios.txt"
+  if [[ "$variant" == "menu" ]]; then
+    capture_screen "$out/menu.png"
+    report_screencap menu "$out/menu.png"
+  else
+    capture_screen "$out/menu-${variant}.png"
+    report_screencap "$variant" "$out/menu-${variant}.png"
+  fi
+done
+if [[ ! -s "$out/menu.png" ]]; then
+  capture_screen "$out/menu.png" || true
+fi
+if wait_for_marker "MENU_CANVAS_DONE"; then
+  note "canvas probe finished"
+else
+  echo "MENU_CANVAS_DONE was not printed" >&2
+fi
+refresh_log
+if grep -a 'MENU_SETTINGS' "$out/logcat-live.txt" | tail -n 1; then
+  grep -a 'MENU_SETTINGS' "$out/logcat-live.txt" | tail -n 1 >> "$out/ratios.txt"
+fi
 
 adb shell input tap "$tap_play_x" "$tap_play_y"
 sleep 2
@@ -180,10 +287,31 @@ pid="$(adb shell pidof "$package" 2>/dev/null | tr -d '\r' || true)"
   adb logcat -d -b all -v time | tr -d '\r' | grep -a -E 'godot|Godot|com\.zombieblaster\.game|SCRIPT ERROR' || true
 } > "$out/logcat.txt"
 adb logcat -d -b crash -v time | tr -d '\r' > "$out/crash.txt" || true
+refresh_log
+for variant in menu no3d plain; do
+  if [[ "$variant" == "menu" ]]; then
+    engine_png="$out/menu-engine.png"
+  else
+    engine_png="$out/menu-engine-${variant}.png"
+  fi
+  if pull_engine_png "$variant" "$engine_png"; then
+    file_line="$(python3 "$ROOT/tools/release/check_menu_screenshot.py" --report "$engine_png" 2>&1 || true)"
+    note "engine-file ${variant}: ${file_line}"
+    printf 'engine-file %s %s\n' "$variant" "$file_line" >> "$out/ratios.txt"
+  else
+    printf 'engine-file %s missing\n' "$variant" >> "$out/ratios.txt"
+  fi
+done
 
 status=0
 if [[ "$release_ready" -ne 1 ]]; then
   echo "MENU_READY was not printed" >&2
+  status=1
+fi
+if ! grep -a -q 'engine menu ratio=' "$out/ratios.txt" \
+  || ! grep -a -q 'engine no3d ratio=' "$out/ratios.txt" \
+  || ! grep -a -q 'engine plain ratio=' "$out/ratios.txt"; then
+  echo "an engine menu_ratio was not printed" >&2
   status=1
 fi
 if ! python3 "$ROOT/tools/release/check_menu_screenshot.py" "$out/menu.png"; then

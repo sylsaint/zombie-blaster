@@ -65,7 +65,11 @@ Godot 4.7 的 Android 模板用 Android Gradle Plugin 8.6 编出来，release �
 
 GitHub 上的 x86_64 模拟器不能代替这次确认。同一轮里，debug 模板和已经去掉 baseline profile 的 arm64 release 模板，在 ARM 翻译下都只画出 3D，`MENU_READY` 和按钮布局也一样。所以那次模拟器结果说明不了小米真机上的菜单问题。
 
-只含 x86_64 的 release 库在同一套 swangle 模拟器上结果相同：`primaryCpuAbi=x86_64`，没有 canvas shader 链接错误，`MENU_READY` 和「开始」按钮的矩形都对，点击也能进入第 1 关，但 `adb exec-out screencap` 仍然只有 3D（按钮中心是地面色，menu_ratio 为 0）。缺画面不是 ARM 翻译。这个模拟器画不出 Godot 的 canvas。颜色检查不放宽，job 会因此失败。这仍然说明不了小米真机上的菜单问题。
+只含 x86_64 的 release 库在同一套 swangle 模拟器上结果相同：`primaryCpuAbi=x86_64`，没有 canvas shader 链接错误，`MENU_READY` 和「开始」按钮的矩形都对，点击也能进入第 1 关，但 `adb exec-out screencap` 仍然只有 3D（按钮中心是地面色，menu_ratio 为 0）。缺画面不是 ARM 翻译。颜色检查不放宽。这仍然说明不了小米真机上的菜单问题。
+
+smoke APK 的工作副本额外带上 `--smoke-canvas`（正式预设的 `command_line/extra_args` 仍是空的）。`MENU_READY` 之后等两帧已经画完，把 `get_viewport().get_texture().get_image()` 存到 `user://menu_engine.png`，并把同一套菜单颜色比例打到 logcat。接着关掉 3D 车道和 `WorldEnvironment` 再截一次，然后在 layer 100 上放一个不走主题的纯色 `ColorRect` 加 `Label` 再截一次。screencap 和引擎图像的 `menu_ratio` 都写进 artifact。这是在分清「Godot 没把 canvas 画进视口」和「模拟器截图没截到」，不是修复。
+
+主场景的 3D 在根视口里，不在 `SubViewport`。`project.godot` 没有改这些项，有效值是引擎默认：`hdr_2d=false`，`transparent_background=false`，`scaling_3d/mode=0`（bilinear），`scaling_3d/scale=1`，`msaa_2d=0`，`msaa_3d=0`，`use_debanding=false`。
 
 查过 Godot 4.7 的 issue，没有一条对得上「release 模板在 Adreno 上只画 3D、不画 2D，debug 模板正常」。能对上 Adreno 的报告是 Vulkan / Mobile 渲染器的花屏或几何丢失（例如 [#115217](https://github.com/godotengine/godot/issues/115217)、[#120299](https://github.com/godotengine/godot/issues/120299)）。本工程桌面和手机都是 Compatibility（`gl_compatibility`），shader baker 也关着。字体和 text server 在 pck 里，debug 和 release 是同一份，所以不是资源被裁掉。
 

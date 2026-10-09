@@ -203,10 +203,19 @@ def set_arch(body: str, name: str, value: str) -> str:
         raise SystemExit(f"Android preset is missing architectures/{name}")
     return updated
 
+def set_line(body: str, key: str, value: str) -> str:
+    pattern = rf"(?m)^{re.escape(key)}=.*$"
+    updated, count = re.subn(pattern, f"{key}={value}", body, count=1)
+    if count != 1:
+        raise SystemExit(f"Android preset is missing {key}")
+    return updated
+
 section = set_arch(section, "armeabi-v7a", "false")
 section = set_arch(section, "arm64-v8a", "false")
 section = set_arch(section, "x86", "false")
 section = set_arch(section, "x86_64", "true")
+# User arg, so the phone preset's command_line/extra_args stays empty.
+section = set_line(section, "command_line/extra_args", '"-- --smoke-canvas"')
 path.write_text(text[:start] + section + text[end:])
 rest = text[end:]
 if "architectures/arm64-v8a=true" not in rest or "architectures/x86_64=false" not in rest:

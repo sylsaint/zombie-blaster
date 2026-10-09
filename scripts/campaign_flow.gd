@@ -22,6 +22,11 @@ var _wired: bool = false
 var _shot_path: String = ""
 var _shot_after: float = 6.0
 var _shot_phase: int = 0
+var _canvas_probe_started: bool = false
+var _probe_hidden: Array = []
+var _probe_env: Environment
+var _probe_world: WorldEnvironment
+var _probe_layer: CanvasLayer
 
 
 func _ready() -> void:
@@ -256,6 +261,174 @@ func _show_menu() -> void:
 	# _ready is before the first layout, so the button rect is printed next frame.
 	print("MENU_READY")
 	get_tree().process_frame.connect(_print_menu_layout, CONNECT_ONE_SHOT)
+	# Only the CI x86_64 smoke APK passes this. The phone preset's extra_args stay empty.
+	if not _canvas_probe_started and _wants_canvas_probe():
+		_canvas_probe_started = true
+		_run_canvas_probe()
+
+
+func _wants_canvas_probe() -> bool:
+	for arg in OS.get_cmdline_user_args():
+		if arg.contains("--smoke-canvas"):
+			return true
+	for arg in OS.get_cmdline_args():
+		if arg.contains("--smoke-canvas"):
+			return true
+	return false
+
+
+func _run_canvas_probe() -> void:
+	_print_canvas_settings()
+	await _capture_canvas_variant("menu", "user://menu_engine.png")
+	_disable_lane_for_probe()
+	await _capture_canvas_variant("no3d", "user://menu_engine_no3d.png")
+	_add_plain_canvas_for_probe()
+	await _capture_canvas_variant("plain", "user://menu_engine_plain.png")
+	_restore_after_canvas_probe()
+	print("MENU_CANVAS_DONE")
+
+
+func _print_canvas_settings() -> void:
+	var keys := [
+		"rendering/viewport/hdr_2d",
+		"rendering/viewport/transparent_background",
+		"rendering/scaling_3d/mode",
+		"rendering/scaling_3d/scale",
+		"rendering/anti_aliasing/quality/msaa_2d",
+		"rendering/anti_aliasing/quality/msaa_3d",
+		"rendering/anti_aliasing/quality/use_debanding",
+	]
+	var parts: PackedStringArray = []
+	for key in keys:
+		if ProjectSettings.has_setting(key):
+			parts.append("%s=%s" % [key, ProjectSettings.get_setting(key)])
+		else:
+			parts.append("%s=MISSING" % key)
+	var subs := get_tree().root.find_children("*", "SubViewport", true, false)
+	var in_sub := get_viewport() != get_tree().root.get_viewport()
+	print(
+		"MENU_SETTINGS %s subviewports=%d main_in_subviewport=%s user_dir=%s"
+		% [" ".join(parts), subs.size(), in_sub, OS.get_user_data_dir()]
+	)
+
+
+func _capture_canvas_variant(variant_name: String, user_path: String) -> void:
+	# process_frame runs before the draw. Two post-draw frames is the rendered image.
+	for _i in 2:
+		await RenderingServer.frame_post_draw
+	var viewport := get_viewport()
+	var texture := viewport.get_texture() if viewport != null else null
+	var image: Image = texture.get_image() if texture != null else null
+	if image == null or image.get_width() <= 0:
+		print("MENU_ENGINE name=%s ratio=missing save=empty file=%s" % [variant_name, user_path])
+		await get_tree().create_timer(12.0).timeout
+		return
+	var err := image.save_png(user_path)
+	var ratio := _menu_pixel_ratio(image)
+	var file_path := ProjectSettings.globalize_path(user_path)
+	print(
+		"MENU_ENGINE name=%s ratio=%.4f size=%dx%d play=%s file=%s save=%s"
+		% [
+			variant_name,
+			ratio,
+			image.get_width(),
+			image.get_height(),
+			_pixel_text(image, 540, 1698),
+			file_path,
+			err,
+		]
+	)
+	# Hold this frame so adb screencap and the viewport image are the same variant.
+	await get_tree().create_timer(12.0).timeout
+
+
+func _menu_pixel_ratio(image: Image) -> float:
+	var sample := image
+	if image.get_format() != Image.FORMAT_RGBA8 and image.get_format() != Image.FORMAT_RGB8:
+		sample = image.duplicate()
+		sample.convert(Image.FORMAT_RGBA8)
+	var data := sample.get_data()
+	var channels := 4 if sample.get_format() == Image.FORMAT_RGBA8 else 3
+	var total := sample.get_width() * sample.get_height()
+	if total <= 0 or channels <= 0:
+		return 0.0
+	var menu := 0
+	var i := 0
+	while i + 2 < data.size():
+		var r := int(data[i])
+		var g := int(data[i + 1])
+		var b := int(data[i + 2])
+		if r >= 210 and g >= 160 and b >= 90 and b <= 210 and (r - b) >= 30 and (g - b) >= 15 and r + 10 >= g:
+			menu += 1
+		i += channels
+	return float(menu) / float(total)
+
+
+func _pixel_text(image: Image, x: int, y: int) -> String:
+	x = clampi(x, 0, image.get_width() - 1)
+	y = clampi(y, 0, image.get_height() - 1)
+	var color := image.get_pixel(x, y)
+	return "%d,%d:%d,%d,%d" % [
+		x,
+		y,
+		int(round(color.r * 255.0)),
+		int(round(color.g * 255.0)),
+		int(round(color.b * 255.0)),
+	]
+
+
+func _disable_lane_for_probe() -> void:
+	var root := get_parent()
+	if root == null:
+		return
+	_probe_world = root.get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if _probe_world != null:
+		_probe_env = _probe_world.environment
+		_probe_world.environment = null
+	for node in root.find_children("*", "VisualInstance3D", true, false):
+		if node.visible:
+			node.visible = false
+			_probe_hidden.append(node)
+	for node in root.find_children("*", "Light3D", true, false):
+		if node.visible:
+			node.visible = false
+			_probe_hidden.append(node)
+
+
+func _add_plain_canvas_for_probe() -> void:
+	var layer := CanvasLayer.new()
+	layer.name = "PlainProbe"
+	layer.layer = 100
+	get_tree().root.add_child(layer)
+	var rect := ColorRect.new()
+	rect.name = "PlainFill"
+	rect.color = Color8(255, 221, 161)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.theme = Theme.new()
+	layer.add_child(rect)
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.set_offsets_preset(Control.PRESET_FULL_RECT)
+	var label := Label.new()
+	label.text = "PLAIN"
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.theme = Theme.new()
+	label.add_theme_color_override("font_color", Color(0, 0, 0, 1))
+	label.add_theme_font_size_override("font_size", 72)
+	label.position = Vector2(64, 64)
+	rect.add_child(label)
+	_probe_layer = layer
+
+
+func _restore_after_canvas_probe() -> void:
+	if _probe_layer != null and is_instance_valid(_probe_layer):
+		_probe_layer.queue_free()
+	_probe_layer = null
+	for node in _probe_hidden:
+		if is_instance_valid(node):
+			node.visible = true
+	_probe_hidden.clear()
+	if _probe_world != null and is_instance_valid(_probe_world):
+		_probe_world.environment = _probe_env
 
 
 func _print_menu_layout() -> void:

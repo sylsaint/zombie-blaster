@@ -200,12 +200,18 @@ def main(argv: list[str]) -> int:
     if argv == ["--self-test"]:
         _self_test()
         return 0
+    report = False
+    if argv and argv[0] == "--report":
+        report = True
+        argv = argv[1:]
     if len(argv) != 1:
-        print("usage: check_menu_screenshot.py MENU.png", file=sys.stderr)
+        print("usage: check_menu_screenshot.py [--report] MENU.png", file=sys.stderr)
         return 2
     width, height, rgb = read_png_rgb(Path(argv[0]))
     ok, message = assess(width, height, rgb)
     print(message)
+    if report:
+        return 0
     return 0 if ok else 1
 
 
