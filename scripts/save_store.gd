@@ -37,7 +37,11 @@ func profile_from_text(text: String) -> PlayerProfile:
 	var profile := PlayerProfile.new()
 	if text.is_empty():
 		return profile
-	var parsed: Variant = JSON.parse_string(text)
+	# JSON.parse reports a bad file without printing, so a corrupt save stays quiet.
+	var json := JSON.new()
+	if json.parse(text) != OK:
+		return profile
+	var parsed: Variant = json.data
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return profile
 	return profile_from_dict(parsed)
@@ -45,8 +49,7 @@ func profile_from_text(text: String) -> PlayerProfile:
 
 func profile_from_dict(data: Dictionary) -> PlayerProfile:
 	var profile := PlayerProfile.new()
-	# Missing or older version still maps onto the fields we know.
-	var _version := _as_int(data.get("version", 0), 0)
+	# Missing, older, and newer versions all map onto the fields we know.
 	profile.coins = maxi(_as_int(_first(data, ["coins", "gold"], 0), 0), 0)
 	profile.parts = maxi(_as_int(_first(data, ["parts", "weapon_parts"], 0), 0), 0)
 	profile.attack_level = clampi(

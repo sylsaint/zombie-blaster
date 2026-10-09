@@ -65,11 +65,11 @@ func _flow(path: String) -> CampaignFlow:
 	var flow := CampaignFlow.new()
 	flow.name = "UI"
 	flow.save_path = path
-	var menu := load("res://scenes/ui/main_menu.tscn").instantiate()
+	var menu: Node = load("res://scenes/ui/main_menu.tscn").instantiate()
 	menu.name = "MainMenu"
-	var select := load("res://scenes/ui/level_select.tscn").instantiate()
+	var select: Node = load("res://scenes/ui/level_select.tscn").instantiate()
 	select.name = "LevelSelect"
-	var results := load("res://scenes/ui/results_screen.tscn").instantiate()
+	var results: Node = load("res://scenes/ui/results_screen.tscn").instantiate()
 	results.name = "Results"
 	flow.add_child(menu)
 	flow.add_child(select)
@@ -368,8 +368,20 @@ func test_ac_rw_05_attack_cost_matches_the_table() -> void:
 		13: 720,
 		14: 900,
 		15: 1130,
+		16: 1420,
+		17: 1770,
+		18: 2220,
+		19: 2770,
 		20: 3460,
+		21: 4330,
+		22: 5420,
+		23: 6770,
+		24: 8470,
 		25: 10580,
+		26: 13230,
+		27: 16540,
+		28: 20670,
+		29: 25840,
 		30: 32310,
 	}
 	for k in expected.keys():

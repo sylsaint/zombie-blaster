@@ -27,7 +27,7 @@ func show_meta(level: int, cap: int, bonus_percent: int, cost: int, can_buy: boo
 
 
 func level_button(index: int) -> Button:
-	return get_node("%Level%d" % index) as Button
+	return get_node("%Level" + str(index)) as Button
 
 
 func _set_level(button: Button, index: int, unlocked_through: int) -> void:
