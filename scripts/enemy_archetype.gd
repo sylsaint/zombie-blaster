@@ -29,6 +29,23 @@ const KIND_BOSS := 2
 @export var mesh_high: String = ""
 @export var mesh_low: String = ""
 @export var visual_scale: float = 1.0
-## XZ offset from the feet origin to the collision circle. The sim still
-## collides on the feet origin; applying this in the hash is issue #10.
-@export var collision_offset: Vector2 = Vector2.ZERO
+## Gameplay circle is not always on the mesh origin. The mutant's body is offset.
+@export var offset_x: float = 0.0
+@export var offset_z: float = 0.0
+## Visual reach from the actor origin. Contact uses the offset circle, not these.
+@export var mesh_extent_right: float = 0.0
+@export var mesh_extent_left: float = 0.0
+@export var mesh_extent_forward: float = 0.0
+
+
+func collision_center(origin_x: float, origin_z: float) -> Vector2:
+	return Vector2(origin_x + offset_x, origin_z + offset_z)
+
+
+## True when the offset circle overlaps a point, or a circle of extra_radius.
+func overlaps(origin_x: float, origin_z: float, px: float, pz: float, extra_radius: float = 0.0) -> bool:
+	var center := collision_center(origin_x, origin_z)
+	var dx := center.x - px
+	var dz := center.y - pz
+	var reach := radius + extra_radius
+	return dx * dx + dz * dz <= reach * reach

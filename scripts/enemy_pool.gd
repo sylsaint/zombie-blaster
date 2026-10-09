@@ -53,6 +53,7 @@ var warn_time := PackedFloat32Array()
 var slam_timer := PackedFloat32Array()
 var warning_slot := PackedInt32Array()
 var active_count: int = 0
+var kill_count: int = 0
 var active_ids := PackedInt32Array()
 var active_n: int = 0
 var _active_index := PackedInt32Array()
@@ -232,6 +233,7 @@ func hit(id: int, amount: float, dir_x: float, dir_z: float) -> bool:
 	state[id] = State.DYING
 	dissolve_left[id] = DISSOLVE_TIME
 	vat_hit_age[id] = -1.0
+	kill_count += 1
 	return true
 
 
@@ -246,6 +248,7 @@ func kill(id: int) -> bool:
 	dissolve_left[id] = DISSOLVE_TIME
 	flash_left[id] = flash_duration(archetype[id])
 	vat_hit_age[id] = -1.0
+	kill_count += 1
 	return true
 
 
