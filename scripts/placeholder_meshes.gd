@@ -3,6 +3,57 @@ extends RefCounted
 ## Low-poly stand-ins. Grunt ~300 tris, elite <= 1500, boss <= 5000.
 
 
+static func walker_lod() -> ArrayMesh:
+	var builder := _Builder.new()
+	builder.add_sphere(Vector3(0, 1.42, 0), 0.16, 5, 3)
+	builder.add_cylinder(Vector3(0, 0.95, 0), 0.16, 0.5, 5, 1)
+	builder.add_cylinder(Vector3(-0.26, 1.02, 0), 0.055, 0.42, 4, 1, Basis.from_euler(Vector3(0, 0, PI * 0.5)))
+	builder.add_cylinder(Vector3(0.26, 1.02, 0), 0.055, 0.42, 4, 1, Basis.from_euler(Vector3(0, 0, PI * 0.5)))
+	builder.add_cylinder(Vector3(-0.09, 0.34, 0), 0.07, 0.62, 4, 1)
+	builder.add_cylinder(Vector3(0.09, 0.34, 0), 0.07, 0.62, 4, 1)
+	return builder.commit()
+
+
+static func runner() -> ArrayMesh:
+	var builder := _Builder.new()
+	var lean := Basis.from_euler(Vector3(-0.45, 0, 0))
+	builder.add_sphere(Vector3(0, 1.55, 0.18), 0.14, 8, 4)
+	builder.add_cylinder(Vector3(0, 1.05, 0.08), 0.12, 0.62, 8, 3, lean)
+	builder.add_cylinder(Vector3(-0.22, 1.15, 0.2), 0.045, 0.48, 6, 2, Basis.from_euler(Vector3(0.4, 0, PI * 0.5)))
+	builder.add_cylinder(Vector3(0.22, 1.15, 0.2), 0.045, 0.48, 6, 2, Basis.from_euler(Vector3(0.4, 0, -PI * 0.5)))
+	builder.add_cylinder(Vector3(-0.08, 0.38, 0.05), 0.055, 0.72, 5, 3)
+	builder.add_cylinder(Vector3(0.08, 0.38, -0.02), 0.055, 0.72, 5, 3)
+	return builder.commit()
+
+
+static func runner_lod() -> ArrayMesh:
+	var builder := _Builder.new()
+	builder.add_sphere(Vector3(0, 1.5, 0.16), 0.13, 5, 3)
+	builder.add_cylinder(Vector3(0, 1.0, 0.08), 0.11, 0.55, 5, 1, Basis.from_euler(Vector3(-0.4, 0, 0)))
+	builder.add_cylinder(Vector3(-0.2, 1.1, 0.16), 0.04, 0.4, 4, 1, Basis.from_euler(Vector3(0.3, 0, PI * 0.5)))
+	builder.add_cylinder(Vector3(0.2, 1.1, 0.16), 0.04, 0.4, 4, 1, Basis.from_euler(Vector3(0.3, 0, -PI * 0.5)))
+	builder.add_cylinder(Vector3(-0.07, 0.34, 0.04), 0.05, 0.64, 4, 1)
+	builder.add_cylinder(Vector3(0.07, 0.34, 0.0), 0.05, 0.64, 4, 1)
+	return builder.commit()
+
+
+static func gem() -> ArrayMesh:
+	var builder := _Builder.new()
+	builder.add_box(Vector3(0, 0.35, 0), Vector3(0.28, 0.28, 0.28))
+	return builder.commit()
+
+
+static func ground_quad() -> ArrayMesh:
+	var builder := _Builder.new()
+	var i0 := builder.add_vert(Vector3(-0.5, 0, -0.5), Vector3.UP, Vector2(0, 0))
+	var i1 := builder.add_vert(Vector3(0.5, 0, -0.5), Vector3.UP, Vector2(1, 0))
+	var i2 := builder.add_vert(Vector3(-0.5, 0, 0.5), Vector3.UP, Vector2(0, 1))
+	var i3 := builder.add_vert(Vector3(0.5, 0, 0.5), Vector3.UP, Vector2(1, 1))
+	builder.add_tri(i0, i2, i1)
+	builder.add_tri(i1, i2, i3)
+	return builder.commit()
+
+
 static func grunt() -> ArrayMesh:
 	var builder := _Builder.new()
 	builder.add_sphere(Vector3(0, 1.48, 0), 0.18, 8, 5)

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SkillCard" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/skill_card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+effect_id = 0
+title = "分裂子弹"
+blurb = "命中后分裂，各 50% 伤害"
+max_level = 3
+magnitude = 0.5
+core = true
+spread_degrees = 30.0

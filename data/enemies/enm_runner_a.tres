@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EnemyArchetype" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_archetype.gd" id="1_arch"]
+
+[resource]
+script = ExtResource("1_arch")
+id = "enm_runner_a"
+display_name = "快跑僵尸"
+kind = 0
+species = 1
+base_hp = 12.0
+speed = 3.5
+near_speed = 0.0
+near_distance = 0.0
+weight = 1
+radius = 0.34
+xp = 1
+gold = 0
+grants_offer = false
+touch_damage = 1
+touch_period = 0.0
+slam_interval = 0.0
+warn_time = 0.0
+color_variant = 0.42
+mesh_high = "res://assets/models/enm_runner.glb"
+mesh_low = "res://assets/models/enm_runner_lod1.glb"
+visual_scale = 0.9
