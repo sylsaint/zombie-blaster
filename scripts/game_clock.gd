@@ -98,10 +98,8 @@ func advance(real_delta: float) -> float:
 
 
 func _publish_game_time() -> void:
-	var names := RenderingServer.global_shader_parameter_get_list()
-	if not names.has("game_time"):
-		RenderingServer.global_shader_parameter_add("game_time", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, gameplay_time)
-		return
+	# Declared in project.godot. get_list/add are editor-only and the GLES3
+	# driver errors if add runs against a name that already exists.
 	RenderingServer.global_shader_parameter_set("game_time", gameplay_time)
 
 
