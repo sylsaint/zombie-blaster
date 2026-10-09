@@ -6,6 +6,7 @@ swatch centres, NO vertex colour attribute (COLOR_n: the engine writes its smoot
 colours on import), hard edges / flat shading (all 3 vertex normals of every triangle equal the face normal),
 forward reach (-Z) limit for enemies."""
 import json
+import os
 import struct
 import sys
 
@@ -59,7 +60,7 @@ def main(paths):
     fails = []
     for p in paths:
         js, binc = load(p)
-        tris, P, UV = 0, [], []
+        tris, P, UV, UV2 = 0, [], [], []
         for node in js["nodes"]:
             assert "rotation" not in node and "scale" not in node and "translation" not in node, \
                 "unapplied transform on node %s" % node.get("name")
@@ -85,7 +86,11 @@ def main(paths):
                     flat_total += 3 * len(t)
                 P.append(pos)
                 UV.append(acc(js, binc, pr["attributes"]["TEXCOORD_0"]))
+                if "TEXCOORD_1" in pr["attributes"]:
+                    UV2.append(acc(js, binc, pr["attributes"]["TEXCOORD_1"]))
                 mats.add(pr.get("material"))
+        prim_count = len(UV)
+        uv2_prims = len(UV2)
         P, UV = np.vstack(P), np.vstack(UV)
         mn, mx = P.min(0), P.max(0)
         # glTF UV origin top-left: swatch centre u=(c+.5)/8, v=(r+.5)/4
@@ -135,6 +140,24 @@ def main(paths):
         r = limit(REACH, name)
         if r:
             checks.append(("forward reach %.3f <= %.2f m" % (-mn[2], r), -mn[2] <= r + 1e-4))
+        vat_path = p.rsplit("/", 1)[0] + "/anim/" + name + "_vat.json"
+        has_vat = os.path.isfile(vat_path)
+        if has_vat:
+            spec = json.load(open(vat_path))
+            width = int(spec["width"])
+            rows = int(spec.get("rows_per_frame", 1))
+            ok_uv2 = uv2_prims == prim_count and width > 0
+            if ok_uv2:
+                uv2 = np.vstack(UV2)
+                cols = np.rint(uv2[:, 0] * width - 0.5).astype(np.int32)
+                expected_u = (cols.astype(np.float64) + 0.5) / float(width)
+                ok_uv2 = bool(np.all(np.abs(uv2[:, 0] - expected_u) < 1e-4))
+                ok_uv2 = ok_uv2 and int(cols.min()) >= 0 and int(cols.max()) < width
+                if rows == 1:
+                    ok_uv2 = ok_uv2 and bool(np.all(np.abs(uv2[:, 1] - 0.5) < 1e-4))
+            checks.append(("UV2 column matches %s" % vat_path, ok_uv2))
+        elif UV2:
+            checks.append(("UV2 without a VAT json", False))
         for label, ok in checks:
             print("  [%s] %s" % ("PASS" if ok else "FAIL", label))
             if not ok:

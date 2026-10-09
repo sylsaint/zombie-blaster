@@ -5,12 +5,13 @@ render_mode specular_disabled, shadows_disabled, fog_disabled, cull_back;
 // blocks in step with that file. light() replaces Burley with a 3-step ramp.
 // Used only while the cel toggle is on. Compatibility renderer: no compute.
 
+#include "res://assets/vfx/vat_sample.gdshaderinc"
+
 varying vec4 inst_custom;
+varying highp vec3 vat_view_pos;
 
 uniform sampler2D palette : source_color, filter_nearest, repeat_disable;
-uniform sampler2D vat_positions : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D cel_ramp : filter_nearest, repeat_disable;
-uniform float vat_enabled = 0.0;
 uniform float vat_frame_count = 1.0;
 uniform vec3 flash_color : source_color = vec3(1.0, 0.96, 0.9);
 uniform float rim_enabled = 0.0;
@@ -24,18 +25,23 @@ uniform float use_mesh_uv = 0.0;
 void vertex() {
 	inst_custom = INSTANCE_CUSTOM;
 	if (vat_enabled > 0.5) {
-		float frame = clamp(inst_custom.b, 0.0, 1.0) * max(vat_frame_count - 1.0, 0.0);
-		float v = (frame + 0.5) / max(vat_frame_count, 1.0);
-		vec3 baked = texture(vat_positions, vec2(UV2.x, v)).rgb;
-		VERTEX = baked;
+		VERTEX += vat_offset(inst_custom, UV2);
 	} else if (wobble_enabled > 0.5) {
 		float phase = inst_custom.b * 6.2831853 * 4.0;
 		VERTEX.x += sin(phase + VERTEX.y * 5.0) * 0.03;
 		VERTEX.z += cos(phase * 0.5 + VERTEX.y * 3.0) * 0.02;
 	}
+	vat_view_pos = (MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
 void fragment() {
+	if (vat_enabled > 0.5) {
+		highp vec3 face = cross(dFdx(vat_view_pos), dFdy(vat_view_pos));
+		float len2 = dot(face, face);
+		if (len2 > 0.0000001) {
+			NORMAL = face * inversesqrt(len2);
+		}
+	}
 	float flash = clamp(inst_custom.r, 0.0, 1.0);
 	float dissolve = clamp(inst_custom.g, 0.0, 1.0);
 	float variant = clamp(inst_custom.a, 0.0, 1.0);

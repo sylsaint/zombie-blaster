@@ -56,6 +56,7 @@ var _overlay_every := 8
 var _cel: bool = false
 var _rim: bool = false
 var _outline: bool = false
+var _vat: bool = true
 var _prewarm_target: int = 45
 var _prewarm_frames: int = 0
 var _prewarm_max_ms: float = 0.0
@@ -93,6 +94,8 @@ func _ready() -> void:
 	add_child(_view)
 	_view.setup()
 	_view.set_toon_flags(_cel, _rim, _outline)
+	if not _vat:
+		_view.set_vat_enabled(false)
 	_sim = CombatSim.new(GameClock, 360, BulletPool.DEFAULT_CAPACITY)
 	_sim.auto_respawn = true
 	_sim.contact_enabled = false
@@ -202,6 +205,10 @@ func _read_args() -> void:
 			_outline = true
 		elif arg == "--outline=0":
 			_outline = false
+		elif arg == "--vat=0":
+			_vat = false
+		elif arg == "--vat=1" or arg == "--vat":
+			_vat = true
 	if _headless and _limit < 0:
 		_limit = 120
 
@@ -371,7 +378,18 @@ func _save_screenshot() -> void:
 			overlay.visible = false
 		_shot_ready = true
 		return
-	var image := get_viewport().get_texture().get_image()
+	var viewport_tex := get_viewport().get_texture()
+	if viewport_tex == null:
+		push_error("Viewport texture is missing; screenshot skipped")
+		_screenshot_path = ""
+		get_tree().quit()
+		return
+	var image := viewport_tex.get_image()
+	if image == null:
+		push_error("Viewport image is missing; screenshot skipped")
+		_screenshot_path = ""
+		get_tree().quit()
+		return
 	var path := _screenshot_path
 	if path.begins_with("res://"):
 		path = ProjectSettings.globalize_path(path)

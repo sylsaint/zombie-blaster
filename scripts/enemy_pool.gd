@@ -12,6 +12,9 @@ const FLASH_ELITE := 0.080
 const FLASH_BOSS := 0.050
 const KNOCKBACK := 0.15
 const DISSOLVE_TIME := 0.25
+## vat_frame is this many units per second. The wobble channel was authored
+## against 8, and walker playback divides back to seconds.
+const VAT_FRAME_SCALE := 8.0
 const GRUNT_RADIUS := 0.40
 const ELITE_RADIUS := 1.20
 const BOSS_RADIUS := 1.15
@@ -31,6 +34,10 @@ var flash_left := PackedFloat32Array()
 var dissolve_left := PackedFloat32Array()
 var variant := PackedFloat32Array()
 var vat_frame := PackedFloat32Array()
+## 0..1 cycle offset so walkers that spawn together are not on the same foot.
+var vat_phase := PackedFloat32Array()
+## Seconds since the current hit react started. Negative means walking.
+var vat_hit_age := PackedFloat32Array()
 var weight := PackedInt32Array()
 var xp_value := PackedInt32Array()
 var gold := PackedInt32Array()
@@ -69,6 +76,8 @@ func _init(cap: int = 320) -> void:
 	dissolve_left.resize(capacity)
 	variant.resize(capacity)
 	vat_frame.resize(capacity)
+	vat_phase.resize(capacity)
+	vat_hit_age.resize(capacity)
 	weight.resize(capacity)
 	xp_value.resize(capacity)
 	gold.resize(capacity)
@@ -135,6 +144,8 @@ func spawn(
 	dissolve_left[id] = 0.0
 	variant[id] = clampf(color_variant, 0.0, 1.0)
 	vat_frame[id] = color_variant * 16.0
+	vat_phase[id] = fposmod(float(id) * 0.6180339887 + color_variant * 3.1, 1.0)
+	vat_hit_age[id] = -1.0
 	weight[id] = body_weight if body_weight >= 0 else _default_weight(sp)
 	xp_value[id] = xp_amount if xp_amount >= 0 else _default_xp(sp)
 	gold[id] = gold_amount if gold_amount >= 0 else (20 if sp == Species.ELITE else 0)
@@ -215,10 +226,12 @@ func hit(id: int, amount: float, dir_x: float, dir_z: float) -> bool:
 	x[id] += dir_x / len * KNOCKBACK
 	z[id] += dir_z / len * KNOCKBACK
 	if hp[id] > 0.0:
+		vat_hit_age[id] = 0.0
 		return false
 	hp[id] = 0.0
 	state[id] = State.DYING
 	dissolve_left[id] = DISSOLVE_TIME
+	vat_hit_age[id] = -1.0
 	return true
 
 
@@ -232,6 +245,7 @@ func kill(id: int) -> bool:
 	state[id] = State.DYING
 	dissolve_left[id] = DISSOLVE_TIME
 	flash_left[id] = flash_duration(archetype[id])
+	vat_hit_age[id] = -1.0
 	return true
 
 
@@ -239,6 +253,7 @@ func tick_timers(dt: float) -> void:
 	var step := maxf(dt, 0.0)
 	var flashes := flash_left
 	var frames := vat_frame
+	var hits := vat_hit_age
 	var dissolves := dissolve_left
 	var states := state
 	var i := 0
@@ -246,7 +261,9 @@ func tick_timers(dt: float) -> void:
 		var id := active_ids[i]
 		if flashes[id] > 0.0:
 			flashes[id] = maxf(0.0, flashes[id] - step)
-		frames[id] += step * 8.0
+		frames[id] += step * VAT_FRAME_SCALE
+		if hits[id] >= 0.0:
+			hits[id] += step
 		if states[id] == State.DYING:
 			dissolves[id] -= step
 			if dissolves[id] <= 0.0:

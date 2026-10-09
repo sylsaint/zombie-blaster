@@ -28,6 +28,8 @@ var outline_squad_body: MultiMeshInstance3D
 var outline_squad_weapon: MultiMeshInstance3D
 var outline_elite: MultiMeshInstance3D
 var outline_boss: MultiMeshInstance3D
+var outline_walker: MultiMeshInstance3D
+var outline_walker_lod: MultiMeshInstance3D
 var warning_mm: MultiMeshInstance3D
 var gem_mm: MultiMeshInstance3D
 var bar_mm: MultiMeshInstance3D
@@ -58,6 +60,10 @@ var _buf_bar := PackedFloat32Array()
 var _buf_casualty := PackedFloat32Array()
 var walker_high_fallback: bool = true
 var walker_low_fallback: bool = true
+var walker_vat_high: VatClipset
+var walker_vat_low: VatClipset
+var walker_high_material: ShaderMaterial
+var walker_low_material: ShaderMaterial
 var runner_high_fallback: bool = true
 var runner_low_fallback: bool = true
 var boss_fallback: bool = true
@@ -89,6 +95,12 @@ func setup() -> void:
 	var weak_mesh: Mesh = ModelResolver.resolve_named(boss_arch.mesh_high, "weakpoint", weak_fallback)
 	walker_high_fallback = _grunt_mesh == grunt_fb
 	walker_low_fallback = walker_lod_mesh == walker_lod_fb
+	if not walker_high_fallback:
+		walker_vat_high = VatClipset.for_model(walker_arch.mesh_high)
+	if not walker_low_fallback:
+		walker_vat_low = VatClipset.for_model(walker_arch.mesh_low)
+	_apply_vat_aabb(_grunt_mesh, walker_vat_high)
+	_apply_vat_aabb(walker_lod_mesh, walker_vat_low)
 	runner_high_fallback = runner_mesh == runner_fb
 	runner_low_fallback = runner_lod_mesh == runner_lod_fb
 	boss_fallback = _boss_mesh == boss_fb
@@ -99,9 +111,16 @@ func setup() -> void:
 	shared_material = toon.crowd_material
 	var enemy_uv := not walker_high_fallback
 	_configure_palette(shared_material, enemy_uv)
+	walker_high_material = _vat_material(shared_material, walker_vat_high)
+	walker_low_material = _vat_material(shared_material, walker_vat_low)
+	if walker_high_material != null:
+		toon.track_material(walker_high_material)
+	if walker_low_material != null:
+		toon.track_material(walker_low_material)
 	var squad_mat: Material = toon.squad_material
 	if soldier_real and enemy_uv:
-		# One palette material keeps every crowd MultiMesh on the same batch key.
+		# Squad, runners, elites, and the boss share one palette material.
+		# Each walker LOD has its own VAT texture, so those two cannot.
 		squad_mat = shared_material
 	elif soldier_real:
 		_configure_palette(toon.squad_material, true)
@@ -129,8 +148,10 @@ func setup() -> void:
 	bar_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	bar_mat.albedo_color = Color(0.78, 0.16, 0.14)
 
-	grunt_mm = _add_body("Grunts", _grunt_mesh, GRUNT_CAP, shared_material)
-	walker_lod_mm = _add_body("WalkerLod", walker_lod_mesh, GRUNT_CAP, shared_material)
+	var grunt_mat: Material = walker_high_material if walker_high_material != null else shared_material
+	var walker_lod_mat: Material = walker_low_material if walker_low_material != null else shared_material
+	grunt_mm = _add_body("Grunts", _grunt_mesh, GRUNT_CAP, grunt_mat)
+	walker_lod_mm = _add_body("WalkerLod", walker_lod_mesh, GRUNT_CAP, walker_lod_mat)
 	runner_mm = _add_body("Runners", runner_mesh, GRUNT_CAP, shared_material)
 	runner_lod_mm = _add_body("RunnerLod", runner_lod_mesh, GRUNT_CAP, shared_material)
 	elite_mm = _add_body("Elites", _elite_mesh, ELITE_CAP, shared_material)
@@ -150,7 +171,12 @@ func setup() -> void:
 	outline_squad_weapon = _add_outline("OutlineSquadWeapons", squad_weapon_mm)
 	outline_elite = _add_outline("OutlineElites", elite_mm)
 	outline_boss = _add_outline("OutlineBoss", boss_mm)
-	toon.bind_outlines([outline_squad_body, outline_squad_weapon, outline_elite, outline_boss])
+	outline_walker = _add_vat_outline("OutlineWalkers", grunt_mm, walker_vat_high)
+	outline_walker_lod = _add_vat_outline("OutlineWalkerLod", walker_lod_mm, walker_vat_low)
+	toon.bind_outlines([
+		outline_squad_body, outline_squad_weapon, outline_elite, outline_boss,
+		outline_walker, outline_walker_lod,
+	])
 	shown_outfit = 1
 	shown_weapon = 1
 	squad_mesh_rebinds = 0
@@ -271,23 +297,34 @@ func _write_crowds(sim: CombatSim) -> Vector4:
 		if pool.species[i] == EnemyPool.Species.WALKER:
 			if high:
 				if n_wh < GRUNT_CAP:
-					_put_body(_buf_grunt, n_wh, pool, i)
+					_put_body(_buf_grunt, n_wh, pool, i, walker_vat_high)
 					n_wh += 1
 			elif n_wl < GRUNT_CAP:
-				_put_body(_buf_walker_lod, n_wl, pool, i)
+				_put_body(_buf_walker_lod, n_wl, pool, i, walker_vat_low)
 				n_wl += 1
 		elif pool.species[i] == EnemyPool.Species.RUNNER:
 			if high:
 				if n_rh < GRUNT_CAP:
-					_put_body(_buf_runner, n_rh, pool, i)
+					_put_body(_buf_runner, n_rh, pool, i, null)
 					n_rh += 1
 			elif n_rl < GRUNT_CAP:
-				_put_body(_buf_runner_lod, n_rl, pool, i)
+				_put_body(_buf_runner_lod, n_rl, pool, i, null)
 				n_rl += 1
 	return Vector4(n_wh, n_wl, n_rh, n_rl)
 
 
-func _put_body(buf: PackedFloat32Array, index: int, pool: EnemyPool, id: int) -> void:
+func set_vat_enabled(enabled: bool) -> void:
+	var flag := 1.0 if enabled else 0.0
+	for mat in [walker_high_material, walker_low_material]:
+		if mat != null:
+			mat.set_shader_parameter("vat_enabled", flag)
+	if outline_walker != null and outline_walker.material_override is ShaderMaterial:
+		(outline_walker.material_override as ShaderMaterial).set_shader_parameter("vat_enabled", flag)
+	if outline_walker_lod != null and outline_walker_lod.material_override is ShaderMaterial:
+		(outline_walker_lod.material_override as ShaderMaterial).set_shader_parameter("vat_enabled", flag)
+
+
+func _put_body(buf: PackedFloat32Array, index: int, pool: EnemyPool, id: int, vat: VatClipset = null) -> void:
 	var o := index * 16
 	buf[o + 0] = 1.0
 	buf[o + 1] = 0.0
@@ -306,8 +343,13 @@ func _put_body(buf: PackedFloat32Array, index: int, pool: EnemyPool, id: int) ->
 	if pool.state[id] == EnemyPool.State.DYING:
 		dissolve = clampf(1.0 - pool.dissolve_left[id] / EnemyPool.DISSOLVE_TIME, 0.0, 1.0)
 	buf[o + 13] = dissolve
-	buf[o + 14] = fposmod(pool.vat_frame[id], 64.0) / 64.0
-	buf[o + 15] = pool.variant[id]
+	if vat != null:
+		var packed := _vat_channels(pool, id, vat)
+		buf[o + 14] = packed.x
+		buf[o + 15] = packed.y
+	else:
+		buf[o + 14] = fposmod(pool.vat_frame[id], 64.0) / 64.0
+		buf[o + 15] = pool.variant[id]
 
 
 func _write_warnings(sim: CombatSim) -> int:
@@ -576,6 +618,58 @@ func _make_buffer(node: MultiMeshInstance3D) -> PackedFloat32Array:
 	var buf := PackedFloat32Array()
 	buf.resize(mm.instance_count * stride)
 	return buf
+
+
+## Walk frame in x (mod 64). Hit frame sits above that. y is the blend tag:
+## -1 walk, 0..1 crossfade into hit, -2 minus the death frame while dying.
+func _vat_channels(pool: EnemyPool, id: int, vat: VatClipset) -> Vector2:
+	var seconds: float = pool.vat_frame[id] / EnemyPool.VAT_FRAME_SCALE
+	var rate: float = clampf(pool.speed[id] / VatClipset.WALK_REF_SPEED, 0.25, 6.0)
+	var walk_frame: float = floorf(fposmod(seconds * rate * vat.fps + pool.vat_phase[id] * vat.walk_count, vat.walk_count))
+	if pool.state[id] == EnemyPool.State.DYING:
+		var death_age: float = EnemyPool.DISSOLVE_TIME - pool.dissolve_left[id]
+		var death_frame: float = clampf(floorf(death_age * vat.fps), 0.0, vat.death_count - 1.0)
+		return Vector2(walk_frame, -2.0 - death_frame)
+	var hit_age: float = pool.vat_hit_age[id]
+	if hit_age >= 0.0:
+		var hit_frame: float = hit_age * vat.fps
+		if hit_frame < vat.hit_count:
+			var blend: float = clampf(hit_frame / VatClipset.CROSSFADE_FRAMES, 0.0, 1.0)
+			return Vector2(walk_frame + floorf(hit_frame) * 64.0, blend)
+	return Vector2(walk_frame, -1.0)
+
+
+func _vat_material(base: ShaderMaterial, vat: VatClipset) -> ShaderMaterial:
+	if vat == null:
+		return null
+	var mat := base.duplicate() as ShaderMaterial
+	vat.apply_to(mat)
+	return mat
+
+
+func _apply_vat_aabb(mesh: Mesh, vat: VatClipset) -> void:
+	if vat == null or not (mesh is ArrayMesh):
+		return
+	# Death falls to about z + 1.9 m. The lane-sized node AABB still culls the
+	# whole crowd as one object; this is the per-mesh bound that pose uses.
+	(mesh as ArrayMesh).custom_aabb = vat.padded_aabb()
+
+
+func _add_vat_outline(node_name: String, source: MultiMeshInstance3D, vat: VatClipset) -> MultiMeshInstance3D:
+	if vat == null:
+		return null
+	var mat := toon.outline_material.duplicate() as ShaderMaterial
+	vat.apply_to(mat)
+	var inst := MultiMeshInstance3D.new()
+	inst.name = node_name
+	inst.multimesh = source.multimesh
+	inst.material_override = mat
+	inst.visible = false
+	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	inst.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	inst.custom_aabb = source.custom_aabb
+	add_child(inst)
+	return inst
 
 
 func _add_outline(node_name: String, source: MultiMeshInstance3D) -> MultiMeshInstance3D:
