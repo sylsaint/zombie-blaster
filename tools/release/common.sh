@@ -91,7 +91,78 @@ else:
 missing = [needle for needle in needles if not any(needle in name for name in names)]
 if missing:
     raise SystemExit(f"{target.name} is missing packed project data: {', '.join(missing)}")
-print(f"{target.name} includes data/levels and assets ({len(names)} entries)")
+
+def pack_path(name: str) -> str:
+    if name.startswith("res://"):
+        name = name[len("res://"):]
+    if name.startswith("assets/"):
+        name = name[len("assets/"):]
+    return name
+
+blocked = ("tests/", "addons/gut/", "docs/", "tools/", "scenes/debug/")
+leaked = sorted({name for name in names if pack_path(name).startswith(blocked)})
+if leaked:
+    preview = "\n".join(leaked[:20])
+    raise SystemExit(f"{target.name} packed files that should stay out of the release:\n{preview}")
+print(f"{target.name} includes data/levels and assets ({len(names)} entries); tests, gut, docs, tools, and scenes/debug are absent")
+PY
+}
+
+# Tag builds only. The committed preset stays at 0.1.0 / 1 for local exports
+# and for workflow_dispatch. versionCode is major*10000+minor*100+patch so a
+# higher semver always installs over an older one. minor and patch must be
+# 0–99 or two tags could share a code (v0.2.100 and v0.3.0 would both be 300).
+apply_tag_version() {
+  local preset="$ROOT/export_presets.cfg"
+  if [[ "${GITHUB_REF_TYPE:-}" != "tag" ]]; then
+    note "Not a tag build. Leaving the export preset at version 0.1.0 / code 1."
+    return
+  fi
+  local tag="${GITHUB_REF_NAME:-}"
+  if [[ ! "$tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+    echo "Tag '$tag' must be vMAJOR.MINOR.PATCH (for example v0.2.1). Pre-release suffixes are not accepted." >&2
+    exit 1
+  fi
+  local major minor patch name code
+  major=$((10#${BASH_REMATCH[1]}))
+  minor=$((10#${BASH_REMATCH[2]}))
+  patch=$((10#${BASH_REMATCH[3]}))
+  if (( minor > 99 || patch > 99 )); then
+    echo "Tag '$tag' has minor or patch above 99. versionCode is major*10000+minor*100+patch and would collide with another version." >&2
+    exit 1
+  fi
+  name="${major}.${minor}.${patch}"
+  code=$((major * 10000 + minor * 100 + patch))
+  if (( code < 1 )); then
+    echo "versionCode for $tag is 0. Play and the App Store require a positive integer." >&2
+    exit 1
+  fi
+  note "Tag build: versionName ${name}, versionCode ${code} (major*10000+minor*100+patch). This working copy only."
+  python3 - "$preset" "$name" "$code" << 'PY'
+import pathlib, sys
+path, name, code = sys.argv[1:]
+text = pathlib.Path(path).read_text()
+
+def set_line(text, key, value):
+    lines = text.splitlines()
+    found = False
+    out = []
+    prefix = key + "="
+    for line in lines:
+        if line.startswith(prefix):
+            out.append(f"{key}={value}")
+            found = True
+        else:
+            out.append(line)
+    if not found:
+        raise SystemExit(f"export_presets.cfg is missing {key}")
+    return "\n".join(out) + ("\n" if text.endswith("\n") else "")
+
+text = set_line(text, "version/name", f'"{name}"')
+text = set_line(text, "version/code", code)
+text = set_line(text, "application/short_version", f'"{name}"')
+text = set_line(text, "application/version", f'"{code}"')
+pathlib.Path(path).write_text(text)
 PY
 }
 

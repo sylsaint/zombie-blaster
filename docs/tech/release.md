@@ -16,7 +16,18 @@ Godot 版本钉在 `tools/godot.version`（当前 4.7.2 stable）。流水线是
 - 有 iOS 签名 Secrets：`zombie-blaster-<tag>-ios.ipa`
 - 没有 iOS 签名 Secrets：`zombie-blaster-<tag>-ios-xcode-unsigned.zip`
 
-`<tag>` 在标签推送时就是标签本身（带 `v`）。APK 里的 version name / version code 不跟标签走，用的是 `export_presets.cfg` 里的 `version/name` 和 `version/code`（现在是 `0.1.0` / `1`）。打标签之前如果要改版本，改这两处，再提交。
+`<tag>` 在标签推送时就是标签本身（带 `v`）。
+
+版本号只在**标签构建**的工作副本里改，提交在仓库里的预设保持 `version/name` `0.1.0`、`version/code` `1`，本地导出和 `workflow_dispatch` 都用这两个值。
+
+标签必须是 `vMAJOR.MINOR.PATCH`，例如 `v0.2.1`。预发布后缀（`v0.2.1-rc1`）会让 job 失败。
+
+| 字段 | 标签 `v0.2.1` 时 |
+| --- | --- |
+| Android `version/name`，iOS `short_version` | `0.2.1`（去掉开头的 `v`） |
+| Android `version/code`，iOS `application/version`（build number） | `201` |
+
+`versionCode` 用 **semver：`major * 10000 + minor * 100 + patch`**。更高的版本号得到更大的 code，才能覆盖安装。不用 `GITHUB_RUN_NUMBER`：同一次标签重跑不应该把 code 抬高，商店认的是版本本身。minor 和 patch 各自最大 99，否则会撞号（`v0.2.100` 和 `v0.3.0` 都会变成 300），这种标签直接失败。`v0.0.0` 的 code 是 0，也会失败。同一个标签再打一次，code 不变，不能当成一次升级。
 
 ## Android
 
@@ -81,7 +92,15 @@ Job 跑在 `macos-latest`（镜像自带 Xcode）。先用 release 模板导出 
 
 有了 Apple Developer 账号之后，把上面四个 Secret 配齐即可，不用改流水线。
 
+发布 job 用 `needs: [android, ios]`，条件是 `always() && needs.android.result == 'success'`，并且只在 `v*` 标签推送时跑。iOS 失败或没有产物时，Release 仍然挂上 APK；IPA / 未签名 zip 有才附上（`fail_on_unmatched_files: false`）。`workflow_dispatch` 不创建 Release。
+
 包名和 bundle id 都是 `com.zombieblaster.game`。iOS 最低版本 15.0（Godot 4.7 模板的下限），设备家族是 iPhone。
+
+## 不打进包里的东西
+
+两个预设的 `exclude_filter` 都是 `tests/*, addons/gut/*, scenes/debug/*`。主场景和 `scripts/` 里的玩法代码不引用 `res://tests/` 或 `res://scenes/debug/`。压力场景只被 `tools/smoke_stress.sh` 用，测试留在仓库里给 GUT，不进安装包。
+
+`docs/` 和 `tools/` 各有一个 `.gdignore`。这两个目录没有 `.gd` / `.tscn` / `.tres`，里面的预览图和 shell 脚本不会被导入，也不会打进包。GUT 和 `tools/smoke_main.sh` 照常从仓库读测试和主场景。
 
 ## 品牌资源
 

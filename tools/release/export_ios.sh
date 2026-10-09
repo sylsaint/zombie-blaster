@@ -25,6 +25,7 @@ restore_preset() {
   fi
 }
 trap restore_preset EXIT
+apply_tag_version
 
 secret_set() {
   [[ -n "${1:-}" ]]

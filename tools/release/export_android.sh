@@ -31,6 +31,16 @@ tag="$(resolve_artifact_tag)"
 out_dir="$ROOT/build/release"
 sign_dir="$ROOT/build/signing"
 mkdir -p "$out_dir" "$sign_dir"
+preset="$ROOT/export_presets.cfg"
+backup="$ROOT/build/export_presets.cfg.bak"
+cp "$preset" "$backup"
+restore_preset() {
+  if [[ -f "$backup" ]]; then
+    cp "$backup" "$preset"
+  fi
+}
+trap restore_preset EXIT
+apply_tag_version
 
 release_apk="$out_dir/zombie-blaster-${tag}-android-release.apk"
 debug_apk="$out_dir/zombie-blaster-${tag}-android-debug.apk"
