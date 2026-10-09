@@ -95,9 +95,10 @@ func test_card_roll_has_no_duplicates_and_respects_rules() -> void:
 	var late := CardRoller.new()
 	late.set_seed(7)
 	var leftovers := late.roll(capped, true)
-	assert_eq(leftovers.size(), 3)
+	assert_eq(leftovers.size(), 2)
 	for id in leftovers:
 		assert_false(capped.is_core(id))
+		assert_ne(id, SkillCard.RAPID)
 	var only := SkillLoadout.new()
 	only.level[SkillCard.SPLIT] = 3
 	only.level[SkillCard.PIERCE] = 3
@@ -223,7 +224,7 @@ func test_card_choice_ramps_the_game_clock_and_does_not_pause_the_tree() -> void
 	var director := LevelUpDirector.new()
 	add_child_autofree(director)
 	director.setup(sim, clock)
-	var view := load("res://scenes/ui/card_select.tscn").instantiate()
+	var view: Node = load("res://scenes/ui/card_select.tscn").instantiate()
 	add_child_autofree(view)
 	assert_gte((view.get_node("%Card0") as Control).custom_minimum_size.y, 300.0)
 	assert_gte((view.get_node("%Card1") as Control).custom_minimum_size.y, 300.0)

@@ -1,4 +1,4 @@
-class_name MeshLibrary
+class_name ModelResolver
 extends RefCounted
 ## Resolves a data-driven mesh path. A missing glb stays on the greybox fallback.
 ## Real drops: enm_walker.glb, enm_walker_lod1.glb, enm_runner.glb, enm_runner_lod1.glb.

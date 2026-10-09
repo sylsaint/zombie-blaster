@@ -29,7 +29,7 @@ func setup(combat: CombatSim, game_clock: Node) -> void:
 	_layer = CanvasLayer.new()
 	_layer.layer = 30
 	_layer.process_mode = Node.PROCESS_MODE_ALWAYS
-	var view := load("res://scenes/ui/card_select.tscn").instantiate()
+	var view: Node = load("res://scenes/ui/card_select.tscn").instantiate()
 	view.process_mode = Node.PROCESS_MODE_ALWAYS
 	view.connect("card_picked", _on_pick)
 	(view as Control).set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

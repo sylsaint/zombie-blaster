@@ -198,6 +198,7 @@ func test_elite_armor_slow_contact_slam_and_flash() -> void:
 
 	sim.squad.count = 20
 	sim.squad.position.x = 1.0
+	sim.squad.target_x = 1.0
 	var slammer := EnemyCatalog.place(sim.enemies, EnemyCatalog.elite(), 2, 0.0, -8.0, 0.8)
 	assert_almost_eq(sim.enemies.hp[slammer], 5700.0, 0.1)
 	sim.enemies.cruise_speed[slammer] = 0.0
@@ -223,10 +224,12 @@ func test_elite_armor_slow_contact_slam_and_flash() -> void:
 	sim.enemies.cruise_speed[dodge] = 0.0
 	sim.enemies.speed[dodge] = 0.0
 	sim.squad.position.x = 1.2
+	sim.squad.target_x = 1.2
 	sim.squad.count = 20
 	sim.enemies.slam_timer[dodge] = 2.99
 	sim.tick(0.02)
 	sim.squad.position.x = -2.0
+	sim.squad.target_x = -2.0
 	var before := sim.squad.count
 	sim.tick(1.0)
 	assert_eq(sim.squad.count, before)

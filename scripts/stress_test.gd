@@ -77,7 +77,7 @@ func _ready() -> void:
 	_view.profile = _profile
 	# Crowd combat does not use the physics server. Leaving it on still steps an empty world.
 	PhysicsServer3D.set_active(false)
-	var toast := load("res://scenes/ui/loss_toast.tscn").instantiate()
+	var toast: Node = load("res://scenes/ui/loss_toast.tscn").instantiate()
 	toast.name = "LossToast"
 	$Overlay.add_child(toast)
 	toast.bind_squad(_sim.squad)

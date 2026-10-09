@@ -26,10 +26,10 @@ var gem_mm: MultiMeshInstance3D
 var bar_mm: MultiMeshInstance3D
 var casualty_mm: MultiMeshInstance3D
 
-var _grunt_mesh: ArrayMesh
-var _elite_mesh: ArrayMesh
-var _boss_mesh: ArrayMesh
-var _soldier_mesh: ArrayMesh
+var _grunt_mesh: Mesh
+var _elite_mesh: Mesh
+var _boss_mesh: Mesh
+var _soldier_mesh: Mesh
 var profile: SimProfile
 var _lod := CrowdLod.new(4096)
 var _buf_grunt := PackedFloat32Array()
@@ -61,11 +61,11 @@ func setup() -> void:
 	walker_low_fallback = not _mesh_exists(walker_arch.mesh_low)
 	runner_high_fallback = not _mesh_exists(runner_arch.mesh_high)
 	runner_low_fallback = not _mesh_exists(runner_arch.mesh_low)
-	_grunt_mesh = MeshLibrary.resolve(walker_arch.mesh_high, PlaceholderMeshes.grunt())
-	var walker_lod_mesh := MeshLibrary.resolve(walker_arch.mesh_low, PlaceholderMeshes.walker_lod())
-	var runner_mesh := MeshLibrary.resolve(runner_arch.mesh_high, PlaceholderMeshes.runner())
-	var runner_lod_mesh := MeshLibrary.resolve(runner_arch.mesh_low, PlaceholderMeshes.runner_lod())
-	_elite_mesh = MeshLibrary.resolve(elite_arch.mesh_high, PlaceholderMeshes.elite())
+	_grunt_mesh = ModelResolver.resolve(walker_arch.mesh_high, PlaceholderMeshes.grunt())
+	var walker_lod_mesh: Mesh = ModelResolver.resolve(walker_arch.mesh_low, PlaceholderMeshes.walker_lod())
+	var runner_mesh: Mesh = ModelResolver.resolve(runner_arch.mesh_high, PlaceholderMeshes.runner())
+	var runner_lod_mesh: Mesh = ModelResolver.resolve(runner_arch.mesh_low, PlaceholderMeshes.runner_lod())
+	_elite_mesh = ModelResolver.resolve(elite_arch.mesh_high, PlaceholderMeshes.elite())
 	_boss_mesh = PlaceholderMeshes.boss()
 	_soldier_mesh = PlaceholderMeshes.soldier()
 	shared_material = _make_material()
