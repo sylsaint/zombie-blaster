@@ -14,8 +14,13 @@ func test_pistol_and_rifle_solo_dps() -> void:
 	assert_almost_eq(WeaponStats.solo_dps(rifle), 60.0, 60.0 * 0.005)
 	assert_eq(pistol.body_mesh_path, SoldierVisuals.body_path(1))
 	assert_eq(rifle.weapon_mesh_path, SoldierVisuals.weapon_path(2))
-	assert_false(ResourceLoader.exists(SoldierVisuals.body_path(1)))
-	assert_false(ResourceLoader.exists(SoldierVisuals.weapon_path(2)))
+	assert_eq(pistol.body_mesh_path, "res://assets/models/chr_soldier_a.glb")
+	assert_eq(rifle.body_mesh_path, "res://assets/models/chr_soldier_b.glb")
+	assert_true(ResourceLoader.exists(SoldierVisuals.body_path(1)))
+	assert_true(ResourceLoader.exists(SoldierVisuals.weapon_path(2)))
+	assert_almost_eq(pistol.muzzle_offset.x, 0.33, 0.001)
+	assert_almost_eq(pistol.muzzle_offset.y, -0.728, 0.001)
+	assert_almost_eq(rifle.muzzle_offset.y, -1.157, 0.001)
 
 
 func test_later_tiers_are_data_only() -> void:
@@ -25,6 +30,11 @@ func test_later_tiers_are_data_only() -> void:
 	assert_eq(shotgun.pellets, 5)
 	assert_almost_eq(shotgun.spread_degrees, 30.0, 0.001)
 	assert_eq(shotgun.outfit_tier, 2)
+	assert_eq(shotgun.body_mesh_path, "res://assets/models/chr_soldier_b.glb")
+	assert_almost_eq(shotgun.muzzle_offset.y, -1.240, 0.001)
+	assert_eq(gatling.body_mesh_path, "res://assets/models/chr_soldier_c.glb")
+	assert_almost_eq(gatling.muzzle_offset.y, -1.288, 0.001)
+	assert_almost_eq(rocket.muzzle_offset.y, -1.086, 0.001)
 	assert_almost_eq(WeaponStats.solo_dps(shotgun), 82.0, 82.0 * 0.005)
 	assert_almost_eq(gatling.interval, 0.08, 0.0001)
 	assert_almost_eq(gatling.spread_degrees, 6.0, 0.001)

@@ -5,9 +5,9 @@ extends RefCounted
 
 
 const BODY_PATHS := {
-	1: "res://assets/models/chr_soldier_body_t1.glb",
-	2: "res://assets/models/chr_soldier_body_t2.glb",
-	3: "res://assets/models/chr_soldier_body_t3.glb",
+	1: "res://assets/models/chr_soldier_a.glb",
+	2: "res://assets/models/chr_soldier_b.glb",
+	3: "res://assets/models/chr_soldier_c.glb",
 }
 const WEAPON_PATHS := {
 	1: "res://assets/models/wpn_pistol.glb",

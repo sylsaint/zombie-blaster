@@ -137,6 +137,9 @@ func _spawn_shots() -> void:
 	for shot in squad.consume_shots():
 		var origin: Vector3 = shot["origin"]
 		var offsets: PackedFloat32Array = shot["offsets"]
+		var muzzle := Vector2.ZERO
+		if shot.has("muzzle"):
+			muzzle = shot["muzzle"]
 		var pellets := offsets.size()
 		var spread := float(shot["spread"])
 		for i in pellets:
@@ -147,8 +150,8 @@ func _spawn_shots() -> void:
 			var dir := Vector3(sin(ang), 0.0, -cos(ang))
 			var speed := float(shot["speed"])
 			bullets.try_spawn(
-				origin.x + offsets[i],
-				origin.z,
+				origin.x + offsets[i] + muzzle.x,
+				origin.z + muzzle.y,
 				dir.x * speed,
 				dir.z * speed,
 				float(shot["damage"]),

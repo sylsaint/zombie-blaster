@@ -19,6 +19,7 @@ uniform float rim_power = 2.5;
 uniform float use_uniform_color = 0.0;
 uniform vec3 uniform_color : source_color = vec3(0.184, 0.435, 0.816);
 uniform float wobble_enabled = 1.0;
+uniform float use_mesh_uv = 0.0;
 
 void vertex() {
 	inst_custom = INSTANCE_CUSTOM;
@@ -43,6 +44,9 @@ void fragment() {
 		discard;
 	}
 	vec3 albedo = texture(palette, vec2(variant, 0.5)).rgb;
+	if (use_mesh_uv > 0.5) {
+		albedo = texture(palette, UV).rgb;
+	}
 	if (use_uniform_color > 0.5) {
 		albedo = uniform_color;
 	}

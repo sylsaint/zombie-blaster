@@ -29,3 +29,6 @@ const KIND_BOSS := 2
 @export var mesh_high: String = ""
 @export var mesh_low: String = ""
 @export var visual_scale: float = 1.0
+## XZ offset from the feet origin to the collision circle. The sim still
+## collides on the feet origin; applying this in the hash is issue #10.
+@export var collision_offset: Vector2 = Vector2.ZERO
