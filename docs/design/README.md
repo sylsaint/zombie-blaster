@@ -10,4 +10,4 @@
 - 关卡进程与结算奖励
 - 手感：命中停顿、震屏、受击闪白的时长和强度
 
-技术实现见 `docs/tech/architecture.md`。这里只写玩家能感到的规则。
+技术实现见 [`../tech/architecture.md`](../tech/architecture.md)。这里只写玩家能感到的规则。

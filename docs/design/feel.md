@@ -1,6 +1,6 @@
 # 打击感与爽感参数
 
-> v0.1，2026-10-09。实现方式按 `docs/tech/architecture.md`："命中停顿"冻结的是游戏时钟，不动 `Engine.time_scale`；闪白和溶解走实例自定义数据，不拆合批。下表是首版值，调手感时只改数据。
+> v0.1，2026-10-09。实现方式按 [`../tech/architecture.md`](../tech/architecture.md)："命中停顿"冻结的是游戏时钟，不动 `Engine.time_scale`；闪白和溶解走实例自定义数据，不拆合批。下表是首版值，调手感时只改数据。
 
 ## 命中反馈
 

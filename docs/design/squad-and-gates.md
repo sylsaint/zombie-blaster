@@ -1,6 +1,6 @@
 # 小队、武器、门和技能
 
-> v0.1，2026-10-09。距离单位米，时间单位秒。车道护栏在 X = ±3.75，小队中心可移动范围按 `docs/tech/architecture.md` 的 inset 处理。
+> v0.1，2026-10-09。距离单位米，时间单位秒。车道护栏在 X = ±3.75，小队中心可移动范围按 [`../tech/architecture.md`](../tech/architecture.md) 的 inset 处理。
 
 ## 小队
 
