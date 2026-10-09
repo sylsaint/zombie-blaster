@@ -76,7 +76,7 @@
 - **模型格式**：glTF 2.0（`.glb`），Y 轴朝上，1 单位 = 1 米，原点放在脚底中心，朝向 -Z。
 - **命名**：`类型_名称_变体.glb`，例如 `chr_soldier_a.glb`、`enm_walker_a.glb`、`enm_elite_brute.glb`、`boss_mutant.glb`、`env_bridge_straight.glb`、`prop_barrel_red.glb`、`gate_frame.glb`。
 - **顶点动画贴图**（VAT，用于小兵和普通怪）：每个动作导出为位置贴图加法线贴图，放在 `assets/textures/vat/`，命名为 `enm_walker_a_walk_pos.exr` 这样的格式。动作帧数：走 / 跑 16 帧，攻击 12 帧，受击 6 帧。
-- **贴图**：除调色板外尽量不用额外贴图。调色板贴图的导入设置为不过滤（Nearest）、不生成 mipmap。
+- **贴图**：除调色板外尽量不用额外贴图。调色板贴图导入时用无损压缩、不生成 mipmap；最近邻采样在材质或 shader 里设置（`filter_nearest`），Godot 4.7 的导入设置里没有这一项。
 - **Boss**：允许使用单个骨骼（Skeleton3D）加动画片段：待机、移动、蓄力、攻击、受击、弱点暴露、死亡。
 
 ## 10. 待定
