@@ -55,7 +55,7 @@ stretch_mode = 5
 [node name="StarClear" type="Label" parent="Margin/Sheet/Column/StarClearRow"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"Body"
+theme_type_variation = &"StatLabel"
 text = "通关"
 vertical_alignment = 1
 
@@ -75,7 +75,7 @@ stretch_mode = 5
 [node name="StarSquad" type="Label" parent="Margin/Sheet/Column/StarSquadRow"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"Body"
+theme_type_variation = &"StatLabel"
 text = "人数 0 / 0"
 vertical_alignment = 1
 
@@ -95,7 +95,7 @@ stretch_mode = 5
 [node name="StarHits" type="Label" parent="Margin/Sheet/Column/StarHitsRow"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"Body"
+theme_type_variation = &"StatLabel"
 text = "关底受击 0"
 vertical_alignment = 1
 
@@ -135,7 +135,7 @@ text = "首通零件  0"
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
-theme_type_variation = &"Body"
+theme_type_variation = &"StatLabel"
 text = ""
 
 [node name="Spacer" type="Control" parent="Margin/Sheet/Column"]

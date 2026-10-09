@@ -40,7 +40,7 @@ horizontal_alignment = 1
 
 [node name="Subtitle" type="Label" parent="Margin/Sheet/Column"]
 layout_mode = 2
-theme_type_variation = &"Body"
+theme_type_variation = &"HeaderLabel"
 text = "第 1 章"
 horizontal_alignment = 1
 

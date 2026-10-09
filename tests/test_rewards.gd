@@ -164,6 +164,10 @@ func test_ac_rw_01_results_screen_splits_chest_from_the_total() -> void:
 	assert_true(_star_filled(screen, "StarClearRow"))
 	assert_true(_star_filled(screen, "StarSquadRow"))
 	assert_true(_star_filled(screen, "StarHitsRow"))
+	assert_eq((screen.get_node("%StarClear") as Label).theme_type_variation, &"StatLabel")
+	assert_eq((screen.get_node("%StarSquad") as Label).theme_type_variation, &"StatLabel")
+	assert_eq((screen.get_node("%StarHits") as Label).theme_type_variation, &"StatLabel")
+	assert_eq((screen.get_node("%ChestLine") as Label).theme_type_variation, &"StatLabel")
 	assert_eq((screen.get_node("%StarClear") as Label).text, "通关")
 	assert_false((screen.get_node("%StarClear") as Label).text.contains("★"))
 	assert_false((screen.get_node("%StarClear") as Label).text.contains("☆"))
@@ -711,8 +715,11 @@ func test_portrait_theme_font_slots_are_empty() -> void:
 	var menu := load("res://scenes/ui/main_menu.tscn").instantiate() as MainMenu
 	add_child_autofree(menu)
 	assert_eq((menu.get_node("%Title") as Label).theme_type_variation, &"Display")
-	assert_eq((menu.get_node("Margin/Sheet/Column/Subtitle") as Label).theme_type_variation, &"Body")
-	assert_eq((menu.get_node("%Title") as Label).text, "ZOMBIE BLASTER")
+	assert_eq((menu.get_node("Margin/Sheet/Column/Subtitle") as Label).theme_type_variation, &"HeaderLabel")
+	assert_eq((menu.get_node("%Meta/Attack") as Label).theme_type_variation, &"StatLabel")
+	assert_eq((menu.get_node("%Meta/Wallet") as Label).theme_type_variation, &"StatLabel")
+	assert_eq((menu.get_node("%Meta/Upgrade") as Button).theme_type_variation, &"UpgradeButton")
+	assert_eq((menu.get_node("%Title") as Label).text, GameTitle.TEXT)
 
 
 func test_release_exclude_keeps_menu_and_level_select() -> void:
