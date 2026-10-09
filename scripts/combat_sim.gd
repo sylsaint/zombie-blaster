@@ -18,7 +18,22 @@ var desired_boss: int = 0
 var respawn_near: float = 16.0
 var respawn_far: float = 34.0
 var lane_span: float = 2.4
+var stage: int = 1
+var desired_walker: int = 0
+var desired_runner: int = 0
+var contact_enabled: bool = true
+var gold: int = 0
+var defeated: bool = false
+var defeat_count: int = 0
 var profile: SimProfile
+## Optional. Stress runs leave this null so the crowd tick stays unchanged.
+var gates: GateRunner = null
+var xp := XpTrack.new()
+var drops := XpDropPool.new()
+var skills := SkillLoadout.new()
+var roller := CardRoller.new()
+var warnings := GroundWarning.new()
+var casualties := CasualtyPool.new()
 
 
 func _init(game_clock: Node, enemy_capacity: int = 360, bullet_capacity: int = 64) -> void:
@@ -37,11 +52,15 @@ func tick(gameplay_delta: float) -> void:
 		hash.profile = profile
 	var dt := maxf(gameplay_delta, 0.0)
 	var ts := Time.get_ticks_usec()
+	var gate_z_before := squad.position.z
 	squad.tick(dt)
 	if profile != null:
 		profile.squad_us += int(Time.get_ticks_usec() - ts)
 	_spawn_shots()
 	_move_enemies(dt)
+	_tick_slams(dt)
+	if contact_enabled:
+		_resolve_contact(dt)
 	if separation_enabled:
 		var tq := Time.get_ticks_usec()
 		_separate()
@@ -55,12 +74,17 @@ func tick(gameplay_delta: float) -> void:
 	bullets.integrate(dt)
 	if profile != null:
 		profile.bullet_us += int(Time.get_ticks_usec() - tb)
+	if gates != null:
+		gates.absorb_bullets(bullets)
+		gates.resolve_crossing(squad, gate_z_before, squad.position.z)
 	_resolve_hits()
 	tb = Time.get_ticks_usec()
 	bullets.flush_retired()
 	if profile != null:
 		profile.bullet_us += int(Time.get_ticks_usec() - tb)
 	enemies.tick_timers(dt)
+	_collect_drops(dt)
+	casualties.tick(dt)
 	if auto_respawn:
 		maintain_counts()
 	if profile != null:
@@ -68,11 +92,18 @@ func tick(gameplay_delta: float) -> void:
 
 
 func maintain_counts() -> void:
-	while enemies.count_kind(EnemyPool.Archetype.GRUNT) < desired_grunt:
-		if _spawn_ahead(EnemyPool.Archetype.GRUNT) < 0:
+	var walkers := desired_walker
+	var runners := desired_runner
+	if walkers <= 0 and runners <= 0:
+		walkers = desired_grunt
+	while enemies.count_species(EnemyPool.Species.WALKER) < walkers:
+		if _spawn_archetype(EnemyCatalog.walker()) < 0:
+			return
+	while enemies.count_species(EnemyPool.Species.RUNNER) < runners:
+		if _spawn_archetype(EnemyCatalog.runner()) < 0:
 			return
 	while enemies.count_kind(EnemyPool.Archetype.ELITE) < desired_elite:
-		if _spawn_ahead(EnemyPool.Archetype.ELITE) < 0:
+		if _spawn_archetype(EnemyCatalog.elite()) < 0:
 			return
 	while enemies.count_kind(EnemyPool.Archetype.BOSS) < desired_boss:
 		if _spawn_ahead(EnemyPool.Archetype.BOSS) < 0:
@@ -81,6 +112,13 @@ func maintain_counts() -> void:
 
 func spawn_at(kind: int, px: float, pz: float, hit_points: float, move_speed: float, body_radius: float, color_variant: float) -> int:
 	return enemies.spawn(kind, px, pz, hit_points, move_speed, body_radius, color_variant)
+
+
+func _spawn_archetype(arch: EnemyArchetype) -> int:
+	var px := randf_range(-lane_span, lane_span)
+	var pz := squad.position.z - randf_range(respawn_near, respawn_far)
+	var variant := clampf(arch.color_variant + randf_range(-0.04, 0.04), 0.0, 1.0)
+	return EnemyCatalog.place(enemies, arch, stage, px, pz, variant)
 
 
 func _spawn_ahead(kind: int) -> int:
@@ -122,6 +160,7 @@ func _spawn_shots() -> void:
 func _move_enemies(dt: float) -> void:
 	if dt <= 0.0:
 		return
+	_refresh_elite_speeds()
 	var sz := squad.position.z
 	var zs := enemies.z
 	var speeds := enemies.speed
@@ -200,8 +239,12 @@ func _resolve_hits() -> void:
 			var killed := enemies.hit(id2, bullets.damage[b], bullets.vx[b], bullets.vz[b])
 			bullets.last_hit[b] = id2
 			hash.note_move_window(id2, enemies.x[id2], enemies.z[id2])
-			if killed and enemies.archetype[id2] == EnemyPool.Archetype.ELITE:
-				clock.hit_stop(60.0)
+			if h == 0:
+				_maybe_split(b, id2)
+			if killed:
+				if enemies.archetype[id2] == EnemyPool.Archetype.ELITE:
+					clock.hit_stop(60.0)
+				_on_killed(id2)
 			if bullets.pierce[b] > 0:
 				bullets.pierce[b] -= 1
 			else:
@@ -222,6 +265,175 @@ func _segment_hits(x0: float, z0: float, x1: float, z1: float, cx: float, cz: fl
 	var dx := px - cx
 	var dz := pz - cz
 	return dx * dx + dz * dz <= radius * radius
+
+
+func _refresh_elite_speeds() -> void:
+	var sz := squad.position.z
+	var ids := enemies.active_ids
+	var i := 0
+	while i < enemies.active_n:
+		var id := ids[i]
+		i += 1
+		if enemies.species[id] != EnemyPool.Species.ELITE:
+			continue
+		if enemies.state[id] != EnemyPool.State.ALIVE:
+			continue
+		var cruise := enemies.cruise_speed[id]
+		if cruise <= 0.0:
+			continue
+		var gap := sz - enemies.z[id]
+		if enemies.near_distance[id] > 0.0 and gap <= enemies.near_distance[id] and gap > 0.0:
+			enemies.speed[id] = enemies.near_speed[id]
+		else:
+			enemies.speed[id] = cruise
+
+
+func _tick_slams(dt: float) -> void:
+	if dt <= 0.0:
+		return
+	var diameter := SquadAnchor.formation_radius(squad.count) * 2.0
+	var hits := warnings.tick(dt, squad.position.x, diameter)
+	var n := 0
+	while n < hits:
+		_apply_loss(_slam_loss(squad.count))
+		n += 1
+	var ids := enemies.active_ids
+	var i := 0
+	while i < enemies.active_n:
+		var id := ids[i]
+		i += 1
+		if enemies.state[id] != EnemyPool.State.ALIVE:
+			continue
+		if enemies.slam_interval[id] <= 0.0:
+			continue
+		if enemies.warning_slot[id] >= 0:
+			if not warnings.is_active(enemies.warning_slot[id]):
+				enemies.warning_slot[id] = -1
+				enemies.slam_timer[id] = 0.0
+			continue
+		enemies.slam_timer[id] += dt
+		var windup := enemies.slam_interval[id] - enemies.warn_time[id]
+		if windup < 0.0:
+			windup = 0.0
+		if enemies.slam_timer[id] < windup:
+			continue
+		var slot := warnings.begin_half_lane(squad.position.x, enemies.warn_time[id], id)
+		enemies.warning_slot[id] = slot
+		enemies.slam_timer[id] = 0.0
+
+
+func _resolve_contact(dt: float) -> void:
+	if dt <= 0.0 or squad.count <= 0:
+		return
+	var ring := SquadAnchor.formation_radius(squad.count)
+	var sx := squad.position.x
+	var sz := squad.position.z
+	var ids := enemies.active_ids
+	var i := 0
+	while i < enemies.active_n:
+		var id := ids[i]
+		i += 1
+		if enemies.state[id] != EnemyPool.State.ALIVE:
+			continue
+		var dx := enemies.x[id] - sx
+		var dz := enemies.z[id] - sz
+		var limit := enemies.radius[id] + ring
+		var overlapping := dx * dx + dz * dz <= limit * limit
+		if enemies.archetype[id] == EnemyPool.Archetype.GRUNT:
+			if not overlapping:
+				continue
+			if enemies.kill(id):
+				_on_killed(id)
+				_apply_loss(enemies.weight[id])
+			continue
+		if enemies.touch_period[id] <= 0.0:
+			continue
+		if not overlapping:
+			enemies.contact_cd[id] = 0.0
+			continue
+		if enemies.contact_cd[id] > 0.0:
+			enemies.contact_cd[id] -= dt
+			if enemies.contact_cd[id] > 0.0:
+				continue
+		_apply_loss(enemies.touch_damage[id])
+		enemies.contact_cd[id] = enemies.touch_period[id]
+
+
+func _collect_drops(dt: float) -> void:
+	var reach := SquadAnchor.formation_radius(squad.count) + 0.6
+	var gained := drops.tick(dt, squad.position.x, squad.position.z, reach)
+	if gained > 0:
+		xp.add(gained)
+
+
+func _on_killed(id: int) -> void:
+	if enemies.gold[id] > 0:
+		gold += enemies.gold[id]
+	if enemies.grants_offer[id] != 0:
+		xp.grant_offer()
+		return
+	var amount := enemies.xp_value[id]
+	if amount <= 0:
+		return
+	if not drops.try_spawn(enemies.x[id], enemies.z[id], amount):
+		xp.add(amount)
+
+
+func _apply_loss(n: int) -> void:
+	var loss := squad.apply_loss(n)
+	if loss > 0:
+		casualties.spawn_around(squad, loss)
+	if squad.count == 0 and not defeated:
+		defeated = true
+		defeat_count += 1
+
+
+static func _slam_loss(count: int) -> int:
+	if count <= 0:
+		return 0
+	var scaled := int(round(float(count) * 0.2))
+	return mini(count, maxi(3, scaled))
+
+
+func _maybe_split(bullet: int, enemy_id: int) -> void:
+	var shots := squad.skill_split_count
+	if shots <= 1:
+		return
+	if bullets.flags[bullet] & BulletPool.FLAG_SPLIT:
+		return
+	var vx := bullets.vx[bullet]
+	var vz := bullets.vz[bullet]
+	var speed := sqrt(vx * vx + vz * vz)
+	if speed < 0.001:
+		return
+	var ratio := squad.skill_split_ratio
+	if ratio <= 0.0:
+		ratio = 0.5
+	var dmg := bullets.damage[bullet] * ratio
+	var remain := maxf(bullets.max_range[bullet] - bullets.traveled[bullet], 4.0)
+	var pierce := bullets.pierce[bullet]
+	var half := deg_to_rad(squad.skill_split_spread)
+	var i := 0
+	while i < shots:
+		var t := 0.0 if shots == 1 else float(i) / float(shots - 1)
+		var ang := lerpf(-half, half, t)
+		var c := cos(ang)
+		var s := sin(ang)
+		var rvx := vx * c - vz * s
+		var rvz := vx * s + vz * c
+		var child := bullets.try_spawn(
+			enemies.x[enemy_id],
+			enemies.z[enemy_id],
+			rvx,
+			rvz,
+			dmg,
+			pierce,
+			remain,
+			BulletPool.FLAG_SPLIT
+		)
+		if child >= 0:
+			bullets.last_hit[child] = enemy_id
+		i += 1
 
 
 func _segment_t(x0: float, z0: float, x1: float, z1: float, cx: float, cz: float) -> float:

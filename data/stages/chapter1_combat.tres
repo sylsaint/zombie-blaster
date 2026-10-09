@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="StageTable" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/stage_table.gd" id="1_stage"]
+
+[resource]
+script = ExtResource("1_stage")
+grunt_hp_multiplier = PackedFloat32Array(1, 1.13, 1.28, 1.44, 1.63, 1.84, 2.08, 2.35, 2.66, 3)
+elite_hp = PackedFloat32Array(4800, 5700, 6700, 7900, 9300, 11000, 13000, 15300, 18000, 21300)

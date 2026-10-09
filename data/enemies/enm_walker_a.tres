@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EnemyArchetype" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_archetype.gd" id="1_arch"]
+
+[resource]
+script = ExtResource("1_arch")
+id = "enm_walker_a"
+display_name = "行走僵尸"
+kind = 0
+species = 0
+base_hp = 20.0
+speed = 1.6
+near_speed = 0.0
+near_distance = 0.0
+weight = 1
+radius = 0.4
+xp = 1
+gold = 0
+grants_offer = false
+touch_damage = 1
+touch_period = 0.0
+slam_interval = 0.0
+warn_time = 0.0
+color_variant = 0.18
+mesh_high = "res://assets/models/enm_walker.glb"
+mesh_low = "res://assets/models/enm_walker_lod1.glb"
+visual_scale = 1.0

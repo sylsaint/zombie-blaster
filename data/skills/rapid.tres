@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SkillCard" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/skill_card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+effect_id = 3
+title = "急速射击"
+blurb = "射速 +15%"
+max_level = 5
+magnitude = 0.15
+core = false
+spread_degrees = 0.0

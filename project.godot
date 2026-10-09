@@ -45,4 +45,4 @@ GameClock="*res://scripts/game_clock.gd"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/gut/plugin.cfg")
+enabled=PackedStringArray("res://addons/gut/plugin.cfg", "res://addons/outline_normals/plugin.cfg")

@@ -20,12 +20,34 @@ fi
 "$GODOT_BIN" --headless --path "$ROOT" --import
 
 FRAMES="${FRAMES:-120}"
+USER_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --frames)
+      FRAMES="$2"
+      shift 2
+      ;;
+    --frames=*)
+      FRAMES="${1#*=}"
+      shift
+      ;;
+    --cel|--rim|--outline)
+      USER_ARGS+=("${1}=1")
+      shift
+      ;;
+    *)
+      USER_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
 LOG="$(mktemp)"
 trap 'rm -f "$LOG"' EXIT
 
 set +e
 "$GODOT_BIN" --headless --audio-driver Dummy --path "$ROOT" \
-  res://scenes/debug/stress_test.tscn -- --frames="$FRAMES" >"$LOG" 2>&1
+  res://scenes/debug/stress_test.tscn -- --frames="$FRAMES" "${USER_ARGS[@]}" >"$LOG" 2>&1
 status=$?
 set -e
 
@@ -64,9 +86,16 @@ fi
 
 gpu_50="$(value gpu_draw_50)"
 gpu_300="$(value gpu_draw_300)"
-if [[ -n "$gpu_50" && -n "$gpu_300" && "$gpu_50" != "0" && "$gpu_300" != "0" && "$gpu_50" != "$gpu_300" ]]; then
-  echo "GPU draw calls changed between the 50-enemy and 300-enemy frames: $stats" >&2
-  exit 1
+# Headless dummy renderer reports 0 for both, so that path stays unchecked.
+# A real GL device draws the low-poly MultiMeshes only once the crowd exceeds
+# the nearest-100 budget, which is a fixed +2, not a per-enemy climb.
+if [[ -n "$gpu_50" && -n "$gpu_300" && "$gpu_50" != "0" && "$gpu_300" != "0" ]]; then
+  python3 - "$gpu_50" "$gpu_300" <<'PY'
+import sys
+a, b = float(sys.argv[1]), float(sys.argv[2])
+if abs(b - a) > 8:
+    raise SystemExit("GPU draw calls grew by more than 8 from 50 to 300 enemies: %s vs %s" % (sys.argv[1], sys.argv[2]))
+PY
 fi
 
 python3 - "$instances_50" "$instances_300" "$enemies" <<'PY'

@@ -3,6 +3,57 @@ extends RefCounted
 ## Low-poly stand-ins. Grunt ~300 tris, elite <= 1500, boss <= 5000.
 
 
+static func walker_lod() -> ArrayMesh:
+	var builder := _Builder.new()
+	builder.add_sphere(Vector3(0, 1.42, 0), 0.16, 5, 3)
+	builder.add_cylinder(Vector3(0, 0.95, 0), 0.16, 0.5, 5, 1)
+	builder.add_cylinder(Vector3(-0.26, 1.02, 0), 0.055, 0.42, 4, 1, Basis.from_euler(Vector3(0, 0, PI * 0.5)))
+	builder.add_cylinder(Vector3(0.26, 1.02, 0), 0.055, 0.42, 4, 1, Basis.from_euler(Vector3(0, 0, PI * 0.5)))
+	builder.add_cylinder(Vector3(-0.09, 0.34, 0), 0.07, 0.62, 4, 1)
+	builder.add_cylinder(Vector3(0.09, 0.34, 0), 0.07, 0.62, 4, 1)
+	return builder.commit()
+
+
+static func runner() -> ArrayMesh:
+	var builder := _Builder.new()
+	var lean := Basis.from_euler(Vector3(-0.45, 0, 0))
+	builder.add_sphere(Vector3(0, 1.55, 0.18), 0.14, 8, 4)
+	builder.add_cylinder(Vector3(0, 1.05, 0.08), 0.12, 0.62, 8, 3, lean)
+	builder.add_cylinder(Vector3(-0.22, 1.15, 0.2), 0.045, 0.48, 6, 2, Basis.from_euler(Vector3(0.4, 0, PI * 0.5)))
+	builder.add_cylinder(Vector3(0.22, 1.15, 0.2), 0.045, 0.48, 6, 2, Basis.from_euler(Vector3(0.4, 0, -PI * 0.5)))
+	builder.add_cylinder(Vector3(-0.08, 0.38, 0.05), 0.055, 0.72, 5, 3)
+	builder.add_cylinder(Vector3(0.08, 0.38, -0.02), 0.055, 0.72, 5, 3)
+	return builder.commit()
+
+
+static func runner_lod() -> ArrayMesh:
+	var builder := _Builder.new()
+	builder.add_sphere(Vector3(0, 1.5, 0.16), 0.13, 5, 3)
+	builder.add_cylinder(Vector3(0, 1.0, 0.08), 0.11, 0.55, 5, 1, Basis.from_euler(Vector3(-0.4, 0, 0)))
+	builder.add_cylinder(Vector3(-0.2, 1.1, 0.16), 0.04, 0.4, 4, 1, Basis.from_euler(Vector3(0.3, 0, PI * 0.5)))
+	builder.add_cylinder(Vector3(0.2, 1.1, 0.16), 0.04, 0.4, 4, 1, Basis.from_euler(Vector3(0.3, 0, -PI * 0.5)))
+	builder.add_cylinder(Vector3(-0.07, 0.34, 0.04), 0.05, 0.64, 4, 1)
+	builder.add_cylinder(Vector3(0.07, 0.34, 0.0), 0.05, 0.64, 4, 1)
+	return builder.commit()
+
+
+static func gem() -> ArrayMesh:
+	var builder := _Builder.new()
+	builder.add_box(Vector3(0, 0.35, 0), Vector3(0.28, 0.28, 0.28))
+	return builder.commit()
+
+
+static func ground_quad() -> ArrayMesh:
+	var builder := _Builder.new()
+	var i0 := builder.add_vert(Vector3(-0.5, 0, -0.5), Vector3.UP, Vector2(0, 0))
+	var i1 := builder.add_vert(Vector3(0.5, 0, -0.5), Vector3.UP, Vector2(1, 0))
+	var i2 := builder.add_vert(Vector3(-0.5, 0, 0.5), Vector3.UP, Vector2(0, 1))
+	var i3 := builder.add_vert(Vector3(0.5, 0, 0.5), Vector3.UP, Vector2(1, 1))
+	builder.add_tri(i0, i2, i1)
+	builder.add_tri(i1, i2, i3)
+	return builder.commit()
+
+
 static func grunt() -> ArrayMesh:
 	var builder := _Builder.new()
 	builder.add_sphere(Vector3(0, 1.48, 0), 0.18, 8, 5)
@@ -43,13 +94,47 @@ static func boss() -> ArrayMesh:
 
 
 static func soldier() -> ArrayMesh:
+	return soldier_body(1)
+
+
+## Outfit tiers from the weapon table. Tier 1 matches the original greybox soldier.
+static func soldier_body(tier: int) -> ArrayMesh:
 	var builder := _Builder.new()
-	builder.add_sphere(Vector3(0, 1.35, 0), 0.14, 6, 4)
-	builder.add_cylinder(Vector3(0, 0.95, 0), 0.14, 0.45, 6, 2)
+	var bulky := tier >= 2
+	builder.add_sphere(Vector3(0, 1.35, 0), 0.16 if bulky else 0.14, 6, 4)
+	builder.add_cylinder(Vector3(0, 0.95, 0), 0.16 if bulky else 0.14, 0.48 if bulky else 0.45, 6, 2)
 	builder.add_cylinder(Vector3(-0.22, 1.0, 0), 0.05, 0.4, 5, 2, Basis.from_euler(Vector3(0, 0, PI * 0.5)))
 	builder.add_cylinder(Vector3(0.22, 1.0, 0), 0.05, 0.4, 5, 2, Basis.from_euler(Vector3(0, 0, PI * 0.5)))
 	builder.add_cylinder(Vector3(-0.08, 0.35, 0), 0.06, 0.6, 5, 2)
 	builder.add_cylinder(Vector3(0.08, 0.35, 0), 0.06, 0.6, 5, 2)
+	if tier >= 2:
+		builder.add_box(Vector3(-0.28, 1.16, 0), Vector3(0.14, 0.08, 0.16))
+		builder.add_box(Vector3(0.28, 1.16, 0), Vector3(0.14, 0.08, 0.16))
+	if tier >= 3:
+		builder.add_box(Vector3(0, 1.02, 0.1), Vector3(0.22, 0.26, 0.08))
+	return builder.commit()
+
+
+## Weapon meshes sit in soldier local space so they share the body transform.
+static func weapon_mesh(tier: int) -> ArrayMesh:
+	var builder := _Builder.new()
+	var along_z := Basis.from_euler(Vector3(PI * 0.5, 0.0, 0.0))
+	match clampi(tier, 1, 5):
+		1:
+			builder.add_box(Vector3(0.28, 1.02, -0.16), Vector3(0.06, 0.1, 0.26))
+		2:
+			builder.add_box(Vector3(0.26, 1.05, -0.3), Vector3(0.05, 0.07, 0.62))
+			builder.add_box(Vector3(0.26, 0.98, -0.08), Vector3(0.04, 0.12, 0.08))
+		3:
+			builder.add_box(Vector3(0.26, 1.02, -0.2), Vector3(0.1, 0.1, 0.36))
+			builder.add_box(Vector3(0.2, 1.02, -0.36), Vector3(0.04, 0.04, 0.18))
+			builder.add_box(Vector3(0.32, 1.02, -0.36), Vector3(0.04, 0.04, 0.18))
+		4:
+			builder.add_box(Vector3(0.24, 1.02, -0.32), Vector3(0.08, 0.08, 0.55))
+			builder.add_cylinder(Vector3(0.24, 1.02, -0.62), 0.045, 0.4, 6, 1, along_z)
+		_:
+			builder.add_cylinder(Vector3(0.22, 1.06, -0.28), 0.07, 0.55, 6, 1, along_z)
+			builder.add_box(Vector3(0.22, 0.94, -0.06), Vector3(0.06, 0.16, 0.1))
 	return builder.commit()
 
 
@@ -194,4 +279,4 @@ class _Builder:
 		arrays[Mesh.ARRAY_INDEX] = indices
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		return mesh
+		return OutlineNormals.bake_inplace(mesh)

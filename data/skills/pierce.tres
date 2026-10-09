@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SkillCard" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/skill_card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+effect_id = 1
+title = "穿透"
+blurb = "子弹多穿透敌人"
+max_level = 3
+magnitude = 1.0
+core = true
+spread_degrees = 0.0
