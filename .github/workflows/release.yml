@@ -129,9 +129,10 @@ jobs:
           ram-size: 4096M
           disable-animations: true
           emulator-boot-timeout: 600
-          # SwiftShader GLES reports only 261 fragment uniform vectors. Godot's
-          # canvas shader fails to link, so the menu is never drawn. ANGLE on
-          # SwiftShader Vulkan (swangle) stays above that cap.
+          # SwiftShader GLES reports only 256 fragment uniform vectors. Godot's
+          # canvas shader needs more, so the menu is never drawn. ANGLE on
+          # SwiftShader Vulkan (swangle) stays above that cap. The smoke script
+          # restarts if the first launch dies on CONFIG_ASSETS_PATHS.
           emulator-options: -no-window -gpu swangle_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: ./tools/emulator_menu_smoke.sh
 

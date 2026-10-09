@@ -73,21 +73,52 @@ read -r tap_play_x tap_play_y < <(map_tap "$play_x" "$play_y")
 read -r tap_level_x tap_level_y < <(map_tap "$level_x" "$level_y")
 note "Tap 开始 at ${tap_play_x},${tap_play_y} and 第 1 关 at ${tap_level_x},${tap_level_y}"
 
-adb logcat -b all -c || true
-adb shell am start -n "${package}/com.godot.game.GodotAppLauncher"
+# The first launch after install can get CONFIG_ASSETS_PATHS (0x80000000) while
+# swangle is still creating the GL context. Godot then hits !_start_success,
+# prints "Engine already initialized", and force-quits. A later start, after
+# the package paths have settled, does not get that relaunch.
+launch_app() {
+  adb logcat -b all -c || true
+  adb shell am start -n "${package}/com.godot.game.GodotAppLauncher"
+}
+
+launch_app
 ready=0
+restarts=0
+seen_pid=0
 # First launch translates the arm64 libgodot_android.so. Give it a couple of minutes.
 # grep -q on a live adb pipe trips pipefail (adb dies with SIGPIPE), so save the slice first.
-for i in $(seq 1 60); do
+for i in $(seq 1 75); do
   adb logcat -d -b main -v time -s godot:I Godot:V > "$out/logcat-live.txt" || true
   if grep -a -q 'MENU_READY' "$out/logcat-live.txt"; then
     ready=1
     break
   fi
+  pid_now="$(adb shell pidof "$package" 2>/dev/null | tr -d '\r' || true)"
+  if [[ -n "$pid_now" ]]; then
+    seen_pid=1
+  fi
+  died=0
+  if grep -a -q -E 'Force quitting Godot|!_start_success' "$out/logcat-live.txt"; then
+    died=1
+  fi
+  if [[ "$seen_pid" -eq 1 && -z "$pid_now" ]]; then
+    died=1
+  fi
+  if [[ "$died" -eq 1 && "$restarts" -lt 2 ]]; then
+    restarts=$((restarts + 1))
+    note "Godot exited during startup (restart ${restarts}); waiting for the package to settle"
+    tail -n 15 "$out/logcat-live.txt" || true
+    adb shell am force-stop "$package" || true
+    sleep 3
+    seen_pid=0
+    launch_app
+    sleep 2
+    continue
+  fi
   if (( i % 15 == 0 )); then
-    pid_now="$(adb shell pidof "$package" 2>/dev/null | tr -d '\r' || true)"
-    note "still waiting for MENU_READY after $((i * 2))s pid=${pid_now:-missing}"
-    adb logcat -d -b all -t 40 -v time | tr -d '\r' | grep -a -E 'godot|Godot|zombieblaster|SCRIPT ERROR|FATAL|Fatal signal' | tail -n 20 || true
+    note "still waiting for MENU_READY after $((i * 2))s pid=${pid_now:-missing} restarts=${restarts}"
+    tail -n 20 "$out/logcat-live.txt" || true
   fi
   sleep 2
 done
