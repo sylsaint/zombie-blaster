@@ -1,5 +1,5 @@
 extends Node3D
-## Greybox squad stand-in. Horizontal drag moves X; Z stays put until levels exist.
+## Horizontal drag. During a level it steers the squad; the menu still slides the stand-in.
 
 const _LaneMotion := preload("res://scripts/lane_motion.gd")
 
@@ -21,5 +21,19 @@ func _unhandled_input(event: InputEvent) -> void:
 	if drag.index != 0:
 		return
 	var width := get_viewport().get_visible_rect().size.x
-	position.x = _LaneMotion.apply_drag(position.x, drag.relative.x, width, lane_half_width)
+	var squad := _live_squad()
+	if squad != null:
+		squad.apply_drag(drag.relative.x, width)
+	else:
+		position.x = _LaneMotion.apply_drag(position.x, drag.relative.x, width, lane_half_width)
 	get_viewport().set_input_as_handled()
+
+
+func _live_squad() -> SquadAnchor:
+	var parent := get_parent()
+	if parent == null:
+		return null
+	var host := parent.get_node_or_null("LevelHost") as LevelHost
+	if host == null or not host.running() or host.session == null or host.session.sim == null:
+		return null
+	return host.session.sim.squad
