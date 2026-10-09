@@ -21,6 +21,10 @@ uniform float use_uniform_color = 0.0;
 uniform vec3 uniform_color : source_color = vec3(0.184, 0.435, 0.816);
 uniform float wobble_enabled = 1.0;
 uniform float use_mesh_uv = 0.0;
+// 8-row palette (256x256). Row 2 is the nearest sample of the old v=0.5,
+// which sat on the boundary between rows 1 and 2.
+const float PALETTE_ROWS = 8.0;
+const float PALETTE_VARIANT_ROW = 2.0;
 
 void vertex() {
 	inst_custom = INSTANCE_CUSTOM;
@@ -49,7 +53,8 @@ void fragment() {
 	if (dissolve > 0.001 && dither < dissolve) {
 		discard;
 	}
-	vec3 albedo = texture(palette, vec2(variant, 0.5)).rgb;
+	float palette_v = (PALETTE_VARIANT_ROW + 0.5) / PALETTE_ROWS;
+	vec3 albedo = texture(palette, vec2(variant, palette_v)).rgb;
 	if (use_mesh_uv > 0.5) {
 		albedo = texture(palette, UV).rgb;
 	}
