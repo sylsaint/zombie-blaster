@@ -49,6 +49,9 @@ jobs:
       - name: Smoke main scene
         run: ./tools/smoke_main.sh
 
+      - name: Smoke exported main menu
+        run: ./tools/smoke_exported_menu.sh
+
       - name: Smoke stress scene
         run: ./tools/smoke_stress.sh
 

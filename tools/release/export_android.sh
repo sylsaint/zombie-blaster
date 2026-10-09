@@ -35,12 +35,24 @@ mkdir -p "$out_dir" "$sign_dir"
 preset="$ROOT/export_presets.cfg"
 backup="$ROOT/build/export_presets.cfg.bak"
 cp "$preset" "$backup"
+project="$ROOT/project.godot"
+project_backup="$ROOT/build/project.godot.empty-theme.bak"
 restore_preset() {
   if [[ -f "$backup" ]]; then
     cp "$backup" "$preset"
   fi
 }
-trap restore_preset EXIT
+restore_project_theme() {
+  if [[ -f "$project_backup" ]]; then
+    cp "$project_backup" "$project"
+    rm -f "$project_backup"
+  fi
+}
+restore_all() {
+  restore_project_theme
+  restore_preset
+}
+trap restore_all EXIT
 apply_tag_version
 
 release_apk="$out_dir/zombie-blaster-${tag}-android-release.apk"
@@ -124,6 +136,36 @@ export_one() {
 export_one release "Android" "$release_apk" "$release_ks" "$release_alias" "$release_pass"
 export_one debug "Android" "$debug_apk" "$debug_ks" "$debug_alias" "$debug_pass"
 
+# Control APK: same release preset with gui/theme/custom cleared, so a device
+# can show whether the blank menu is the project theme. One extra export,
+# not a second pass over the release/debug/profile set.
+empty_apk="$out_dir/zombie-blaster-${tag}-android-empty-theme.apk"
+cp "$project" "$project_backup"
+python3 - "$project" << 'PY'
+import pathlib, sys
+path = pathlib.Path(sys.argv[1])
+text = path.read_text()
+old = 'theme/custom="res://assets/ui/game_theme.tres"'
+new = 'theme/custom=""'
+if old not in text:
+    raise SystemExit("project.godot is missing the game theme line")
+path.write_text(text.replace(old, new, 1))
+PY
+export_one release "Android" "$empty_apk" "$release_ks" "$release_alias" "$release_pass"
+restore_project_theme
+python3 - "$empty_apk" << 'PY'
+import sys, zipfile
+apk = sys.argv[1]
+with zipfile.ZipFile(apk) as zf:
+    names = [name for name in zf.namelist() if name.endswith("project.binary")]
+    blobs = [zf.read(name) for name in names]
+if not blobs:
+    raise SystemExit("empty-theme APK has no project.binary to check")
+if any(b"game_theme.tres" in blob for blob in blobs):
+    raise SystemExit("empty-theme APK project.binary still points at game_theme.tres")
+print("empty-theme project.binary does not reference game_theme.tres")
+PY
+
 profile_apk="$ROOT/build/profile/zombie-blaster-${tag}-android-profile.apk"
 mkdir -p "$(dirname "$profile_apk")"
 # Release template, not debug, so on-device frame times match the 30 fps target.
@@ -162,10 +204,13 @@ verify_apk() {
 
 verify_apk "$release_apk" "com.zombieblaster.game"
 verify_apk "$debug_apk" "com.zombieblaster.game"
+verify_apk "$empty_apk" "com.zombieblaster.game"
 verify_apk "$profile_apk" "com.zombieblaster.game.profile"
 assert_project_data_packed "$release_apk" game
 assert_project_data_packed "$debug_apk" game
+assert_project_data_packed "$empty_apk" game
 assert_project_data_packed "$profile_apk" profile
 note "Android export finished: $release_apk"
 note "Android export finished: $debug_apk"
+note "Android export finished: $empty_apk"
 note "Android export finished: $profile_apk"

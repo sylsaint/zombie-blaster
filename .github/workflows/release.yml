@@ -86,6 +86,13 @@ jobs:
           path: build/profile/*.apk
           if-no-files-found: error
 
+      - name: Upload empty-theme control APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-empty-theme-apk
+          path: build/release/*android-empty-theme.apk
+          if-no-files-found: error
+
   ios:
     name: iOS
     # Pull requests only need the Android APK artifacts. Tags and manual runs still export iOS.
