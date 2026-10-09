@@ -14,6 +14,11 @@ config/name="Zombie Blaster"
 config/version="0.1.0"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
+boot_splash/bg_color=Color(0, 0, 0, 1)
+boot_splash/show_image=true
+boot_splash/image="res://assets/branding/splash_1080x1920.png"
+boot_splash/fullsize=true
+boot_splash/use_filter=true
 run/main_scene="res://scenes/main.tscn"
 run/flush_stdout_on_print=true
 

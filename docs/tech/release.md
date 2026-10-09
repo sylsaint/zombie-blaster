@@ -85,7 +85,7 @@ Job 跑在 `macos-latest`（镜像自带 Xcode）。先用 release 模板导出 
 
 ## 品牌资源
 
-`export_presets.cfg` 已经按下面的路径写好。换图时只改对应那一行，不要把密钥写进预设。文件还不在仓库里时，Android 导出退回工程图标 `icon.svg`。iOS 不一样：`icons/icon_1024x1024` 指向缺失文件会让整个导出失败，所以 `tools/release/export_ios.sh` 在工作副本里把这两行清空（提交回去的预设不变），job 仍然成功。
+图在 `assets/branding/`。换图时只改对应那一行，不要把密钥写进预设。iOS 的 `icons/icon_1024x1024` 如果指向一个不存在的文件，Godot 会让整个导出失败，所以 `tools/release/export_ios.sh` 只在文件缺失时清空工作副本里的这两行（提交回去的预设不变）。
 
 | 文件 | 尺寸 | 用在 |
 | --- | --- | --- |
@@ -95,17 +95,7 @@ Job 跑在 `macos-latest`（镜像自带 Xcode）。先用 release 模板导出 
 | `assets/branding/icon_ios_1024.png` | 1024×1024，无 alpha | `icons/icon_1024x1024` 和 App Store 1024。其余 iOS 尺寸由 Godot 从这张缩放 |
 | `assets/branding/splash_1080x1920.png` | 1080×1920 | 引擎内启动图（不是 Android 12 的系统 splash icon） |
 
-启动图先别写进 `project.godot`。`boot_splash/image` 指向一个不存在的文件时，无头启动会打出 `ERROR:`，`tools/smoke_main.sh` 会失败。图进仓库之后，在 `[application]` 里加上（导入必须是无损，不要 VRAM 压缩）：
-
-```
-boot_splash/bg_color=Color(0, 0, 0, 1)
-boot_splash/show_image=true
-boot_splash/image="res://assets/branding/splash_1080x1920.png"
-boot_splash/fullsize=true
-boot_splash/use_filter=true
-```
-
-单色 adaptive icon 还没做，预设里留空。Android 的 `splash_screen/icon` 也留空，这样系统启动页不会盖掉引擎内的启动图。
+`project.godot` 的 `boot_splash/image` 已经指向 `splash_1080x1920.png`，`fullsize` 打开。这张图的 `.import` 必须是 `compress/mode=0`（无损）。工程开了 ETC2/ASTC，Godot 初次导入可能会改成 VRAM 压缩，启动图就会不显示。单色 adaptive icon 还没做，预设里留空。Android 的 `splash_screen/icon` 也留空，这样系统启动页不会盖掉引擎内的启动图。
 
 ## 怎么打一个测试标签
 
