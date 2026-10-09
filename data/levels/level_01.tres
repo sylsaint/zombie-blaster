@@ -1,0 +1,243 @@
+[gd_resource type="Resource" script_class="LevelData" load_steps=31 format=3]
+
+[ext_resource type="Script" path="res://scripts/level_data.gd" id="1_level"]
+[ext_resource type="Script" path="res://scripts/gate_spec.gd" id="2_gate"]
+[ext_resource type="Script" path="res://scripts/level_event.gd" id="3_event"]
+
+[sub_resource type="Resource" id="e0"]
+script = ExtResource("3_event")
+distance = 8.0000
+kind = "wave"
+enemy_id = "enm_walker_a"
+count = 40
+formation = "line"
+gates = Array[Resource]([])
+
+[sub_resource type="Resource" id="e1"]
+script = ExtResource("3_event")
+distance = 20.0000
+kind = "wave"
+enemy_id = "enm_walker_a"
+count = 30
+formation = "wedge"
+gates = Array[Resource]([])
+
+[sub_resource type="Resource" id="g2"]
+script = ExtResource("2_gate")
+kind = 1
+amount = 6.0000
+side = "left"
+
+[sub_resource type="Resource" id="g3"]
+script = ExtResource("2_gate")
+kind = 4
+amount = 1.0000
+side = "right"
+
+[sub_resource type="Resource" id="e4"]
+script = ExtResource("3_event")
+distance = 40.0000
+kind = "gate_group"
+enemy_id = ""
+count = 0
+formation = "line"
+gates = Array[Resource]([SubResource("g2"), SubResource("g3")])
+
+[sub_resource type="Resource" id="e5"]
+script = ExtResource("3_event")
+distance = 60.0000
+kind = "wave"
+enemy_id = "enm_walker_a"
+count = 40
+formation = "line"
+gates = Array[Resource]([])
+
+[sub_resource type="Resource" id="e6"]
+script = ExtResource("3_event")
+distance = 72.0000
+kind = "wave"
+enemy_id = "enm_walker_a"
+count = 30
+formation = "wedge"
+gates = Array[Resource]([])
+
+[sub_resource type="Resource" id="g7"]
+script = ExtResource("2_gate")
+kind = 4
+amount = 1.0000
+side = "left"
+
+[sub_resource type="Resource" id="g8"]
+script = ExtResource("2_gate")
+kind = 1
+amount = 6.0000
+side = "right"
+
+[sub_resource type="Resource" id="e9"]
+script = ExtResource("3_event")
+distance = 96.0000
+kind = "gate_group"
+enemy_id = ""
+count = 0
+formation = "line"
+gates = Array[Resource]([SubResource("g7"), SubResource("g8")])
+
+[sub_resource type="Resource" id="e10"]
+script = ExtResource("3_event")
+distance = 110.0000
+kind = "wave"
+enemy_id = "enm_walker_a"
+count = 60
+formation = "line"
+gates = Array[Resource]([])
+
+[sub_resource type="Resource" id="e11"]
+script = ExtResource("3_event")
+distance = 120.0000
+kind = "wave"
+enemy_id = "enm_walker_a"
+count = 50
+formation = "wedge"
+gates = Array[Resource]([])
+
+[sub_resource type="Resource" id="g12"]
+script = ExtResource("2_gate")
+kind = 1
+amount = 6.0000
+side = "left"
+
+[sub_resource type="Resource" id="g13"]
+script = ExtResource("2_gate")
+kind = 4
+amount = 1.0000
+side = "right"
+
+[sub_resource type="Resource" id="e14"]
+script = ExtResource("3_event")
+distance = 152.0000
+kind = "gate_group"
+enemy_id = ""
+count = 0
+formation = "line"
+gates = Array[Resource]([SubResource("g12"), SubResource("g13")])
+
+[sub_resource type="Resource" id="e15"]
+script = ExtResource("3_event")
+distance = 168.0000
+kind = "wave"
+enemy_id = "enm_walker_a"
+count = 60
+formation = "line"
+gates = Array[Resource]([])
+
+[sub_resource type="Resource" id="e16"]
+script = ExtResource("3_event")
+distance = 180.0000
+kind = "wave"
+enemy_id = "enm_walker_a"
+count = 50
+formation = "wedge"
+gates = Array[Resource]([])
+
+[sub_resource type="Resource" id="g17"]
+script = ExtResource("2_gate")
+kind = 4
+amount = 1.0000
+side = "left"
+
+[sub_resource type="Resource" id="g18"]
+script = ExtResource("2_gate")
+kind = 1
+amount = 6.0000
+side = "right"
+
+[sub_resource type="Resource" id="e19"]
+script = ExtResource("3_event")
+distance = 208.0000
+kind = "gate_group"
+enemy_id = ""
+count = 0
+formation = "line"
+gates = Array[Resource]([SubResource("g17"), SubResource("g18")])
+
+[sub_resource type="Resource" id="e20"]
+script = ExtResource("3_event")
+distance = 224.0000
+kind = "wave"
+enemy_id = "enm_walker_a"
+count = 60
+formation = "line"
+gates = Array[Resource]([])
+
+[sub_resource type="Resource" id="e21"]
+script = ExtResource("3_event")
+distance = 236.0000
+kind = "wave"
+enemy_id = "enm_walker_a"
+count = 50
+formation = "line"
+gates = Array[Resource]([])
+
+[sub_resource type="Resource" id="e22"]
+script = ExtResource("3_event")
+distance = 248.0000
+kind = "wave"
+enemy_id = "enm_walker_a"
+count = 30
+formation = "wedge"
+gates = Array[Resource]([])
+
+[sub_resource type="Resource" id="g23"]
+script = ExtResource("2_gate")
+kind = 1
+amount = 6.0000
+side = "left"
+
+[sub_resource type="Resource" id="g24"]
+script = ExtResource("2_gate")
+kind = 4
+amount = 1.0000
+side = "right"
+
+[sub_resource type="Resource" id="e25"]
+script = ExtResource("3_event")
+distance = 264.0000
+kind = "gate_group"
+enemy_id = ""
+count = 0
+formation = "line"
+gates = Array[Resource]([SubResource("g23"), SubResource("g24")])
+
+[sub_resource type="Resource" id="e26"]
+script = ExtResource("3_event")
+distance = 300.0000
+kind = "finale_elite"
+enemy_id = "enm_elite_brute"
+count = 1
+formation = "line"
+gates = Array[Resource]([])
+
+[resource]
+script = ExtResource("1_level")
+level_index = 1
+chapter = 1
+title = "第 1 关"
+hp_multiplier = 1.0000
+grunt_total = 500
+gate_group_count = 5
+advance_elite_count = 0
+elite_hp = 4800.0000
+finale = "elite"
+finale_elite_count = 1
+boss_hp = 0.0000
+boss_summon = false
+expected_dps = 800.0000
+star2_headcount = 20
+base_clear_coins = 100
+star_coin_multipliers = PackedFloat32Array(1, 1.2, 1.5)
+first_clear_parts = 5
+three_star_chest_coin_multiplier = 2.0
+three_star_chest_parts = 5
+three_star_chest_paid_separately = true
+fail_coin_ratio = 0.3
+events = Array[Resource]([SubResource("e0"), SubResource("e1"), SubResource("e4"), SubResource("e5"), SubResource("e6"), SubResource("e9"), SubResource("e10"), SubResource("e11"), SubResource("e14"), SubResource("e15"), SubResource("e16"), SubResource("e19"), SubResource("e20"), SubResource("e21"), SubResource("e22"), SubResource("e25"), SubResource("e26")])

@@ -1,8 +1,9 @@
-[gd_scene load_steps=15 format=3 uid="uid://wqou8s4c6lv2"]
+[gd_scene load_steps=16 format=3 uid="uid://wqou8s4c6lv2"]
 
 [ext_resource type="Script" uid="uid://dhwvaar3y7h4k" path="res://scripts/greybox_stage.gd" id="1_stage"]
 [ext_resource type="Script" uid="uid://csexw6ucuej7e" path="res://scripts/player.gd" id="2_player"]
 [ext_resource type="Shader" uid="uid://1yl1rhhkxtqc" path="res://assets/vfx/blob_shadow.gdshader" id="3_blob"]
+[ext_resource type="Script" uid="uid://btmi6ig8khys" path="res://scripts/level_host.gd" id="4_levels"]
 
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 1
@@ -49,6 +50,9 @@ shader = ExtResource("3_blob")
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_stage")
+
+[node name="LevelHost" type="Node" parent="."]
+script = ExtResource("4_levels")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_main")
