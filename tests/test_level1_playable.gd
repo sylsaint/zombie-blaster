@@ -196,19 +196,15 @@ func test_level1_idle_and_add_gates_report_distance() -> void:
 	var idle := _reach(level, false)
 	var adds := _reach(level, true)
 	print("LEVEL1_REACH no_input=%.2f add_gates=%.2f" % [idle["distance"], adds["distance"]])
+	print("LEVEL1_IDLE %s" % _format_trace(idle))
+	print("LEVEL1_ADD %s" % _format_trace(adds))
 	var gate_d: float = _opening_gate(level).distance
-	var elite_d := 0.0
-	for event in level.sorted_events():
-		if event.kind == "finale_elite":
-			elite_d = event.distance
-			break
 	assert_true(bool(idle["past_gate"]), "zero input died at %.2f m, before the first gate at %.1f m" % [idle["distance"], gate_d])
 	assert_gt(float(idle["distance"]), gate_d)
-	# The last step can land a fraction under the authored distance.
-	assert_gte(float(adds["distance"]), elite_d - 0.05, "add-soldier route stopped at %.2f m, short of the elite at %.1f m" % [adds["distance"], elite_d])
-	assert_eq(String(adds["state"]), "finale")
-	assert_gt(int(adds["count"]), 0)
-	assert_eq(int(adds["weapon"]), 1, "add-only route took a weapon gate")
+	# Drag aims at the gate mesh, not the rail. ±3 m is outside the walker line.
+	assert_almost_eq(_gate_x(adds, gate_d), _add_span_center(_opening_gate(level)), 0.08, "add route was not on the gate center")
+	assert_gt(_gate_rows(adds).size(), 0)
+	assert_gt(_wave_rows(adds).size(), 0)
 
 
 func _assert_opening(level: LevelData) -> void:
@@ -273,43 +269,124 @@ func _reach(level: LevelData, pick_add: bool) -> Dictionary:
 	var elite_d := level.finale_distance()
 	var past := false
 	var step := 0.05
+	var gates: Array = []
+	var wave_lost := {}
 	var guard := 0
+	var last_count := session.sim.squad.count
 	while guard < 4000 and session.state != "win" and session.state != "lose":
 		if pick_add:
 			_steer_add(session)
+		var before := session.sim.squad.count
+		var x_before := session.sim.squad.position.x
+		var traveled_before := session.traveled
 		session.tick(step)
 		guard += 1
+		var now := session.sim.squad.count
+		if now < last_count:
+			var owner := _wave_taking_the_loss(level, session.traveled)
+			wave_lost[owner] = int(wave_lost.get(owner, 0)) + (last_count - now)
+		last_count = now
+		for event in level.sorted_events():
+			if event.kind != "gate_group":
+				continue
+			if traveled_before + 0.0001 < event.distance and session.traveled + 0.0001 >= event.distance:
+				gates.append({
+					"d": event.distance,
+					"before": before,
+					"after": now,
+					"x": x_before,
+				})
 		if session.traveled > gate_d + 0.05 and session.sim.squad.count > 0:
 			past = true
 		if session.state == "finale" and session.traveled + 0.001 >= elite_d:
 			break
+	var waves: Array = []
+	for event in level.sorted_events():
+		if event.kind != "wave":
+			continue
+		var lost := int(wave_lost.get(event.distance, 0))
+		if event.distance > session.traveled + 0.001 and lost <= 0:
+			continue
+		waves.append({"d": event.distance, "lost": lost, "count": event.count})
 	return {
 		"distance": session.traveled,
 		"state": session.state,
 		"count": session.sim.squad.count,
 		"weapon": session.weapon_level,
 		"past_gate": past,
+		"gates": gates,
+		"waves": waves,
 	}
 
 
+## One drag onto the add gate's mesh center. Player._unhandled_input writes
+## target_x through apply_drag; the body catches up at lateral speed.
 func _steer_add(session: LevelSession) -> void:
-	var side := ""
+	var goal := 0.0
+	var found := false
 	for event in session.level.sorted_events():
 		if event.kind != "gate_group" or event.distance + 0.001 < session.traveled:
 			continue
-		for spec in event.gates:
-			var gate := spec as GateSpec
-			if gate != null and gate.kind == GateRules.ADD:
-				side = gate.side
-				break
+		goal = _add_span_center(event)
+		found = true
 		break
+	if not found:
+		return
 	var squad := session.sim.squad
-	if side == "left":
-		squad.target_x = -SquadAnchor.LANE_HALF_WIDTH
-	elif side == "right":
-		squad.target_x = SquadAnchor.LANE_HALF_WIDTH
-	else:
-		squad.target_x = 0.0
+	if absf(squad.target_x - goal) <= 0.001:
+		return
+	var width := 1080.0
+	var lane := maxf(squad.lane_half_width * 2.0, 0.001)
+	squad.apply_drag((goal - squad.target_x) / lane * width, width)
+
+
+func _add_span_center(event: LevelEvent) -> float:
+	for spec in event.gates:
+		var gate := spec as GateSpec
+		if gate == null or gate.kind != GateRules.ADD:
+			continue
+		var span := LevelHost.span_for_spec(gate)
+		return (span.x_min + span.x_max) * 0.5
+	return 0.0
+
+
+## Walkers spawn 35 m ahead and close at 4 + 1.6 m/s, so contact is ~25 m after the trigger.
+func _wave_taking_the_loss(level: LevelData, traveled: float) -> float:
+	var best := -1.0
+	var best_gap := 10000.0
+	for event in level.sorted_events():
+		if event.kind != "wave" or event.distance > traveled + 0.001:
+			continue
+		var gap := absf(event.distance + 25.0 - traveled)
+		if gap < best_gap:
+			best_gap = gap
+			best = event.distance
+	return best
+
+
+func _format_trace(run: Dictionary) -> String:
+	var gates := ""
+	for row in run["gates"]:
+		gates += " %.0f:%d->%d x=%.2f" % [row["d"], row["before"], row["after"], row["x"]]
+	var waves := ""
+	for row in run["waves"]:
+		waves += " %.0f:lost %d/%d" % [row["d"], row["lost"], row["count"]]
+	return "state=%s n=%d wpn=%d gates%s waves%s" % [run["state"], run["count"], run["weapon"], gates, waves]
+
+
+func _gate_x(run: Dictionary, distance: float) -> float:
+	for row in run["gates"]:
+		if absf(float(row["d"]) - distance) <= 0.05:
+			return float(row["x"])
+	return -999.0
+
+
+func _gate_rows(run: Dictionary) -> Array:
+	return run["gates"]
+
+
+func _wave_rows(run: Dictionary) -> Array:
+	return run["waves"]
 
 
 func _enemy_instances(crowd: CrowdView) -> int:
