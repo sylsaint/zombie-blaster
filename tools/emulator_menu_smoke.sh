@@ -36,6 +36,8 @@ if ! adb install -r "$apk"; then
   note "arm64 translation: $(adb shell getprop ro.dalvik.vm.isa.arm64 | tr -d '\r')"
   exit 1
 fi
+note "device abi: $(adb shell getprop ro.product.cpu.abi | tr -d '\r')"
+note "package abi: $(adb shell dumpsys package "$package" | tr -d '\r' | awk '/primaryCpuAbi/{print; exit}')"
 
 # Pixel 2 is already 1080x1920. Forcing wm size or density relaunches the
 # activity while Godot is still creating the GL context, and the process dies.

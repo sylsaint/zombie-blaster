@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Export arm64-v8a release and debug APKs, plus a release-template profile APK.
+# Export release and debug APKs (arm64-v8a and x86_64), plus an arm64 profile APK.
 # Release and profile use the release export template. Without the three
 # release keystore secrets, those APKs are signed with a generated debug
 # keystore so they can be installed. When all three secrets are set, they
@@ -185,12 +185,21 @@ verify_apk() {
     *) echo "$apk package name is not ${package}" >&2; exit 1 ;;
   esac
   case "$badging" in
-    *"native-code: 'arm64-v8a'"*) ;;
-    *) echo "$apk is not arm64-v8a" >&2; exit 1 ;;
+    *"native-code:"*"'arm64-v8a'"*) ;;
+    *) echo "$apk is missing arm64-v8a" >&2; exit 1 ;;
   esac
+  if [[ "${3:-}" == "x86_64" ]]; then
+    case "$badging" in
+      *"x86_64"*) ;;
+      *) echo "$apk is missing x86_64" >&2; exit 1 ;;
+    esac
+  elif [[ "$badging" == *x86_64* ]]; then
+    echo "$apk contains x86_64; this preset is arm64-v8a only." >&2
+    exit 1
+  fi
   case "$badging" in
     *armeabi-v7a*)
-      echo "$apk contains armeabi-v7a; the preset is arm64-v8a only." >&2
+      echo "$apk contains armeabi-v7a; the preset does not enable it." >&2
       exit 1
       ;;
   esac
@@ -198,8 +207,8 @@ verify_apk() {
   note "$(basename "$apk"): $(wc -c < "$apk" | tr -d ' ') bytes"
 }
 
-verify_apk "$release_apk" "com.zombieblaster.game"
-verify_apk "$debug_apk" "com.zombieblaster.game"
+verify_apk "$release_apk" "com.zombieblaster.game" x86_64
+verify_apk "$debug_apk" "com.zombieblaster.game" x86_64
 verify_apk "$profile_apk" "com.zombieblaster.game.profile"
 assert_project_data_packed "$release_apk" game
 assert_project_data_packed "$debug_apk" game
