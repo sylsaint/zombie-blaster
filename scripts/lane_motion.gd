@@ -10,6 +10,10 @@ extends RefCounted
 
 ## Greybox rail centerline. scenes/main.tscn places the rails at X = ±3.75.
 const RAIL_X := 3.75
+## BoxMesh size.x of those rails. The inner face is RAIL_X - RAIL_HALF.
+const RAIL_HALF := 0.175
+## Walker VAT aabb reaches ±0.58 m, past the 0.40 m collision radius.
+const GRUNT_MESH_HALF := 0.61
 
 
 static func apply_drag(current_x: float, screen_dx: float, viewport_width: float, lane_half_width: float) -> float:
@@ -20,9 +24,18 @@ static func apply_drag(current_x: float, screen_dx: float, viewport_width: float
 	return clampf(current_x + world_dx, -half, half)
 
 
-## Half-width a body of `radius` may use so its edge stays on the rail line.
+## Half-width a body may use so its edge stays on the inner face of the rail.
 static func body_limit(radius: float) -> float:
-	return maxf(RAIL_X - maxf(radius, 0.0), 0.0)
+	return maxf(RAIL_X - RAIL_HALF - maxf(radius, 0.0), 0.0)
+
+
+## Grunt meshes swing wider than their collision radius. Elites and bosses
+## already carry a radius that covers the body.
+static func body_reach(radius: float, species: int) -> float:
+	var reach := maxf(radius, 0.0)
+	if species == EnemyPool.Species.WALKER or species == EnemyPool.Species.RUNNER:
+		reach = maxf(reach, GRUNT_MESH_HALF)
+	return reach
 
 
 static func clamp_body_x(x: float, radius: float) -> float:

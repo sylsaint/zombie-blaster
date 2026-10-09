@@ -122,7 +122,7 @@ func spawn_at(kind: int, px: float, pz: float, hit_points: float, move_speed: fl
 
 
 func _spawn_archetype(arch: EnemyArchetype) -> int:
-	var px := LaneMotion.clamp_body_x(randf_range(-lane_span, lane_span), arch.radius)
+	var px := LaneMotion.clamp_body_x(randf_range(-lane_span, lane_span), LaneMotion.body_reach(arch.radius, arch.species))
 	var pz := squad.position.z - randf_range(respawn_near, respawn_far)
 	var variant := clampf(arch.color_variant + randf_range(-0.04, 0.04), 0.0, 1.0)
 	return EnemyCatalog.place(enemies, arch, stage, px, pz, variant)
@@ -147,13 +147,30 @@ func _spawn_ahead(kind: int) -> int:
 
 
 func _clamp_bodies() -> void:
+	var squad_z := squad.position.z
 	var a := 0
 	while a < enemies.active_n:
 		var id := enemies.active_ids[a]
 		a += 1
 		if enemies.state[id] == EnemyPool.State.FREE:
 			continue
-		enemies.x[id] = LaneMotion.clamp_body_x(enemies.x[id], enemies.radius[id])
+		var limit := LaneMotion.body_limit(LaneMotion.body_reach(enemies.radius[id], enemies.species[id]))
+		var x := enemies.x[id]
+		var excess := 0.0
+		if x > limit:
+			excess = x - limit
+			enemies.x[id] = limit
+		elif x < -limit:
+			excess = -limit - x
+			enemies.x[id] = -limit
+		# A packed line shoves its ends through the rail. Sliding that leftover
+		# along Z turns the shove into extra rows inside the lane.
+		if excess <= 0.0 or enemies.state[id] != EnemyPool.State.ALIVE:
+			continue
+		if enemies.z[id] <= squad_z:
+			enemies.z[id] -= excess
+		else:
+			enemies.z[id] += excess
 
 
 func _spawn_shots() -> void:
