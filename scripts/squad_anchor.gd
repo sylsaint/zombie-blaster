@@ -7,6 +7,7 @@ extends RefCounted
 const FORWARD_SPEED_DEFAULT := 4.0
 const LATERAL_SPEED_CAP := 14.0
 const VISIBLE_CAP := 40
+const MAX_COUNT := 150
 const LANE_HALF_WIDTH := 3.0
 const FORMATION_TWEEN := 0.25
 
@@ -14,13 +15,25 @@ var count: int = 5
 var forward_speed: float = FORWARD_SPEED_DEFAULT
 var position := Vector3.ZERO
 var target_x: float = 0.0
+## Gate and meta bonuses. Skill cards add the skill_* fields so those systems do not overwrite each other.
 var damage_bonus: float = 0.0
 var rate_bonus: float = 0.0
-## Skill-card and meta hooks. Zero keeps the M1 pistol path unchanged.
+var skill_damage_bonus: float = 0.0
+var skill_rate_bonus: float = 0.0
+var skill_pierce: int = 0
+var skill_extra_pellets: int = 0
+var skill_split_count: int = 0
+var skill_split_ratio: float = 0.5
+var skill_split_spread: float = 30.0
+## Extra hooks that are not written by the six M1 cards. Zero leaves that path unchanged.
 var extra_shots: int = 0
 var bonus_pierce: int = 0
 var split_level: int = 0
 var meta_attack_levels: int = 0
+var last_loss: int = 0
+var loss_serial: int = 0
+var capped: bool = false
+var banner: String = ""
 var weapon: WeaponStats
 var lane_half_width: float = LANE_HALF_WIDTH
 var displayed_offsets := PackedVector3Array()
@@ -106,14 +119,39 @@ static func formation_offsets(n: int) -> PackedVector3Array:
 	return out
 
 
+func total_damage_bonus() -> float:
+	return damage_bonus + skill_damage_bonus + WeaponMods.meta_attack_bonus(meta_attack_levels)
+
+
+func total_rate_bonus() -> float:
+	return rate_bonus + skill_rate_bonus
+
+
 func current_interval() -> float:
 	if weapon == null:
 		return 0.4
-	return shot_interval(weapon.interval, rate_bonus)
+	return shot_interval(weapon.interval, total_rate_bonus())
 
 
-func total_damage_bonus() -> float:
-	return damage_bonus + WeaponMods.meta_attack_bonus(meta_attack_levels)
+func add_soldiers(n: int) -> int:
+	var room := MAX_COUNT - count
+	if room < 0:
+		room = 0
+	var gain := mini(maxi(n, 0), room)
+	count += gain
+	capped = gain < n
+	banner = "已满" if capped else ""
+	return gain
+
+
+func apply_loss(n: int) -> int:
+	var loss := mini(maxi(n, 0), count)
+	if loss <= 0:
+		return 0
+	count -= loss
+	last_loss = loss
+	loss_serial += 1
+	return loss
 
 
 func outfit_tier() -> int:
@@ -187,14 +225,14 @@ func _tween_formation(dt: float) -> void:
 
 
 func _emit_shot() -> void:
-	var pellets := weapon.pellets + extra_shots
+	var pellets := maxi(weapon.pellets + extra_shots + skill_extra_pellets, 1)
 	var offsets := lateral_offsets(pellets, count, _spread_cursor)
 	_spread_cursor += 1
 	pending_shots.append({
 		"damage": shot_damage(weapon.damage, count, total_damage_bonus()),
 		"speed": weapon.bullet_speed,
 		"range": weapon.bullet_range,
-		"pierce": weapon.pierce + bonus_pierce,
+		"pierce": weapon.pierce + bonus_pierce + skill_pierce,
 		"spread": weapon.spread_degrees,
 		"offsets": offsets,
 		"origin": position,

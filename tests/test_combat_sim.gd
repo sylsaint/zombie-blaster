@@ -7,6 +7,7 @@ func test_bullet_hit_damages_flashes_and_does_not_grow_pools() -> void:
 	var clock = autofree(_Clock.new())
 	var sim := CombatSim.new(clock, 8, 8)
 	sim.separation_enabled = false
+	sim.contact_enabled = false
 	sim.squad.count = 1
 	sim.squad.forward_speed = 0.0
 	sim.squad.weapon = WeaponStats.pistol()

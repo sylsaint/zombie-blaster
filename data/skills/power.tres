@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="SkillCard" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/skill_card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+effect_id = 4
+title = "火力强化"
+blurb = "伤害 +20%"
+max_level = 5
+magnitude = 0.2
+core = false
+spread_degrees = 0.0

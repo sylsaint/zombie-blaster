@@ -1,6 +1,7 @@
 extends Node3D
-## 300 grunts, 3 elites, and 1 boss walking into squad fire.
+## 180 walkers, 120 runners, 3 armored elites, and 1 boss.
 ## Headless: run N frames, print STRESS_STATS, quit.
+## Contact stays off so the bench remains a shootout; GUT covers contact.
 ##
 ## Issue #17: shader compile, the first multimesh upload, and the first
 ## overlay glyphs land outside the 2 ms gameplay budget. Prewarm burns
@@ -8,7 +9,8 @@ extends Node3D
 ## frame, spike indices, and the 1% low after dropping the first warmup frames.
 
 
-const GRUNTS := 300
+const WALKERS := 180
+const RUNNERS := 120
 const ELITES := 3
 const BOSSES := 1
 const SPIKE_MS := 50.0
@@ -91,6 +93,7 @@ func _ready() -> void:
 	_view.set_toon_flags(_cel, _rim, _outline)
 	_sim = CombatSim.new(GameClock, 360, BulletPool.DEFAULT_CAPACITY)
 	_sim.auto_respawn = true
+	_sim.contact_enabled = false
 	_sim.squad.count = 24
 	_sim.squad.forward_speed = SquadAnchor.FORWARD_SPEED_DEFAULT
 	var weapon := (load("res://data/weapons/pistol.tres") as WeaponStats).duplicate() as WeaponStats
@@ -101,7 +104,11 @@ func _ready() -> void:
 	_sim.profile = _profile
 	_view.profile = _profile
 	PhysicsServer3D.set_active(false)
-	_fill(50, ELITES, BOSSES)
+	var toast: Node = load("res://scenes/ui/loss_toast.tscn").instantiate()
+	toast.name = "LossToast"
+	$Overlay.add_child(toast)
+	toast.bind_squad(_sim.squad)
+	_fill_mix(30, 20, ELITES, BOSSES)
 	_view.sync(_sim)
 	_batches_50 = _view.logical_batch_count()
 	_instances_50 = _view.visible_body_instances()
@@ -126,7 +133,7 @@ func _process(delta: float) -> void:
 		return
 	if _phase == 1:
 		_gpu_draw_50 = _draw_calls()
-		_fill(GRUNTS, ELITES, BOSSES)
+		_fill_mix(WALKERS, RUNNERS, ELITES, BOSSES)
 		_view.sync(_sim)
 		_batches_300 = _view.logical_batch_count()
 		_instances_300 = _view.visible_body_instances()
@@ -267,12 +274,14 @@ func _resize_samples(n: int) -> void:
 	_sample_logic.resize(n)
 
 
-func _fill(grunts: int, elites: int, bosses: int) -> void:
-	_sim.desired_grunt = grunts
+func _fill_mix(walkers: int, runners: int, elites: int, bosses: int) -> void:
+	_sim.desired_walker = walkers
+	_sim.desired_runner = runners
+	_sim.desired_grunt = 0
 	_sim.desired_elite = elites
 	_sim.desired_boss = bosses
 	_clear_enemies()
-	_spawn_grid(grunts, elites, bosses)
+	_spawn_grid(walkers, runners, elites, bosses)
 	_sim.maintain_counts()
 
 
@@ -282,20 +291,37 @@ func _clear_enemies() -> void:
 			_sim.enemies.recycle(i)
 
 
-func _spawn_grid(grunts: int, elites: int, bosses: int) -> void:
+func _spawn_grid(walkers: int, runners: int, elites: int, bosses: int) -> void:
 	var columns := 15
 	var spacing_x := 0.36
 	var spacing_z := 0.85
 	var origin_z := _sim.squad.position.z - 8.0
-	for i in grunts:
-		var col := i % columns
-		var row := int(i / columns)
+	var total := walkers + runners
+	var walkers_left := walkers
+	var runners_left := runners
+	var walker := EnemyCatalog.walker()
+	var runner := EnemyCatalog.runner()
+	for slot in total:
+		var use_runner := false
+		if walkers_left <= 0:
+			use_runner = true
+		elif runners_left > 0 and slot % 5 >= 3:
+			use_runner = true
+		var col := slot % columns
+		var row := int(slot / columns)
 		var px := (float(col) - float(columns - 1) * 0.5) * spacing_x
 		var pz := origin_z - float(row) * spacing_z
-		_sim.spawn_at(EnemyPool.Archetype.GRUNT, px, pz, 20.0, 1.6, EnemyPool.GRUNT_RADIUS, fposmod(float(i) * 0.17, 0.45))
+		var variant := fposmod(float(slot) * 0.17, 0.28)
+		if use_runner:
+			runners_left -= 1
+			EnemyCatalog.place(_sim.enemies, runner, _sim.stage, px, pz, 0.32 + variant)
+		else:
+			walkers_left -= 1
+			EnemyCatalog.place(_sim.enemies, walker, _sim.stage, px, pz, 0.05 + variant)
+	var elite := EnemyCatalog.elite()
 	for i in elites:
 		var px := lerpf(-1.6, 1.6, float(i) / float(maxi(elites - 1, 1)))
-		_sim.spawn_at(EnemyPool.Archetype.ELITE, px, _sim.squad.position.z - 14.0, 180.0, 1.1, EnemyPool.ELITE_RADIUS, 0.8)
+		EnemyCatalog.place(_sim.enemies, elite, _sim.stage, px, _sim.squad.position.z - 14.0, 0.78 + float(i) * 0.04)
 	if bosses > 0:
 		_sim.spawn_at(EnemyPool.Archetype.BOSS, 0.0, _sim.squad.position.z - 22.0, 4000.0, 0.9, EnemyPool.BOSS_RADIUS, 0.55)
 
@@ -312,9 +338,13 @@ func _finish() -> void:
 		return
 	_finished = true
 	var enemies := _sim.enemies.active_count
-	var expected := _sim.desired_grunt + _sim.desired_elite + _sim.desired_boss
+	var expected := _sim.desired_walker + _sim.desired_runner + _sim.desired_elite + _sim.desired_boss
 	if enemies != expected:
 		push_error("Stress enemy count is %d, expected %d" % [enemies, expected])
+	if _sim.enemies.count_species(EnemyPool.Species.WALKER) != WALKERS:
+		push_error("Expected %d walkers" % WALKERS)
+	if _sim.enemies.count_species(EnemyPool.Species.RUNNER) != RUNNERS:
+		push_error("Expected %d runners" % RUNNERS)
 	if _batches_50 != _batches_300 or _batches_50 <= 0:
 		push_error("Draw batches changed with enemy count: %d vs %d" % [_batches_50, _batches_300])
 	if _instances_300 <= _instances_50:
@@ -354,7 +384,7 @@ func _overlay_text(frame_delta: float) -> String:
 		"帧时间 %.2f ms" % frame_ms,
 		"内存 静态 %.1f MB / 显存 %.1f MB / 对象 %d" % [static_mb, video_mb, objects],
 		"绘制 %d    三角形 %d" % [draws, tris],
-		"敌人 %d    小队 %d（可见 %d）" % [_sim.enemies.active_count, _sim.squad.count, visible],
+		"敌人 %d（走 %d / 跑 %d）    小队 %d（可见 %d）" % [_sim.enemies.active_count, _sim.enemies.count_species(EnemyPool.Species.WALKER), _sim.enemies.count_species(EnemyPool.Species.RUNNER), _sim.squad.count, visible],
 		"逻辑 %.2f ms    时钟 ×%.2f" % [_last_logic_ms(), float(GameClock.scale)],
 		"卡通 %s  边缘光 %s  描边 %s" % [_on_off(_cel), _on_off(_rim), _on_off(_outline)],
 	])
@@ -374,7 +404,7 @@ func _stats_line(frame_delta: float) -> String:
 	if frame_delta > 0.0:
 		frame_ms = frame_delta * 1000.0
 	var max_logic := float(_frame_max_logic_us) / 1000.0
-	return "STRESS_STATS fps=%.2f fps_1pct_low=%.2f frame_ms=%.3f memory_static_mb=%.2f memory_video_mb=%.2f objects=%d draw_calls=%d draw_calls_min=%d draw_calls_max=%d draw3d_min=%d draw3d_max=%d triangles=%d enemies=%d batches_50=%d batches_300=%d instances_50=%d instances_300=%d gpu_draw_50=%d gpu_draw_300=%d logic_avg_ms=%.3f logic_p99_ms=%.3f process_avg_ms=%.3f process_p99_ms=%.3f combat_avg_ms=%.3f combat_p99_ms=%.3f squad_avg_ms=%.3f squad_p99_ms=%.3f hash_rebuild_avg_ms=%.3f hash_rebuild_p99_ms=%.3f hash_query_avg_ms=%.3f hash_query_p99_ms=%.3f bullet_avg_ms=%.3f bullet_p99_ms=%.3f view_avg_ms=%.3f view_p99_ms=%.3f view_write_avg_ms=%.3f view_write_p99_ms=%.3f view_upload_avg_ms=%.3f view_upload_p99_ms=%.3f overlay_avg_ms=%.3f overlay_p99_ms=%.3f debug_build=%d cores=%d frame_max_ms=%.3f frame_max_index=%d frame_max_logic_ms=%.3f spike_count=%d warmup_skip=%d fps_1pct_low_ex_warmup=%.2f prewarm_frames=%d prewarm_max_ms=%.3f prewarm_max_index=%d prewarm_spike_count=%d cel=%d rim=%d outline=%d" % [
+	return "STRESS_STATS fps=%.2f fps_1pct_low=%.2f frame_ms=%.3f memory_static_mb=%.2f memory_video_mb=%.2f objects=%d draw_calls=%d draw_calls_min=%d draw_calls_max=%d draw3d_min=%d draw3d_max=%d triangles=%d enemies=%d batches_50=%d batches_300=%d instances_50=%d instances_300=%d gpu_draw_50=%d gpu_draw_300=%d logic_avg_ms=%.3f logic_p99_ms=%.3f process_avg_ms=%.3f process_p99_ms=%.3f combat_avg_ms=%.3f combat_p99_ms=%.3f squad_avg_ms=%.3f squad_p99_ms=%.3f hash_rebuild_avg_ms=%.3f hash_rebuild_p99_ms=%.3f hash_query_avg_ms=%.3f hash_query_p99_ms=%.3f bullet_avg_ms=%.3f bullet_p99_ms=%.3f view_avg_ms=%.3f view_p99_ms=%.3f view_write_avg_ms=%.3f view_write_p99_ms=%.3f view_upload_avg_ms=%.3f view_upload_p99_ms=%.3f overlay_avg_ms=%.3f overlay_p99_ms=%.3f body_tris=%d walkers=%d runners=%d elites=%d debug_build=%d cores=%d frame_max_ms=%.3f frame_max_index=%d frame_max_logic_ms=%.3f spike_count=%d warmup_skip=%d fps_1pct_low_ex_warmup=%.2f prewarm_frames=%d prewarm_max_ms=%.3f prewarm_max_index=%d prewarm_spike_count=%d cel=%d rim=%d outline=%d" % [
 		_fps(),
 		_one_percent_low(),
 		frame_ms,
@@ -416,6 +446,10 @@ func _stats_line(frame_delta: float) -> String:
 		_p99_ms(_sample_upload),
 		_avg_ms(_sample_overlay),
 		_p99_ms(_sample_overlay),
+		_view.body_triangles(),
+		_sim.enemies.count_species(EnemyPool.Species.WALKER),
+		_sim.enemies.count_species(EnemyPool.Species.RUNNER),
+		_sim.enemies.count_species(EnemyPool.Species.ELITE),
 		1 if OS.is_debug_build() else 0,
 		OS.get_processor_count(),
 		_frame_max_ms,

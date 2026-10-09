@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EnemyArchetype" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_archetype.gd" id="1_arch"]
+
+[resource]
+script = ExtResource("1_arch")
+id = "enm_elite_brute"
+display_name = "装甲巨尸"
+kind = 1
+species = 2
+base_hp = 4800.0
+speed = 1.2
+near_speed = 0.6
+near_distance = 10.0
+weight = 2
+radius = 1.2
+xp = 0
+gold = 20
+grants_offer = true
+touch_damage = 2
+touch_period = 0.5
+slam_interval = 4.0
+warn_time = 1.0
+color_variant = 0.82
+mesh_high = "res://assets/models/enm_elite_brute.glb"
+mesh_low = ""
+visual_scale = 1.0

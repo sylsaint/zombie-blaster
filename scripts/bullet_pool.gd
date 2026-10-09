@@ -4,6 +4,7 @@ extends RefCounted
 
 
 const DEFAULT_CAPACITY := 64
+const FLAG_SPLIT := 1
 
 var capacity: int = DEFAULT_CAPACITY
 var x := PackedFloat32Array()
@@ -17,6 +18,7 @@ var traveled := PackedFloat32Array()
 var max_range := PackedFloat32Array()
 var pierce := PackedInt32Array()
 var last_hit := PackedInt32Array()
+var flags := PackedInt32Array()
 var alive := PackedInt32Array()
 var retire := PackedInt32Array()
 var live_count: int = 0
@@ -35,13 +37,14 @@ func _init(cap: int = DEFAULT_CAPACITY) -> void:
 	max_range.resize(capacity)
 	pierce.resize(capacity)
 	last_hit.resize(capacity)
+	flags.resize(capacity)
 	alive.resize(capacity)
 	retire.resize(capacity)
 	for i in capacity:
 		last_hit[i] = -1
 
 
-func try_spawn(ox: float, oz: float, vel_x: float, vel_z: float, dmg: float, pierce_left: int, range_m: float) -> int:
+func try_spawn(ox: float, oz: float, vel_x: float, vel_z: float, dmg: float, pierce_left: int, range_m: float, bullet_flags: int = 0) -> int:
 	for i in capacity:
 		if alive[i] == 0:
 			alive[i] = 1
@@ -57,6 +60,7 @@ func try_spawn(ox: float, oz: float, vel_x: float, vel_z: float, dmg: float, pie
 			max_range[i] = range_m
 			pierce[i] = pierce_left
 			last_hit[i] = -1
+			flags[i] = bullet_flags
 			live_count += 1
 			return i
 	return -1
