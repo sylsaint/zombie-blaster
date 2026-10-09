@@ -48,7 +48,7 @@ Job 跑在 `ubuntu-24.04`：
 6. `gradle_build/use_gradle_build` 保持关闭，产物是 APK。上架 Play 的 AAB 以后再开 Gradle。
 7. release、profile 和 x86_64 smoke 三个包在签名前会删掉 `assets/dexopt/baseline.prof` 和 `baseline.profm`，再 `zipalign -P 16`（不能和 `-p` 一起用）并重新签名。debug 包保持 debug 模板原样。原因见下一节。这份删除还没有在 arm64 真机上确认过。
 8. 导出之后 `tools/smoke_exported_menu.sh` 用同一套 Android 排除规则打一个 pck，无头启动，确认主菜单的「开始」可见，并且第 1 关在 4 秒游戏时间里画出士兵和行走僵尸。这个检查看的是包里的项目，不是手机上的 `libgodot_android.so`。
-9. Android job 成功后，`emulator` job 在 GitHub 托管的 `ubuntu-24.04` 上用 udev 规则打开 KVM，再用 `reactivecircus/android-emulator-runner` 启动 API 34、`google_apis`、`x86_64` 的模拟器（Pixel 2，1080×1920）。它安装的是 artifact `android-emulator-apk` 里那份 **x86_64 smoke APK**，不是 `android-apks` 里的正式包。安装后 `primaryCpuAbi` 必须是 x86_64，否则 job 失败，避免又走 ARM 翻译。模拟器 GPU 用 `swangle_indirect`，不用 SwiftShader GLES：后者只给 261 个 fragment uniform，Godot 的 `CanvasShaderGLES3` 链接失败，菜单不会画出来。不要在启动前改 `wm size` / `wm density`。安装后的第一次启动还可能收到 `CONFIG_ASSETS_PATHS`，Godot 会在 `!_start_success` 时强制退出；脚本发现进程退出后会 `force-stop`，最多再启动两次。脚本等 logcat 里的 `MENU_READY`。接着 `adb exec-out screencap` 截主菜单，按 1080×1920 布局把「开始」(540, 1698) 和「第 1 关」(540, 376) 换算到模拟器分辨率后点击，等 15 秒再截一张。主菜单截图里按钮米色像素太少、画面几乎纯色，或应用 logcat 里有 `SCRIPT ERROR` / `FATAL`，job 失败。截图和 logcat 上传为 artifact `android-emulator-smoke`。这次检查只说明 x86_64 原生库在模拟器上能不能画出菜单，说明不了小米真机上的 release 包。
+9. Android job 成功后，`emulator` job 在 GitHub 托管的 `ubuntu-24.04` 上用 udev 规则打开 KVM，再用 `reactivecircus/android-emulator-runner` 启动 API 34、`google_apis`、`x86_64` 的模拟器（Pixel 2，1080×1920）。它安装的是 artifact `android-emulator-apk` 里那份 **x86_64 smoke APK**，不是 `android-apks` 里的正式包。安装后 `primaryCpuAbi` 必须是 x86_64，否则 job 失败，避免又走 ARM 翻译。模拟器 GPU 用 `swangle_indirect`，不用 SwiftShader GLES：后者只给 261 个 fragment uniform，Godot 的 `CanvasShaderGLES3` 链接失败，菜单不会画出来。不要在启动前改 `wm size` / `wm density`。安装后的第一次启动还可能收到 `CONFIG_ASSETS_PATHS`，Godot 会在 `!_start_success` 时强制退出；脚本发现进程退出后会 `force-stop`，最多再启动两次。脚本等 logcat 里的 `MENU_READY`。接着 `adb exec-out screencap` 截主菜单，按 1080×1920 布局把「开始」(540, 1698) 和「第 1 关」(540, 376) 换算到模拟器分辨率后点击，等 15 秒再截一张。主菜单截图里按钮米色像素太少、画面几乎纯色，或应用 logcat 里有 `SCRIPT ERROR` / `FATAL`，job 失败。截图和 logcat 上传为 artifact `android-emulator-smoke`。已经跑过一次：x86_64 原生库在这个模拟器上仍然没有菜单像素。这次检查说明不了小米真机上的 release 包。
 
 ## 正式包只有 3D、没有菜单
 
@@ -64,6 +64,8 @@ Godot 4.7 的 Android 模板用 Android Gradle Plugin 8.6 编出来，release �
 `tools/release/export_android.sh` 在 `--export-release` 之后删掉这些 profile 条目和旧签名，按 16 KB 页对齐重新打包，再用同一次导出的 keystore 签名。正式包仍然用 release 模板的 so，不把 debug so 换进去。debug 包不改。x86_64 smoke 包同样删掉 profile。在真机确认之前，不要把这次删除写成已经修好菜单。
 
 GitHub 上的 x86_64 模拟器不能代替这次确认。同一轮里，debug 模板和已经去掉 baseline profile 的 arm64 release 模板，在 ARM 翻译下都只画出 3D，`MENU_READY` 和按钮布局也一样。所以那次模拟器结果说明不了小米真机上的菜单问题。
+
+只含 x86_64 的 release 库在同一套 swangle 模拟器上结果相同：`primaryCpuAbi=x86_64`，没有 canvas shader 链接错误，`MENU_READY` 和「开始」按钮的矩形都对，点击也能进入第 1 关，但 `adb exec-out screencap` 仍然只有 3D（按钮中心是地面色，menu_ratio 为 0）。缺画面不是 ARM 翻译。这个模拟器画不出 Godot 的 canvas。颜色检查不放宽，job 会因此失败。这仍然说明不了小米真机上的菜单问题。
 
 查过 Godot 4.7 的 issue，没有一条对得上「release 模板在 Adreno 上只画 3D、不画 2D，debug 模板正常」。能对上 Adreno 的报告是 Vulkan / Mobile 渲染器的花屏或几何丢失（例如 [#115217](https://github.com/godotengine/godot/issues/115217)、[#120299](https://github.com/godotengine/godot/issues/120299)）。本工程桌面和手机都是 Compatibility（`gl_compatibility`），shader baker 也关着。字体和 text server 在 pck 里，debug 和 release 是同一份，所以不是资源被裁掉。
 
