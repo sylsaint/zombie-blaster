@@ -22,7 +22,12 @@ var stage: int = 1
 var desired_walker: int = 0
 var desired_runner: int = 0
 var contact_enabled: bool = true
+## Gate and skill losses share this switch. Stress leaves it on; a scripted
+## firepower run can turn it off without changing the crowd tick.
+var loss_enabled: bool = true
 var gold: int = 0
+## Mini-boss circle. Null on the stress crowd, so that path does not grow.
+var boss_fight: BossFight
 var defeated: bool = false
 var defeat_count: int = 0
 var profile: SimProfile
@@ -251,6 +256,14 @@ func _resolve_hits() -> void:
 				bullets.deactivate(b)
 				break
 			h += 1
+		if alive[b] != 0 and boss_fight != null and boss_fight.can_receive_hit():
+			var reach := boss_fight.collision_radius + BULLET_RADIUS
+			if _segment_hits(bullets.prev_x[b], bullets.prev_z[b], bullets.x[b], bullets.z[b], boss_fight.center_x, boss_fight.center_z, reach):
+				boss_fight.apply_damage(bullets.damage[b])
+				if bullets.pierce[b] > 0:
+					bullets.pierce[b] -= 1
+				else:
+					bullets.deactivate(b)
 		b += 1
 
 
@@ -380,6 +393,8 @@ func _on_killed(id: int) -> void:
 
 
 func _apply_loss(n: int) -> void:
+	if not loss_enabled or n <= 0:
+		return
 	var loss := squad.apply_loss(n)
 	if loss > 0:
 		casualties.spawn_around(squad, loss)
