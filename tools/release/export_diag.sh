@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-# Build three debug-template, debug-signed diagnostic APKs.
+# Build debug-signed diagnostic arm64 APKs.
 # Reuses the JDK / Android SDK / Godot setup from export_android.sh.
+#
+#   export_diag.sh            debug template, the original three UI variants
+#   export_diag.sh release    release template (--export-release), debug keystore
+#                             used as the release key:
+#                             relnoprof (baseline.prof* removed), relov, relplain
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -221,6 +226,9 @@ packages = {
     "notheme": ("com.zombieblaster.diag.notheme", "打僵尸-无主题"),
     "nosafe": ("com.zombieblaster.diag.nosafe", "打僵尸-无安全区"),
     "overlay": ("com.zombieblaster.diag.overlay", "打僵尸-诊断"),
+    "relnoprof": ("com.zombieblaster.diag.relnoprof", "打僵尸-R无prof"),
+    "relov": ("com.zombieblaster.diag.relov", "打僵尸-R诊断"),
+    "relplain": ("com.zombieblaster.diag.relplain", "打僵尸-R原样"),
 }
 package, label = packages[variant]
 
@@ -255,7 +263,7 @@ elif variant == "nosafe":
         "edge_to_edge",
     )
     noop_safe_area_scripts(root)
-elif variant == "overlay":
+elif variant in ("overlay", "relov"):
     if 'DiagOverlay="*res://scripts/diag_overlay.gd"' not in project:
         needle = 'ProfileBoot="*res://scripts/profile_boot.gd"\n'
         project = replace_first(
@@ -275,35 +283,107 @@ preset_path.write_text(preset)
 PY
 }
 
-export_debug() {
-  local apk="$1"
-  export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$debug_ks"
-  export GODOT_ANDROID_KEYSTORE_DEBUG_USER="$debug_alias"
-  export GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD="$debug_pass"
-  unset GODOT_ANDROID_KEYSTORE_RELEASE_PATH GODOT_ANDROID_KEYSTORE_RELEASE_USER GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD || true
-  note "Exporting debug APK -> $(basename "$apk")"
-  "$GODOT_BIN" --headless --audio-driver Dummy --path "$ROOT" \
-    --export-debug "Android" "$apk"
-  unset GODOT_ANDROID_KEYSTORE_DEBUG_PATH GODOT_ANDROID_KEYSTORE_DEBUG_USER GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD
+find_sdk_tool() {
+  local name="$1" tool
+  tool="$(find "$ANDROID_HOME/build-tools" -type f -name "$name" | sort | tail -n 1)"
+  if [[ -z "$tool" ]]; then
+    echo "$name is missing under $ANDROID_HOME/build-tools" >&2
+    exit 1
+  fi
+  printf '%s' "$tool"
+}
+
+export_apk() {
+  local mode="$1"
+  local apk="$2"
+  if [[ "$mode" == "release" ]]; then
+    # Debug keystore is the release key. Godot's release export reads these.
+    export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$debug_ks"
+    export GODOT_ANDROID_KEYSTORE_RELEASE_USER="$debug_alias"
+    export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$debug_pass"
+    unset GODOT_ANDROID_KEYSTORE_DEBUG_PATH GODOT_ANDROID_KEYSTORE_DEBUG_USER GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD || true
+    note "Exporting release APK -> $(basename "$apk")"
+    "$GODOT_BIN" --headless --audio-driver Dummy --path "$ROOT" \
+      --export-release "Android" "$apk"
+    unset GODOT_ANDROID_KEYSTORE_RELEASE_PATH GODOT_ANDROID_KEYSTORE_RELEASE_USER GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD
+  else
+    export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$debug_ks"
+    export GODOT_ANDROID_KEYSTORE_DEBUG_USER="$debug_alias"
+    export GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD="$debug_pass"
+    unset GODOT_ANDROID_KEYSTORE_RELEASE_PATH GODOT_ANDROID_KEYSTORE_RELEASE_USER GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD || true
+    note "Exporting debug APK -> $(basename "$apk")"
+    "$GODOT_BIN" --headless --audio-driver Dummy --path "$ROOT" \
+      --export-debug "Android" "$apk"
+    unset GODOT_ANDROID_KEYSTORE_DEBUG_PATH GODOT_ANDROID_KEYSTORE_DEBUG_USER GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD
+  fi
   if [[ ! -s "$apk" ]]; then
     echo "Export did not produce $apk" >&2
     exit 1
   fi
 }
 
+# zip -d, then zipalign, then apksigner. The debug keystore signs the result.
+strip_baseline_profiles() {
+  local apk="$1"
+  local aligned signed zipalign apksigner
+  local -a profs
+  mapfile -t profs < <(unzip -Z1 "$apk" | grep -E '(^|/)baseline\.prof' || true)
+  if (( ${#profs[@]} == 0 )); then
+    echo "release APK has no baseline.prof* entry: $apk" >&2
+    exit 1
+  fi
+  note "Removing ${profs[*]} from $(basename "$apk")"
+  zip -d "$apk" "${profs[@]}"
+  zipalign="$(find_sdk_tool zipalign)"
+  apksigner="$(find_sdk_tool apksigner)"
+  aligned="${apk}.aligned"
+  signed="${apk}.signed"
+  "$zipalign" -f -p 4 "$apk" "$aligned"
+  "$apksigner" sign \
+    --ks "$debug_ks" \
+    --ks-key-alias "$debug_alias" \
+    --ks-pass "pass:$debug_pass" \
+    --key-pass "pass:$debug_pass" \
+    --v4-signing-enabled false \
+    --out "$signed" \
+    "$aligned"
+  mv "$signed" "$apk"
+  rm -f "$aligned" "${apk}.idsig" "${signed}.idsig"
+  if unzip -Z1 "$apk" | grep -E '(^|/)baseline\.prof' >/dev/null; then
+    echo "baseline.prof* still present in $apk" >&2
+    exit 1
+  fi
+}
+
+assert_has_baseline() {
+  local apk="$1"
+  if ! unzip -Z1 "$apk" | grep -E '(^|/)baseline\.prof' >/dev/null; then
+    echo "$apk is missing baseline.prof*" >&2
+    exit 1
+  fi
+  note "$(basename "$apk") still contains baseline.prof*"
+}
+
 export_variant() {
-  local id="$1"
-  local package="$2"
+  local mode="$1"
+  local id="$2"
+  local package="$3"
+  local label="${4:-}"
   local apk="$out_dir/zombie-blaster-diag-${id}.apk"
   rm -f "$overlay_dest"
   cp "$preset_bak" "$preset"
   cp "$project_bak" "$project"
-  if [[ "$id" == "overlay" ]]; then
+  if [[ "$id" == "overlay" || "$id" == "relov" ]]; then
     write_overlay_script
   fi
   apply_variant "$id"
-  export_debug "$apk"
-  verify_apk "$apk" "$package"
+  export_apk "$mode" "$apk"
+  if [[ "$id" == "relnoprof" ]]; then
+    strip_baseline_profiles "$apk"
+  elif [[ "$mode" == "release" ]]; then
+    assert_has_baseline "$apk"
+  fi
+  verify_apk "$apk" "$package" "$label"
   assert_project_data_packed "$apk" game
   note "Built $apk"
 }
@@ -311,9 +391,10 @@ export_variant() {
 verify_apk() {
   local apk="$1"
   local package="$2"
+  local label="${3:-}"
   local aapt apksigner badging
-  aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort | tail -n 1)"
-  apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort | tail -n 1)"
+  aapt="$(find_sdk_tool aapt)"
+  apksigner="$(find_sdk_tool apksigner)"
   badging="$("$aapt" dump badging "$apk")"
   printf '%s\n' "$badging" | awk 'NR<=12 { print }'
   case "$badging" in
@@ -324,11 +405,138 @@ verify_apk() {
     *"native-code: 'arm64-v8a'"*) ;;
     *) echo "$apk is not arm64-v8a" >&2; exit 1 ;;
   esac
+  if [[ -n "$label" ]]; then
+    case "$badging" in
+      *"application-label:'${label}'"*) ;;
+      *) echo "$apk launcher name is not ${label}" >&2; exit 1 ;;
+    esac
+  fi
   "$apksigner" verify --print-certs "$apk" >/dev/null
   note "$(basename "$apk"): $(wc -c < "$apk" | tr -d ' ') bytes, package ${package}"
 }
 
-export_variant notheme "com.zombieblaster.diag.notheme"
-export_variant nosafe "com.zombieblaster.diag.nosafe"
-export_variant overlay "com.zombieblaster.diag.overlay"
+# Release-export the overlay project, run that pck with the Linux release
+# template, and save a viewport screenshot. The screenshot hook is appended
+# after the APK export, so it is not in the APK.
+run_release_pck_on_desktop() {
+  rm -f "$overlay_dest"
+  cp "$preset_bak" "$preset"
+  cp "$project_bak" "$project"
+  write_overlay_script
+  apply_variant relov
+  cat >> "$overlay_dest" << 'EOF'
+
+var _desktop_proof_from := 0
+
+func _process(_delta: float) -> void:
+	if _desktop_proof_from == 0:
+		_desktop_proof_from = Time.get_ticks_msec()
+		return
+	if Time.get_ticks_msec() - _desktop_proof_from < 2500:
+		return
+	set_process(false)
+	_capture_desktop_proof()
+
+func _capture_desktop_proof() -> void:
+	await RenderingServer.frame_post_draw
+	var image := get_viewport().get_texture().get_image()
+	var path := OS.get_environment("DIAG_OVERLAY_PNG")
+	if path.is_empty():
+		path = "user://diag_overlay_desktop.png"
+	var err := image.save_png(path)
+	print("DIAG_LABEL_TEXT_BEGIN")
+	print(_label.text)
+	print("DIAG_LABEL_TEXT_END")
+	print("DIAG_LABEL_RECT ", _label.get_global_rect(), " size ", image.get_size(), " save ", err)
+	get_tree().quit()
+EOF
+  if ! grep -q 'name="Linux"' "$preset"; then
+    cat >> "$preset" << 'EOF'
+
+[preset.3]
+
+name="Linux"
+platform="Linux"
+runnable=true
+advanced_options=false
+dedicated_server=false
+custom_features=""
+export_filter="all_resources"
+include_filter=""
+exclude_filter="tests/*, addons/gut/*, scenes/debug/*"
+export_path=""
+patches=PackedStringArray()
+encryption_include_filters=""
+encryption_exclude_filters=""
+seed=0
+encrypt_pck=false
+encrypt_directory=false
+script_export_mode=2
+
+[preset.3.options]
+
+custom_template/debug=""
+custom_template/release=""
+debug/export_console_wrapper=1
+binary_format/embed_pck=false
+texture_format/s3tc_bptc=true
+texture_format/etc2_astc=false
+shader_baker/enabled=false
+binary_format/architecture="x86_64"
+EOF
+  fi
+  local desk="$out_dir/desktop-relov"
+  mkdir -p "$desk"
+  local bin="$desk/diag-relov.x86_64"
+  note "Exporting release pck for the desktop overlay check"
+  "$GODOT_BIN" --headless --audio-driver Dummy --path "$ROOT" \
+    --export-release "Linux" "$bin"
+  local pck="$desk/diag-relov.pck"
+  if [[ ! -s "$pck" ]]; then
+    echo "Release export did not write $pck" >&2
+    ls -la "$desk" >&2 || true
+    exit 1
+  fi
+  chmod +x "$bin"
+  local png="$desk/overlay.png"
+  local log="$desk/run.log"
+  rm -f "$png"
+  note "Running the release pck on desktop"
+  set +e
+  DIAG_OVERLAY_PNG="$png" timeout 120 xvfb-run -a -s "-screen 0 1080x1920x24 +extension GLX +render" \
+    "$bin" --display-driver x11 --rendering-driver opengl3 --rendering-method gl_compatibility --audio-driver Dummy >"$log" 2>&1
+  local rc=$?
+  set -e
+  note "Desktop run exit=$rc (log $log)"
+  if [[ ! -s "$png" ]]; then
+    echo "Desktop run did not write $png" >&2
+    tail -n 80 "$log" >&2 || true
+    exit 1
+  fi
+  note "Desktop overlay screenshot: $png"
+}
+
+mode="${1:-debug}"
+case "$mode" in
+  debug)
+    export_variant debug notheme "com.zombieblaster.diag.notheme"
+    export_variant debug nosafe "com.zombieblaster.diag.nosafe"
+    export_variant debug overlay "com.zombieblaster.diag.overlay"
+    ;;
+  release)
+    export_variant release relnoprof "com.zombieblaster.diag.relnoprof" "打僵尸-R无prof"
+    export_variant release relov "com.zombieblaster.diag.relov" "打僵尸-R诊断"
+    export_variant release relplain "com.zombieblaster.diag.relplain" "打僵尸-R原样"
+    if [[ "${DIAG_SKIP_DESKTOP:-}" != "1" ]]; then
+      run_release_pck_on_desktop
+    fi
+    ;;
+  desktop)
+    run_release_pck_on_desktop
+    ;;
+  *)
+    echo "Usage: $0 [debug|release]" >&2
+    exit 1
+    ;;
+esac
 note "Diagnostic APKs are in $out_dir"
