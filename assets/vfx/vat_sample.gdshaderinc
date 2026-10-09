@@ -1,15 +1,21 @@
 // zb-vat-1. UV2.x is the vertex column, UV2.y is the row block.
 // RGB is a metres offset from the rest pose. A is unused.
-// INSTANCE_CUSTOM.b packs the walk frame in mod 64 and the hit frame above it.
-// INSTANCE_CUSTOM.a is the walk-to-hit blend (0..1), -1 while walking,
-// or -2 minus the death frame while dying.
+// INSTANCE_CUSTOM.b is the clip start in gameplay seconds (full float).
+// INSTANCE_CUSTOM.a packs the palette band and the clip id (band * 8 + clip).
+// Clip 0 walks and loops, clip 1 is hit, clip 2 is death. Hit and death clamp.
+// Walk-to-hit snaps. Flash, dissolve, and this start time already fill the
+// custom buffer, so there is no channel left for a previous-clip start.
+// game_time is GameClock.gameplay_time. Do not sample TIME: hit-stop keeps running it.
+
+global uniform float game_time;
 
 uniform sampler2D vat_positions : hint_default_black, filter_nearest, repeat_disable;
 uniform float vat_enabled = 0.0;
 uniform float vat_rows_per_frame = 1.0;
-uniform vec4 vat_walk = vec4(0.0, 24.0, 1.0, 0.0);
-uniform vec4 vat_hit = vec4(24.0, 8.0, 0.0, 0.0);
-uniform vec4 vat_death = vec4(32.0, 16.0, 0.0, 0.0);
+uniform float vat_clip_row[3];
+uniform float vat_clip_count[3];
+uniform float vat_clip_fps[3];
+uniform float vat_clip_loop[3];
 
 // Built-ins such as UV2 are not visible inside a function, so the caller passes them.
 vec3 vat_sample(vec2 uv2, float start_row, float frame) {
@@ -20,17 +26,27 @@ vec3 vat_sample(vec2 uv2, float start_row, float frame) {
 }
 
 vec3 vat_offset(vec4 inst, vec2 uv2) {
-	float walk_frame = mod(inst.b, 64.0);
-	float hit_frame = floor(inst.b / 64.0);
-	float tag = inst.a;
-	if (tag < -1.5) {
-		float death_frame = clamp(-tag - 2.0, 0.0, max(vat_death.y - 1.0, 0.0));
-		return vat_sample(uv2, vat_death.x, death_frame);
+	int clip = int(inst.a + 0.5) % 8;
+	float row = vat_clip_row[0];
+	float count = vat_clip_count[0];
+	float fps = vat_clip_fps[0];
+	float looped = vat_clip_loop[0];
+	if (clip == 1) {
+		row = vat_clip_row[1];
+		count = vat_clip_count[1];
+		fps = vat_clip_fps[1];
+		looped = vat_clip_loop[1];
+	} else if (clip == 2) {
+		row = vat_clip_row[2];
+		count = vat_clip_count[2];
+		fps = vat_clip_fps[2];
+		looped = vat_clip_loop[2];
 	}
-	if (tag < 0.0) {
-		return vat_sample(uv2, vat_walk.x, walk_frame);
+	count = max(count, 1.0);
+	float frames = (game_time - inst.b) * fps;
+	float frame = clamp(frames, 0.0, count - 1.0);
+	if (looped > 0.5) {
+		frame = mod(frames, count);
 	}
-	vec3 walking = vat_sample(uv2, vat_walk.x, walk_frame);
-	vec3 struck = vat_sample(uv2, vat_hit.x, hit_frame);
-	return mix(walking, struck, clamp(tag, 0.0, 1.0));
+	return vat_sample(uv2, row, floor(frame));
 }

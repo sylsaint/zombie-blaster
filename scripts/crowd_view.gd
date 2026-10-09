@@ -67,9 +67,6 @@ var walker_low_material: ShaderMaterial
 var runner_high_fallback: bool = true
 var runner_low_fallback: bool = true
 var boss_fallback: bool = true
-var weakpoint_fallback: bool = true
-var weakpoint_mm: MultiMeshInstance3D
-var weakpoint_material: ShaderMaterial
 
 
 func setup() -> void:
@@ -85,14 +82,13 @@ func setup() -> void:
 	var runner_lod_fb := PlaceholderMeshes.runner_lod()
 	var elite_fb := PlaceholderMeshes.elite()
 	var boss_fb := PlaceholderMeshes.boss()
-	var weak_fallback := PlaceholderMeshes.bullet()
 	_grunt_mesh = ModelResolver.resolve(walker_arch.mesh_high, grunt_fb)
 	var walker_lod_mesh: Mesh = ModelResolver.resolve(walker_arch.mesh_low, walker_lod_fb)
 	var runner_mesh: Mesh = ModelResolver.resolve(runner_arch.mesh_high, runner_fb)
 	var runner_lod_mesh: Mesh = ModelResolver.resolve(runner_arch.mesh_low, runner_lod_fb)
 	_elite_mesh = ModelResolver.resolve(elite_arch.mesh_high, elite_fb)
-	_boss_mesh = ModelResolver.resolve_named(boss_arch.mesh_high, "boss_mutant", boss_fb)
-	var weak_mesh: Mesh = ModelResolver.resolve_named(boss_arch.mesh_high, "weakpoint", weak_fallback)
+	# Body only. BossView owns the glb, the weakpoint node, and its glow.
+	_boss_mesh = ModelResolver.resolve(boss_arch.mesh_high, boss_fb)
 	walker_high_fallback = _grunt_mesh == grunt_fb
 	walker_low_fallback = walker_lod_mesh == walker_lod_fb
 	if not walker_high_fallback:
@@ -104,7 +100,6 @@ func setup() -> void:
 	runner_high_fallback = runner_mesh == runner_fb
 	runner_low_fallback = runner_lod_mesh == runner_lod_fb
 	boss_fallback = _boss_mesh == boss_fb
-	weakpoint_fallback = weak_mesh == weak_fallback
 	_soldier_mesh = PlaceholderMeshes.soldier()
 	var soldier_real := ResourceLoader.exists(SoldierVisuals.body_path(1))
 	toon.setup()
@@ -156,12 +151,6 @@ func setup() -> void:
 	runner_lod_mm = _add_body("RunnerLod", runner_lod_mesh, GRUNT_CAP, shared_material)
 	elite_mm = _add_body("Elites", _elite_mesh, ELITE_CAP, shared_material)
 	boss_mm = _add_body("Boss", _boss_mesh, BOSS_CAP, shared_material)
-	weakpoint_material = ShaderMaterial.new()
-	weakpoint_material.shader = load("res://assets/vfx/weakpoint.gdshader")
-	weakpoint_material.set_shader_parameter("palette", shared_material.get_shader_parameter("palette"))
-	weakpoint_material.set_shader_parameter("emission_strength", 0.85)
-	weakpoint_material.set_shader_parameter("flash", 0.0)
-	weakpoint_mm = _add_body("BossWeakpoint", weak_mesh, BOSS_CAP, weakpoint_material)
 	blob_mm = _add_plain("Blobs", PlaceholderMeshes.blob(), BLOB_CAP, blob_mat, false)
 	bullet_mm = _add_plain("Bullets", PlaceholderMeshes.bullet(), BULLET_CAP, bullet_mat, false)
 	squad_body_mm = _add_plain("SquadBodies", SoldierVisuals.body_mesh(1), SQUAD_CAP, squad_mat, false)
@@ -237,7 +226,7 @@ func visible_body_instances() -> int:
 
 func body_triangles() -> int:
 	var total := 0
-	for node in [grunt_mm, walker_lod_mm, runner_mm, runner_lod_mm, elite_mm, boss_mm, weakpoint_mm, squad_body_mm, squad_weapon_mm]:
+	for node in [grunt_mm, walker_lod_mm, runner_mm, runner_lod_mm, elite_mm, boss_mm, squad_body_mm, squad_weapon_mm]:
 		if node == null or node.multimesh == null or node.multimesh.mesh == null:
 			continue
 		total += node.multimesh.visible_instance_count * PlaceholderMeshes.triangle_count(node.multimesh.mesh)
@@ -265,7 +254,6 @@ func sync(sim: CombatSim) -> void:
 	_commit(runner_lod_mm, _buf_runner_lod, int(crowd.w))
 	_commit(elite_mm, _buf_elite, n_elite)
 	_commit(boss_mm, _buf_boss, n_boss)
-	_commit(weakpoint_mm, _buf_boss, 0 if weakpoint_fallback else n_boss)
 	_commit(blob_mm, _buf_blob, n_blob)
 	_commit(bullet_mm, _buf_bullet, n_bullet)
 	_commit(squad_body_mm, _buf_squad, n_squad)
@@ -344,9 +332,9 @@ func _put_body(buf: PackedFloat32Array, index: int, pool: EnemyPool, id: int, va
 		dissolve = clampf(1.0 - pool.dissolve_left[id] / EnemyPool.DISSOLVE_TIME, 0.0, 1.0)
 	buf[o + 13] = dissolve
 	if vat != null:
-		var packed := _vat_channels(pool, id, vat)
-		buf[o + 14] = packed.x
-		buf[o + 15] = packed.y
+		# Stable until the clip changes. The shader turns start time into a frame.
+		buf[o + 14] = pool.vat_start[id]
+		buf[o + 15] = VatClipset.pack_clip(pool.variant[id], pool.vat_clip[id])
 	else:
 		buf[o + 14] = fposmod(pool.vat_frame[id], 64.0) / 64.0
 		buf[o + 15] = pool.variant[id]
@@ -618,25 +606,6 @@ func _make_buffer(node: MultiMeshInstance3D) -> PackedFloat32Array:
 	var buf := PackedFloat32Array()
 	buf.resize(mm.instance_count * stride)
 	return buf
-
-
-## Walk frame in x (mod 64). Hit frame sits above that. y is the blend tag:
-## -1 walk, 0..1 crossfade into hit, -2 minus the death frame while dying.
-func _vat_channels(pool: EnemyPool, id: int, vat: VatClipset) -> Vector2:
-	var seconds: float = pool.vat_frame[id] / EnemyPool.VAT_FRAME_SCALE
-	var rate: float = clampf(pool.speed[id] / VatClipset.WALK_REF_SPEED, 0.25, 6.0)
-	var walk_frame: float = floorf(fposmod(seconds * rate * vat.fps + pool.vat_phase[id] * vat.walk_count, vat.walk_count))
-	if pool.state[id] == EnemyPool.State.DYING:
-		var death_age: float = EnemyPool.DISSOLVE_TIME - pool.dissolve_left[id]
-		var death_frame: float = clampf(floorf(death_age * vat.fps), 0.0, vat.death_count - 1.0)
-		return Vector2(walk_frame, -2.0 - death_frame)
-	var hit_age: float = pool.vat_hit_age[id]
-	if hit_age >= 0.0:
-		var hit_frame: float = hit_age * vat.fps
-		if hit_frame < vat.hit_count:
-			var blend: float = clampf(hit_frame / VatClipset.CROSSFADE_FRAMES, 0.0, 1.0)
-			return Vector2(walk_frame + floorf(hit_frame) * 64.0, blend)
-	return Vector2(walk_frame, -1.0)
 
 
 func _vat_material(base: ShaderMaterial, vat: VatClipset) -> ShaderMaterial:

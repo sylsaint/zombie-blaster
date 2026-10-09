@@ -21,16 +21,19 @@ func test_real_meshes_stay_inside_the_triangle_budget() -> void:
 	assert_lte(_tris(ModelResolver.resolve(runner.mesh_high, PlaceholderMeshes.runner())), 450)
 	assert_lte(_tris(ModelResolver.resolve(runner.mesh_low, PlaceholderMeshes.runner_lod())), 200)
 	assert_lte(_tris(ModelResolver.resolve(elite.mesh_high, PlaceholderMeshes.elite())), 1500)
-	var boss_fb := PlaceholderMeshes.boss()
-	var weak_fb := PlaceholderMeshes.bullet()
-	var body := ModelResolver.resolve_named(boss.mesh_high, "boss_mutant", boss_fb)
-	var weak := ModelResolver.resolve_named(boss.mesh_high, "weakpoint", weak_fb)
-	var boss_tris := _tris(body) + _tris(weak)
-	assert_ne(body, boss_fb)
-	assert_ne(weak, weak_fb)
-	assert_gt(_tris(weak), 0)
+	var boss_node := ModelResolver.instantiate_boss()
+	assert_not_null(boss_node)
+	add_child_autofree(boss_node)
+	var boss_tris := 0
+	var weak_mesh: Mesh = null
+	for mesh_node in _collect_mesh_nodes(boss_node):
+		boss_tris += _tris(mesh_node.mesh)
+		if String(mesh_node.name) == "weakpoint":
+			weak_mesh = mesh_node.mesh
+	assert_not_null(weak_mesh)
+	assert_gt(_tris(weak_mesh), 0)
 	assert_lte(boss_tris, 5000)
-	var center := weak.get_aabb().get_center()
+	var center := weak_mesh.get_aabb().get_center()
 	assert_almost_eq(center.x, 0.03, 0.08)
 	assert_almost_eq(center.y, 4.77, 0.08)
 	assert_almost_eq(center.z, -0.44, 0.08)
@@ -42,8 +45,8 @@ func test_boss_data_records_the_art_collision_circle() -> void:
 	assert_eq(boss.kind, EnemyArchetype.KIND_BOSS)
 	assert_eq(boss.mesh_high.get_file(), "boss_mutant.glb")
 	assert_almost_eq(boss.radius, 2.7, 0.001)
-	assert_almost_eq(boss.collision_offset.x, 0.4, 0.001)
-	assert_almost_eq(boss.collision_offset.y, -0.6, 0.001)
+	assert_almost_eq(boss.offset_x, 0.4, 0.001)
+	assert_almost_eq(boss.offset_z, -0.6, 0.001)
 
 
 func test_palette_material_is_shared_and_nearest() -> void:
@@ -55,17 +58,15 @@ func test_palette_material_is_shared_and_nearest() -> void:
 	assert_false(view.runner_high_fallback)
 	assert_false(view.runner_low_fallback)
 	assert_false(view.boss_fallback)
-	assert_false(view.weakpoint_fallback)
 	assert_false(view.toon.cel_enabled)
 	assert_false(view.toon.rim_enabled)
 	assert_false(view.toon.outline_enabled)
 	assert_eq(view.runner_mm.material_override, view.shared_material)
 	assert_eq(view.elite_mm.material_override, view.shared_material)
 	assert_eq(view.boss_mm.material_override, view.shared_material)
+	assert_null(view.get_node_or_null("BossWeakpoint"))
 	assert_eq(view.squad_body_mm.material_override, view.shared_material)
 	assert_eq(view.squad_weapon_mm.material_override, view.shared_material)
-	assert_eq(view.weakpoint_mm.material_override, view.weakpoint_material)
-	assert_ne(view.weakpoint_material, view.shared_material)
 	assert_almost_eq(float(view.shared_material.get_shader_parameter("use_mesh_uv")), 1.0, 0.001)
 	assert_almost_eq(float(view.shared_material.get_shader_parameter("wobble_enabled")), 0.0, 0.001)
 	assert_almost_eq(float(view.shared_material.get_shader_parameter("vat_enabled")), 0.0, 0.001)
@@ -78,17 +79,24 @@ func test_palette_material_is_shared_and_nearest() -> void:
 	var palette: Texture2D = view.shared_material.get_shader_parameter("palette")
 	assert_eq(view.walker_high_material.get_shader_parameter("palette"), palette)
 	assert_eq(view.walker_low_material.get_shader_parameter("palette"), palette)
-	assert_almost_eq(float(view.weakpoint_material.get_shader_parameter("emission_strength")), 0.85, 0.001)
-	assert_almost_eq(float(view.weakpoint_material.get_shader_parameter("flash")), 0.0, 0.001)
 	assert_eq(palette.resource_path, "res://assets/textures/palette.png")
 	var shader := FileAccess.get_file_as_string("res://assets/vfx/crowd_instance.gdshader")
 	assert_true(shader.contains("filter_nearest"))
 	assert_true(shader.contains("use_mesh_uv"))
 	assert_true(shader.contains("dFdx(vat_view_pos)"))
-	assert_true(FileAccess.get_file_as_string("res://assets/vfx/vat_sample.gdshaderinc").contains("texelFetch"))
-	var weak_shader := FileAccess.get_file_as_string("res://assets/vfx/weakpoint.gdshader")
-	assert_true(weak_shader.contains("filter_nearest"))
+	var vat_src := FileAccess.get_file_as_string("res://assets/vfx/vat_sample.gdshaderinc")
+	assert_true(vat_src.contains("texelFetch"))
+	assert_true(vat_src.contains("global uniform float game_time"))
+	var boss_view := BossView.new()
+	add_child_autofree(boss_view)
+	boss_view.setup(null)
+	assert_false(boss_view.using_greybox)
+	assert_eq(String(boss_view.weakpoint.name), "weakpoint")
+	var weak_shader := FileAccess.get_file_as_string("res://assets/vfx/boss_weakpoint.gdshader")
 	assert_true(weak_shader.contains("emission_strength"))
+	assert_true(weak_shader.contains("flash"))
+	assert_almost_eq(boss_view.weakpoint_emission(), 0.0, 0.001)
+	assert_almost_eq(boss_view.weakpoint_flash(), 0.0, 0.001)
 
 
 func test_import_bakes_outline_normals_into_vertex_color() -> void:
@@ -183,6 +191,15 @@ func _assert_one_triangle_stays_flat(mesh: Mesh, path: String) -> void:
 	assert_gt(absf(normals[i2].dot(face)), 0.99, path)
 	assert_gt(absf(normals[i0].dot(normals[i1])), 0.99, path)
 	assert_gt(absf(normals[i1].dot(normals[i2])), 0.99, path)
+
+
+func _collect_mesh_nodes(node: Node) -> Array[MeshInstance3D]:
+	var found: Array[MeshInstance3D] = []
+	if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+		found.append(node as MeshInstance3D)
+	for child in node.get_children():
+		found.append_array(_collect_mesh_nodes(child))
+	return found
 
 
 func _collect_meshes(node: Node) -> Array:

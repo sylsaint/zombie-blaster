@@ -56,6 +56,7 @@ func tick(gameplay_delta: float) -> void:
 	if profile != null:
 		hash.profile = profile
 	var dt := maxf(gameplay_delta, 0.0)
+	enemies.vat_time = float(clock.gameplay_time)
 	var ts := Time.get_ticks_usec()
 	var gate_z_before := squad.position.z
 	squad.tick(dt)

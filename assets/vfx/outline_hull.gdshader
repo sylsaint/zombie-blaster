@@ -28,7 +28,8 @@ void vertex() {
 }
 
 void fragment() {
-	if (vat_enabled > 0.5 && inst_custom.a < -1.5) {
+	// Clip 2 is death. The rest-pose hull normal is wrong once the body falls.
+	if (vat_enabled > 0.5 && int(inst_custom.a + 0.5) % 8 == 2) {
 		discard;
 	}
 	ALBEDO = outline_color;

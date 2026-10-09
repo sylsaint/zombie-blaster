@@ -1,8 +1,7 @@
 shader_type spatial;
 render_mode diffuse_burley, specular_disabled, shadows_disabled, fog_disabled, cull_back;
 
-// INSTANCE_CUSTOM: R flash, G dissolve, B VAT frame, A palette variant.
-// With VAT on, A is the clip blend instead (see vat_sample.gdshaderinc).
+// INSTANCE_CUSTOM: R flash, G dissolve, B wobble phase or VAT clip start, A variant or packed clip.
 // One shared material. Flash and dissolve never allocate a new one.
 // VAT off keeps a cheap vertex wobble on the same channel. No Skeleton3D.
 
