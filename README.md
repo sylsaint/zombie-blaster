@@ -58,7 +58,7 @@ GitHub Actions（`.github/workflows/test.yml`）在 push 和 pull request 上安
 
 ## 发版
 
-推送 `v*` 标签会跑 `.github/workflows/release.yml`：打 arm64 的 release / debug APK，并在有苹果签名 Secrets 时打 IPA，挂到 GitHub Release。手动 `workflow_dispatch` 只上传 artifact，不发 Release。没有 iOS Secrets 时 iOS job 跳过签名并上传未签名的 Xcode 工程，流水线保持绿色。步骤和 Secrets 在 [docs/tech/release.md](docs/tech/release.md)。
+推送 `v*` 标签会跑 `.github/workflows/release.yml`：打 arm64 的 release / debug APK，并在有苹果签名 Secrets 时打 IPA，挂到 GitHub Release。普通推送到 `master` 不会触发这条流水线。改这个 workflow 或 `export_presets.cfg` 的 pull request 只上传 Android APK artifact，不发 Release。手动 `workflow_dispatch` 同样只上传 artifact。没有 iOS Secrets 时 iOS job 跳过签名并上传未签名的 Xcode 工程，流水线保持绿色。步骤和 Secrets 在 [docs/tech/release.md](docs/tech/release.md)。
 
 ## 目录
 
