@@ -93,6 +93,7 @@ func tick(gameplay_delta: float) -> void:
 	casualties.tick(dt)
 	if auto_respawn:
 		maintain_counts()
+	_clamp_bodies()
 	if profile != null:
 		profile.combat_us += int(Time.get_ticks_usec() - t0)
 
@@ -121,22 +122,38 @@ func spawn_at(kind: int, px: float, pz: float, hit_points: float, move_speed: fl
 
 
 func _spawn_archetype(arch: EnemyArchetype) -> int:
-	var px := randf_range(-lane_span, lane_span)
+	var px := LaneMotion.clamp_body_x(randf_range(-lane_span, lane_span), arch.radius)
 	var pz := squad.position.z - randf_range(respawn_near, respawn_far)
 	var variant := clampf(arch.color_variant + randf_range(-0.04, 0.04), 0.0, 1.0)
 	return EnemyCatalog.place(enemies, arch, stage, px, pz, variant)
 
 
 func _spawn_ahead(kind: int) -> int:
-	var px := randf_range(-lane_span, lane_span)
+	var body_radius := EnemyPool.GRUNT_RADIUS
+	match kind:
+		EnemyPool.Archetype.ELITE:
+			body_radius = EnemyPool.ELITE_RADIUS
+		EnemyPool.Archetype.BOSS:
+			body_radius = EnemyPool.BOSS_RADIUS
+	var px := LaneMotion.clamp_body_x(randf_range(-lane_span, lane_span), body_radius)
 	var pz := squad.position.z - randf_range(respawn_near, respawn_far)
 	match kind:
 		EnemyPool.Archetype.ELITE:
-			return enemies.spawn(kind, px, pz, 220.0, 1.1, EnemyPool.ELITE_RADIUS, randf_range(0.72, 0.95))
+			return enemies.spawn(kind, px, pz, 220.0, 1.1, body_radius, randf_range(0.72, 0.95))
 		EnemyPool.Archetype.BOSS:
-			return enemies.spawn(kind, px, pz, 4000.0, 0.9, EnemyPool.BOSS_RADIUS, 0.5)
+			return enemies.spawn(kind, px, pz, 4000.0, 0.9, body_radius, 0.5)
 		_:
-			return enemies.spawn(kind, px, pz, 20.0, 1.6, EnemyPool.GRUNT_RADIUS, randf_range(0.05, 0.45))
+			return enemies.spawn(kind, px, pz, 20.0, 1.6, body_radius, randf_range(0.05, 0.45))
+
+
+func _clamp_bodies() -> void:
+	var a := 0
+	while a < enemies.active_n:
+		var id := enemies.active_ids[a]
+		a += 1
+		if enemies.state[id] == EnemyPool.State.FREE:
+			continue
+		enemies.x[id] = LaneMotion.clamp_body_x(enemies.x[id], enemies.radius[id])
 
 
 func _spawn_shots() -> void:

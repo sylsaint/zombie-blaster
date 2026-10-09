@@ -60,6 +60,8 @@ func test_level1_spawns_gates_squad_and_zombies() -> void:
 		soldiers_seen = maxi(soldiers_seen, _visible(host.crowd.squad_body_mm))
 		enemies_seen = maxi(enemies_seen, _enemy_instances(host.crowd))
 		spawned = maxi(spawned, host.session.sim.enemies.kill_count + host.session.grunt_alive())
+		var outside := _enemy_outside_lane(host.session.sim.enemies)
+		assert_eq(outside, -1, _lane_miss_text(host.session.sim.enemies, outside))
 		if not crossed and prev_traveled < add_gate.distance and host.session.traveled + 0.0001 >= add_gate.distance:
 			count_before = prev_count
 			count_after = squad.count
@@ -156,6 +158,26 @@ func _add_side(event: LevelEvent) -> String:
 		if gate != null and gate.kind == GateRules.ADD:
 			return gate.side
 	return ""
+
+
+func _enemy_outside_lane(enemies: EnemyPool) -> int:
+	var a := 0
+	while a < enemies.active_n:
+		var id := enemies.active_ids[a]
+		a += 1
+		if enemies.state[id] == EnemyPool.State.FREE:
+			continue
+		var limit := LaneMotion.body_limit(enemies.radius[id])
+		if absf(enemies.x[id]) > limit + 0.0001:
+			return id
+	return -1
+
+
+func _lane_miss_text(enemies: EnemyPool, id: int) -> String:
+	if id < 0:
+		return ""
+	var limit := LaneMotion.body_limit(enemies.radius[id])
+	return "enemy %d x=%.3f radius=%.3f left the lane (limit ±%.3f)" % [id, enemies.x[id], enemies.radius[id], limit]
 
 
 func _visible(node: MultiMeshInstance3D) -> int:
