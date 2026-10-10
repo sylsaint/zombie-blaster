@@ -9,6 +9,45 @@ const RUN_SECONDS := 15.0
 const FRAME_CAP := 8000
 
 
+func test_menu_hides_the_greybox_capsule() -> void:
+	var packed := load("res://scenes/main.tscn") as PackedScene
+	var main := packed.instantiate()
+	add_child_autofree(main)
+	await get_tree().process_frame
+	var menu := main.get_node("UI/MainMenu") as MainMenu
+	assert_true(menu.visible, "menu is up")
+	assert_false((main.get_node("UI/LevelSelect") as CanvasItem).visible)
+	_assert_no_visible_greybox(main)
+	var host := main.get_node("LevelHost") as LevelHost
+	assert_false(host.running())
+	assert_null(host.session)
+	var crowd := host.crowd
+	assert_not_null(crowd, "menu lane has no squad view")
+	assert_eq(crowd.squad_body_mm.multimesh.visible_instance_count, LevelHost.MENU_SQUAD)
+	assert_eq(crowd.squad_weapon_mm.multimesh.visible_instance_count, LevelHost.MENU_SQUAD)
+	assert_true(ResourceLoader.exists(SoldierVisuals.body_path(1)))
+	assert_true(ResourceLoader.exists(SoldierVisuals.weapon_path(1)))
+	assert_eq(crowd.squad_body_mm.multimesh.mesh, SoldierVisuals.body_mesh(1))
+	assert_eq(crowd.squad_weapon_mm.multimesh.mesh, SoldierVisuals.weapon_mesh(1))
+	assert_false(crowd.squad_body_mm.multimesh.mesh is PrimitiveMesh)
+	assert_false(crowd.squad_weapon_mm.multimesh.mesh is PrimitiveMesh)
+
+
+func _assert_no_visible_greybox(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mesh_node := node as MeshInstance3D
+		if mesh_node.visible:
+			assert_false(mesh_node.mesh is CapsuleMesh, "%s is a visible capsule" % mesh_node.name)
+			assert_ne(mesh_node.name, "Body", "greybox body is visible")
+			assert_ne(mesh_node.name, "BlobShadow", "greybox blob is visible")
+	elif node is MultiMeshInstance3D:
+		var multi := node as MultiMeshInstance3D
+		if multi.visible and multi.multimesh != null and multi.multimesh.visible_instance_count > 0:
+			assert_false(multi.multimesh.mesh is CapsuleMesh, "%s draws a capsule" % multi.name)
+	for child in node.get_children():
+		_assert_no_visible_greybox(child)
+
+
 func test_level1_spawns_gates_squad_and_zombies() -> void:
 	var packed := load("res://scenes/main.tscn") as PackedScene
 	var main := packed.instantiate()

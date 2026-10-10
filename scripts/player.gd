@@ -1,5 +1,5 @@
 extends Node3D
-## Horizontal drag. During a level it steers the squad; the menu still slides the stand-in.
+## Horizontal drag. During a level it steers the squad; on the menu it slides the idle squad.
 
 const _LaneMotion := preload("res://scripts/lane_motion.gd")
 

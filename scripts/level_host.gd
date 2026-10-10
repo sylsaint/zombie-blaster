@@ -9,6 +9,7 @@ extends Node
 
 
 const RAIL_X := 3.75
+const MENU_SQUAD := 5
 
 var levels: Array[LevelData] = []
 var session: LevelSession
@@ -17,17 +18,45 @@ var crowd: CrowdView
 var gates: GateView
 var gate_groups: Array = []
 var _running: bool = false
+var _menu_lane: bool = false
+var _menu_present_queued: bool = false
 
 
 func _ready() -> void:
 	levels = LevelCatalog.load_all()
+	present_menu_lane()
 
 
 func running() -> bool:
 	return _running
 
 
+func present_menu_lane() -> void:
+	var parent := get_parent()
+	# Main is still entering the tree during the first _ready. Adding the
+	# crowd then is refused, so the menu lane is built on the next idle frame.
+	if parent != null and not parent.is_node_ready():
+		if not _menu_present_queued:
+			_menu_present_queued = true
+			present_menu_lane.call_deferred()
+		return
+	_menu_present_queued = false
+	_menu_lane = true
+	_hide_placeholder()
+	_ensure_views()
+	if boss_view != null and is_instance_valid(boss_view):
+		boss_view.queue_free()
+		boss_view = null
+	if gates != null:
+		gates.build([])
+	if crowd != null:
+		crowd.clear_draws()
+	_restore_menu_frame()
+	_sync_menu_squad()
+
+
 func start_level(level_index: int, meta_attack_levels: int = 0) -> void:
+	_menu_lane = false
 	if boss_view != null and is_instance_valid(boss_view):
 		boss_view.queue_free()
 	boss_view = null
@@ -43,13 +72,15 @@ func start_level(level_index: int, meta_attack_levels: int = 0) -> void:
 
 
 func _process(_delta: float) -> void:
-	if not _running or session == null:
+	if _running and session != null:
+		var clock := get_node("/root/GameClock")
+		session.tick(float(clock.gameplay_delta))
+		_sync_view()
+		if session.result != null:
+			_running = false
 		return
-	var clock := get_node("/root/GameClock")
-	session.tick(float(clock.gameplay_delta))
-	_sync_view()
-	if session.result != null:
-		_running = false
+	if _menu_lane:
+		_sync_menu_squad()
 
 
 static func groups_from_level(level: LevelData) -> Array:
@@ -87,24 +118,67 @@ static func span_for_spec(spec: GateSpec) -> GateSpan:
 
 
 func _ensure_views() -> void:
-	if crowd != null and is_instance_valid(crowd):
+	if crowd != null and is_instance_valid(crowd) and crowd.is_inside_tree():
 		return
 	var parent := get_parent()
 	if parent == null:
 		return
+	if crowd != null and is_instance_valid(crowd):
+		crowd.free()
 	crowd = CrowdView.new()
 	crowd.name = "Crowd"
 	parent.add_child(crowd)
+	if not crowd.is_inside_tree():
+		crowd.free()
+		crowd = null
+		return
 	crowd.setup()
-	gates = GateView.new()
-	gates.name = "Gates"
-	parent.add_child(gates)
+	if gates != null and is_instance_valid(gates) and not gates.is_inside_tree():
+		gates.free()
+		gates = null
+	if gates == null or not is_instance_valid(gates):
+		gates = GateView.new()
+		gates.name = "Gates"
+		parent.add_child(gates)
+		if not gates.is_inside_tree():
+			gates.free()
+			gates = null
 
 
 func _present_gates(level: LevelData) -> void:
 	gate_groups = groups_from_level(level)
 	if gates != null:
 		gates.build(gate_groups)
+
+
+func _sync_menu_squad() -> void:
+	if crowd == null:
+		return
+	crowd.show_idle_squad(_menu_origin(), MENU_SQUAD)
+
+
+func _menu_origin() -> Vector3:
+	var parent := get_parent()
+	if parent == null:
+		return Vector3.ZERO
+	var player := parent.get_node_or_null("Player") as Node3D
+	if player == null:
+		return Vector3.ZERO
+	return player.global_position
+
+
+func _restore_menu_frame() -> void:
+	var parent := get_parent()
+	if parent == null:
+		return
+	var camera := parent.get_node_or_null("ChaseCamera") as Camera3D
+	if camera != null:
+		camera.position = Vector3(0.0, 8.5, 12.0)
+		camera.look_at(Vector3(0.0, 1.0, -18.0), Vector3.UP)
+	for node_name in ["Ground", "CenterStripe", "RailLeft", "RailRight"]:
+		var mesh := parent.get_node_or_null(node_name) as Node3D
+		if mesh != null:
+			mesh.position.z = -20.0
 
 
 func _hide_placeholder() -> void:
