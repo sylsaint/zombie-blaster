@@ -239,15 +239,14 @@ func clear_draws() -> void:
 			node.multimesh.visible_instance_count = 0
 
 
-## Menu stand-in. Same body and pistol MultiMeshes the fight uses, posed in the squad formation.
-func show_idle_squad(origin: Vector3, count: int) -> void:
-	var offsets := SquadAnchor.formation_offsets(count)
-	var n := mini(offsets.size(), SQUAD_CAP)
+## Menu stand-in. Same body and pistol MultiMeshes the fight uses.
+func show_idle_squad(points: PackedVector3Array) -> void:
+	var n := mini(points.size(), SQUAD_CAP)
 	var i := 0
 	while i < n:
 		var o := i * 12
-		var px := origin.x + offsets[i].x
-		var pz := origin.z + offsets[i].z
+		var px := points[i].x
+		var pz := points[i].z
 		_write_origin(_buf_squad, o, px, pz)
 		_write_origin(_buf_weapon, o, px, pz)
 		var blob := i * 12

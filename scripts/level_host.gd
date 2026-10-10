@@ -156,7 +156,21 @@ func _present_gates(level: LevelData) -> void:
 func _sync_menu_squad() -> void:
 	if crowd == null:
 		return
-	crowd.show_idle_squad(_menu_origin(), MENU_SQUAD)
+	crowd.show_idle_squad(_menu_points())
+
+
+## The title panel covers the middle of the lane. The outer soldiers stand in the
+## strips beside it; the middle one keeps the old capsule's spot.
+func _menu_points() -> PackedVector3Array:
+	var origin := _menu_origin()
+	var side := 3.15
+	var pts := PackedVector3Array()
+	pts.append(Vector3(origin.x - side, 0.0, origin.z + 1.05))
+	pts.append(Vector3(origin.x - side, 0.0, origin.z - 0.15))
+	pts.append(Vector3(origin.x, 0.0, origin.z + 0.45))
+	pts.append(Vector3(origin.x + side, 0.0, origin.z + 1.05))
+	pts.append(Vector3(origin.x + side, 0.0, origin.z - 0.15))
+	return pts
 
 
 func _menu_origin() -> Vector3:
