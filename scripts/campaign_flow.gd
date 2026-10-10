@@ -28,6 +28,8 @@ var _probe_env: Environment
 var _probe_world: WorldEnvironment
 var _probe_layer: CanvasLayer
 var _census_wait: float = 0.0
+var _menu_shot_path: String = ""
+var _menu_shot_frames: int = 0
 
 
 func _ready() -> void:
@@ -52,6 +54,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	_tick_menu_shot()
 	if host == null or host.session == null:
 		return
 	var session := host.session
@@ -97,9 +100,22 @@ func _arm_level1_shot() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--level1-shot="):
 			_shot_path = arg.trim_prefix("--level1-shot=")
+		elif arg.begins_with("--menu-shot="):
+			_menu_shot_path = arg.trim_prefix("--menu-shot=")
 	if _shot_path == "":
 		return
 	call_deferred("_play_level1_for_shot")
+
+
+func _tick_menu_shot() -> void:
+	if _menu_shot_path == "":
+		return
+	_menu_shot_frames += 1
+	if _menu_shot_frames < 8:
+		return
+	_save_viewport_png(_menu_shot_path, "MENU_SHOT")
+	_menu_shot_path = ""
+	get_tree().quit()
 
 
 func _play_level1_for_shot() -> void:
@@ -137,21 +153,24 @@ func _tick_level1_shot() -> void:
 
 
 func _save_level1_shot() -> void:
+	_save_viewport_png(_shot_path, "LEVEL1_SHOT")
+
+
+func _save_viewport_png(path: String, tag: String) -> void:
 	var viewport := get_viewport()
 	var texture := viewport.get_texture() if viewport != null else null
 	var image: Image = texture.get_image() if texture != null else null
 	if image == null:
-		push_error("Level 1 screenshot viewport was empty")
+		push_error("%s viewport was empty" % tag)
 		return
-	var path := _shot_path
 	if path.begins_with("res://"):
 		path = ProjectSettings.globalize_path(path)
 	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 	var err := image.save_png(path)
 	if err != OK:
-		push_error("Could not save level 1 screenshot: %s" % error_string(err))
+		push_error("Could not save %s: %s" % [tag, error_string(err)])
 		return
-	print("LEVEL1_SHOT %s" % path)
+	print("%s %s" % [tag, path])
 
 
 func _arm_exported_smoke() -> void:
@@ -274,6 +293,8 @@ func _on_next() -> void:
 
 
 func _show_menu() -> void:
+	if host != null:
+		host.present_menu_lane()
 	if menu_view != null:
 		menu_view.visible = true
 	if select_view != null:

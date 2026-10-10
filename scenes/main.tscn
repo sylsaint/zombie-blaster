@@ -101,12 +101,14 @@ script = ExtResource("2_player")
 lane_half_width = 3.0
 
 [node name="Body" type="MeshInstance3D" parent="Player"]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
 mesh = SubResource("CapsuleMesh_player")
 surface_material_override/0 = SubResource("Mat_player")
 cast_shadow = 0
 
 [node name="BlobShadow" type="MeshInstance3D" parent="Player"]
+visible = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 0)
 mesh = SubResource("QuadMesh_blob")
 surface_material_override/0 = SubResource("Mat_blob")
