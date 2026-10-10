@@ -19,7 +19,7 @@ Godot 版本钉在 `tools/godot.version`（当前 4.7.2 stable）。流水线是
 - `zombie-blaster-<tag>-android-release.apk`（artifact `android-apks`，标签构建会挂到 Release。只有 arm64-v8a）
 - `zombie-blaster-<tag>-android-debug.apk`（同上，只有 arm64-v8a）
 - `zombie-blaster-<tag>-android-profile.apk`（artifact `android-profile-apk`，只上传，**不**进 Release。只有 arm64-v8a）
-- `zombie-blaster-<tag>-android-smoke-x86_64.apk`（artifact `android-emulator-apk`，只给模拟器 job 用，**不**进 `android-apks`，也**不**进 Release）。同一 artifact 里还有六份呈现对照包，文件名在这后面加 `-swappy`、`-vsync`、`-gles`、`-threads`、`-nosafe`、`-edge`
+- `zombie-blaster-<tag>-android-smoke-x86_64.apk`（artifact `android-emulator-apk`，只给模拟器 job 用，**不**进 `android-apks`，也**不**进 Release）。屏幕选项和正式包相同：`screen/edge_to_edge=true`，`screen/immersive_mode=false`。同一 artifact 里还有六份呈现对照包，文件名在这后面加 `-swappy`、`-vsync`、`-gles`、`-threads`、`-nosafe`、`-edge`。模拟器 job 不安装这六份
 - 有 iOS 签名 Secrets：`zombie-blaster-<tag>-ios.ipa`
 - 没有 iOS 签名 Secrets：`zombie-blaster-<tag>-ios-xcode-unsigned.zip`
 
@@ -48,7 +48,7 @@ Job 跑在 `ubuntu-24.04`：
 6. `gradle_build/use_gradle_build` 保持关闭，产物是 APK。上架 Play 的 AAB 以后再开 Gradle。
 7. release、profile 和 x86_64 smoke 三个包在签名前会删掉 `assets/dexopt/baseline.prof` 和 `baseline.profm`，再 `zipalign -P 16`（不能和 `-p` 一起用）并重新签名。debug 包保持 debug 模板原样。原因见下一节。这份删除还没有在 arm64 真机上确认过。
 8. 导出之后 `tools/smoke_exported_menu.sh` 用同一套 Android 排除规则打一个 pck，无头启动，确认主菜单的「开始」可见，并且第 1 关在 4 秒游戏时间里画出士兵和行走僵尸。这个检查看的是包里的项目，不是手机上的 `libgodot_android.so`。
-9. Android job 成功后，`emulator` job 在 GitHub 托管的 `ubuntu-24.04` 上用 udev 规则打开 KVM，再用 `reactivecircus/android-emulator-runner` 启动 API 34、`google_apis`、`x86_64` 的模拟器（Pixel 2，1080×1920）。它安装的是 artifact `android-emulator-apk` 里的 **x86_64 smoke APK**，不是 `android-apks` 里的正式包。同一份原生库有七个包：baseline，加上只改呈现设置的 swappy / vsync / gles / threads / nosafe / edge。安装后 `primaryCpuAbi` 必须是 x86_64，否则 job 失败，避免又走 ARM 翻译。模拟器 GPU 用 `swangle_indirect`，不用 SwiftShader GLES：后者只给 261 个 fragment uniform，Godot 的 `CanvasShaderGLES3` 链接失败，菜单不会画出来。不要在启动前改 `wm size` / `wm density`。安装后的第一次启动还可能收到 `CONFIG_ASSETS_PATHS`，Godot 会在 `!_start_success` 时强制退出；脚本发现进程退出后会 `force-stop`，最多再启动两次。每个包等 logcat 里的 `MENU_READY` 和自己的 `MENU_ENGINE`，然后对主菜单做 `adb exec-out screencap` 和主机上的 `adb emu screenrecord screenshot`。颜色检查只认 screencap，阈值不放宽。七个包都量完，成败只看 baseline 的 screencap，因为 baseline 用的是正式包那套屏幕选项。baseline 再按 1080×1920 布局把「开始」(540, 1698) 和「第 1 关」(540, 376) 换算后点击。应用 logcat 里有 `SCRIPT ERROR` 时 job 失败。截图、`ratios.txt` 和 `table.txt` 上传为 artifact `android-emulator-smoke`。
+9. Android job 成功后，`emulator` job 在 GitHub 托管的 `ubuntu-24.04` 上用 udev 规则打开 KVM，再用 `reactivecircus/android-emulator-runner` 启动 API 34、`google_apis`、`x86_64` 的模拟器（Pixel 2，1080×1920）。它只安装 artifact `android-emulator-apk` 里**不带后缀**的 x86_64 smoke APK，不安装 swappy / vsync / gles / threads / nosafe / edge 那六份对照包，也不是 `android-apks` 里的正式包。导出时会核对这份 smoke 包的 `assets/_cl_`：含 `--edge_to_edge`，不含 `--fullscreen`，去掉 `--smoke-canvas` 和 `--smoke-present=edge` 之后和 arm64 正式包的启动参数一致。安装后 `primaryCpuAbi` 必须是 x86_64，否则 job 失败，避免又走 ARM 翻译。模拟器 GPU 用 `swangle_indirect`，不用 SwiftShader GLES：后者只给 261 个 fragment uniform，Godot 的 `CanvasShaderGLES3` 链接失败，菜单不会画出来。不要在启动前改 `wm size` / `wm density`。安装后的第一次启动还可能收到 `CONFIG_ASSETS_PATHS`，Godot 会在 `!_start_success` 时强制退出；脚本发现进程退出后会 `force-stop`，最多再启动两次。等到 `MENU_READY`、`MENU_ENGINE name=edge`、`MENU_SAFE` 和 `MENU_TOP` 之后，`adb exec-out screencap` 存成 `edge-menu.png`。颜色检查只认这张 screencap，阈值不放宽。探针结束后点击「开始」和「第 1 关」，约 15 秒后再截 `edge-level1.png`。这张图不能仍是主菜单，并且 logcat 里最后一条 `LEVEL1_CENSUS` 的士兵、僵尸、门都要大于 0。`MENU_SAFE` 的 safe_y 和 `MENU_TOP` 的 y 写进 `safe-area.txt`，用来看菜单有没有画进状态栏或挖孔；画进去会记下来，但不放宽颜色检查。应用 logcat 里有 `SCRIPT ERROR` 时 job 失败。错误行在 `logcat-errors.txt`。这些 png 和 txt 上传为 artifact `android-emulator-smoke`。
 
 ## 正式包只有 3D、没有菜单
 
@@ -110,7 +110,7 @@ edge 的 screencap 和 emu 截图都是主菜单（开始按钮在视口中心 5
 
 swappy、gles、threads 往 `project.binary` 追加的键在设备上解码失败（`Error decoding property: ''`），logcat 里的有效值仍是默认。这三档没有真正改到运行中的设置。vsync 的 `vsync_mode` 键同样没解码成功，但 `_cl_` 里的 `--disable-vsync` 进了原生层，screencap 仍是 0.0000。
 
-正式包的 Android 预设因此改成 `screen/immersive_mode=false`、`screen/edge_to_edge=true`。`project.godot` 不动，渲染方式仍是 `gl_compatibility`，架构仍是 arm64-v8a。Profile 预设不改。模拟器 job 只认 baseline（和正式包同一套屏幕选项）的 screencap，阈值仍是 `menu_ratio` 0.01。
+正式包的 Android 预设因此改成 `screen/immersive_mode=false`、`screen/edge_to_edge=true`。`project.godot` 不动，渲染方式仍是 `gl_compatibility`，架构仍是 arm64-v8a。Profile 预设不改。模拟器 job 安装的 x86_64 smoke APK 用的就是这套屏幕选项，不再用沉浸模式开着的旧 baseline。严格检查认的是这张 screencap（`edge-menu.png`），阈值仍是 `menu_ratio` 0.01。
 
 查过 Godot 4.7 的 issue，没有一条对得上「release 模板在 Adreno 上只画 3D、不画 2D，debug 模板正常」。能对上 Adreno 的报告是 Vulkan / Mobile 渲染器的花屏或几何丢失（例如 [#115217](https://github.com/godotengine/godot/issues/115217)、[#120299](https://github.com/godotengine/godot/issues/120299)）。本工程桌面和手机都是 Compatibility（`gl_compatibility`），shader baker 也关着。字体和 text server 在 pck 里，debug 和 release 是同一份，所以不是资源被裁掉。
 

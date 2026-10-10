@@ -27,6 +27,7 @@ var _probe_hidden: Array = []
 var _probe_env: Environment
 var _probe_world: WorldEnvironment
 var _probe_layer: CanvasLayer
+var _census_wait: float = 0.0
 
 
 func _ready() -> void:
@@ -60,6 +61,7 @@ func _process(_delta: float) -> void:
 	if session.result != null and not _presented:
 		_present(session.result, now)
 	_tick_level1_shot()
+	_tick_smoke_census(_delta)
 
 
 func begin_level(level_index: int) -> void:
@@ -206,6 +208,29 @@ func _visible_instances(node: MultiMeshInstance3D) -> int:
 	if node == null or node.multimesh == null:
 		return 0
 	return node.multimesh.visible_instance_count
+
+
+func _tick_smoke_census(delta: float) -> void:
+	if not _wants_canvas_probe():
+		return
+	_census_wait -= delta
+	if _census_wait > 0.0:
+		return
+	_census_wait = 1.0
+	var gates := 0
+	if host.gates != null:
+		for child in host.gates.get_children():
+			if child is MeshInstance3D and child.visible:
+				gates += 1
+	print(
+		"LEVEL1_CENSUS soldiers=%d walkers=%d gates=%d time=%.2f"
+		% [
+			_visible_instances(host.crowd.squad_body_mm),
+			_visible_instances(host.crowd.grunt_mm),
+			gates,
+			_gameplay_time(),
+		]
+	)
 
 
 func _gameplay_time() -> float:
@@ -469,7 +494,19 @@ func _print_menu_layout() -> void:
 		var play := menu_view.get_node_or_null("%Play") as Control
 		if play != null:
 			play_rect = play.get_global_rect()
-	print("MENU_LAYOUT visible=%s rect=%s viewport=%s" % [menu_visible, play_rect, get_viewport().get_visible_rect()])
+	print(
+		"MENU_LAYOUT visible=%s rect=%s viewport=%s play_x=%.1f play_y=%.1f play_w=%.1f play_h=%.1f"
+		% [
+			menu_visible,
+			play_rect,
+			get_viewport().get_visible_rect(),
+			play_rect.position.x,
+			play_rect.position.y,
+			play_rect.size.x,
+			play_rect.size.y,
+		]
+	)
+	_print_safe_area()
 
 
 func _show_select() -> void:
@@ -480,6 +517,97 @@ func _show_select() -> void:
 	if results_view != null:
 		results_view.visible = false
 	_refresh_meta()
+	if _wants_canvas_probe():
+		get_tree().process_frame.connect(_print_select_layout, CONNECT_ONE_SHOT)
+
+
+func _print_select_layout() -> void:
+	var button: Control = null
+	if select_view != null:
+		button = select_view.get_node_or_null("%Level1") as Control
+	if button == null:
+		print("MENU_SELECT missing")
+		return
+	var rect := button.get_global_rect()
+	print(
+		"MENU_SELECT level_x=%.1f level_y=%.1f level_w=%.1f level_h=%.1f"
+		% [rect.position.x, rect.position.y, rect.size.x, rect.size.y]
+	)
+
+
+func _print_safe_area() -> void:
+	var safe := DisplayServer.get_display_safe_area()
+	var window_size := DisplayServer.window_get_size()
+	var screen_size := DisplayServer.screen_get_size()
+	var cutout_text := ""
+	var index := 0
+	for raw in DisplayServer.get_display_cutouts():
+		var rect := Rect2(raw)
+		cutout_text += " cutout%d=%d,%d,%d,%d" % [
+			index,
+			int(rect.position.x),
+			int(rect.position.y),
+			int(rect.size.x),
+			int(rect.size.y),
+		]
+		index += 1
+	print(
+		"MENU_SAFE safe_x=%d safe_y=%d safe_w=%d safe_h=%d cutouts=%d window=%dx%d screen=%dx%d%s"
+		% [
+			safe.position.x,
+			safe.position.y,
+			safe.size.x,
+			safe.size.y,
+			index,
+			window_size.x,
+			window_size.y,
+			screen_size.x,
+			screen_size.y,
+			cutout_text,
+		]
+	)
+	var top := _topmost_content_control()
+	if top == null:
+		print("MENU_TOP missing")
+	else:
+		var top_rect := top.get_global_rect()
+		print(
+			"MENU_TOP name=%s y=%.1f h=%.1f x=%.1f w=%.1f"
+			% [top.name, top_rect.position.y, top_rect.size.y, top_rect.position.x, top_rect.size.x]
+		)
+	var title: Control = null
+	if menu_view != null:
+		title = menu_view.get_node_or_null("%Title") as Control
+	if title != null and title.is_visible_in_tree():
+		var title_rect := title.get_global_rect()
+		print("MENU_TITLE name=%s y=%.1f h=%.1f" % [title.name, title_rect.position.y, title_rect.size.y])
+
+
+func _topmost_content_control() -> Control:
+	if menu_view == null:
+		return null
+	var viewport_size := get_viewport().get_visible_rect().size
+	var best: Control = null
+	var best_y := 1.0e20
+	var stack: Array[Node] = []
+	stack.append(menu_view)
+	while stack.size() > 0:
+		var node: Node = stack.pop_back()
+		for child in node.get_children():
+			stack.append(child)
+		var control := node as Control
+		if control == null or not control.is_visible_in_tree():
+			continue
+		var rect := control.get_global_rect()
+		if rect.size.x < 8.0 or rect.size.y < 8.0:
+			continue
+		if viewport_size.x > 0.0 and viewport_size.y > 0.0:
+			if rect.size.x >= viewport_size.x * 0.95 and rect.size.y >= viewport_size.y * 0.95:
+				continue
+		if rect.position.y < best_y:
+			best_y = rect.position.y
+			best = control
+	return best
 
 
 func _hide_screens() -> void:

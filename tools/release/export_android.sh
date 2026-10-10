@@ -215,9 +215,14 @@ section = set_arch(section, "arm64-v8a", "false")
 section = set_arch(section, "x86", "false")
 section = set_arch(section, "x86_64", "true")
 # User args, so the phone preset's command_line/extra_args stays empty.
-# --smoke-present=baseline makes this APK capture the menu once. The other
-# presentation APKs are patched copies and replace that name.
-section = set_line(section, "command_line/extra_args", '"-- --smoke-canvas --smoke-present=baseline"')
+# Screen flags stay on the phone preset: edge-to-edge on, immersive off.
+# --smoke-present=edge only names the one menu capture. It does not change
+# those flags. The presentation copies are separate files.
+if "screen/immersive_mode=false" not in section or "screen/edge_to_edge=true" not in section:
+    raise SystemExit("x86_64 smoke export is not using the phone screen preset")
+if "screen/immersive_mode=true" in section:
+    raise SystemExit("x86_64 smoke export turned immersive mode back on")
+section = set_line(section, "command_line/extra_args", '"-- --smoke-canvas --smoke-present=edge"')
 path.write_text(text[:start] + section + text[end:])
 rest = text[end:]
 if "architectures/arm64-v8a=true" not in rest or "architectures/x86_64=false" not in rest:
@@ -327,6 +332,53 @@ verify_apk() {
   note "$(basename "$apk"): $(wc -c < "$apk" | tr -d ' ') bytes"
 }
 
+# The smoke APK may add the canvas probe. Every other baked argument, including
+# --edge_to_edge and the absence of --fullscreen, has to match the arm64 release.
+assert_same_screen_preset() {
+  python3 - "$1" "$2" << 'PY'
+import struct
+import sys
+import zipfile
+
+release_apk, smoke_apk = sys.argv[1], sys.argv[2]
+SMOKE_ONLY = ("--", "--smoke-canvas", "--smoke-present=edge")
+
+def command_line(path: str) -> list[str]:
+    with zipfile.ZipFile(path) as apk:
+        data = apk.read("assets/_cl_")
+    count = struct.unpack_from("<I", data, 0)[0]
+    pos = 4
+    args = []
+    for _ in range(count):
+        length = struct.unpack_from("<I", data, pos)[0]
+        pos += 4
+        args.append(data[pos:pos + length].decode("utf-8"))
+        pos += length
+    if pos != len(data):
+        raise SystemExit(f"{path} assets/_cl_ has trailing bytes")
+    return args
+
+release_args = command_line(release_apk)
+smoke_args = command_line(smoke_apk)
+print("release _cl_", " ".join(release_args))
+print("smoke _cl_", " ".join(smoke_args))
+for label, args in (("release", release_args), ("smoke", smoke_args)):
+    if "--edge_to_edge" not in args:
+        raise SystemExit(f"{label} APK is missing --edge_to_edge")
+    if "--fullscreen" in args:
+        raise SystemExit(f"{label} APK still has --fullscreen (immersive mode)")
+if "--smoke-canvas" not in smoke_args or "--smoke-present=edge" not in smoke_args:
+    raise SystemExit("smoke APK is missing the canvas probe args")
+smoke_rest = [arg for arg in smoke_args if arg not in SMOKE_ONLY]
+if smoke_rest != release_args:
+    raise SystemExit(
+        "smoke APK screen command line does not match the arm64 release: "
+        + " ".join(smoke_rest)
+    )
+PY
+}
+
+assert_same_screen_preset "$release_apk" "$smoke_apk"
 verify_apk "$release_apk" "com.zombieblaster.game" arm64
 verify_apk "$debug_apk" "com.zombieblaster.game" arm64
 verify_apk "$profile_apk" "com.zombieblaster.game.profile" arm64

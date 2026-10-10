@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Install each CI-only x86_64 presentation APK, capture the menu two ways,
-# and tap 开始 then 第 1 关 on the baseline package.
+# Install the CI-only x86_64 smoke APK and check the screen phones get:
+# edge_to_edge on, immersive mode off. That package is the unsuffixed
+# *-android-smoke-x86_64.apk. The patched presentation copies are not installed.
 # This is not the phone package. The arm64 release APK is a different artifact.
 # Runs under reactivecircus/android-emulator-runner (adb is already on PATH).
 # Godot draws UI in its own GL surface, so uiautomator has no button nodes.
-# Coordinates are the 1080x1920 viewport rects of %Play and %Level1.
+# Tap centers come from MENU_LAYOUT / MENU_SELECT (viewport coords). The
+# fallbacks are the 1080x1920 centers of %Play and %Level1.
 set -euo pipefail
 
 ROOT="${GITHUB_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
@@ -24,27 +26,15 @@ note() {
   printf '%s\n' "$*"
 }
 
-# baseline is the unpatched export. The rest are patched copies.
-variant_apk() {
-  local name="$1"
-  local pattern
-  if [[ "$name" == "baseline" ]]; then
-    pattern='*-android-smoke-x86_64.apk'
-  else
-    pattern="*-android-smoke-x86_64-${name}.apk"
-  fi
-  # -quit avoids a pipe to head. pipefail turns that SIGPIPE into exit 141.
-  find "$ROOT/dist" -type f -name "$pattern" -print -quit
-}
-
-variants=(baseline swappy vsync gles threads nosafe edge)
-for variant in "${variants[@]}"; do
-  if [[ -z "$(variant_apk "$variant")" ]]; then
-    echo "Missing smoke APK for ${variant} under $ROOT/dist" >&2
-    find "$ROOT/dist" -type f -name '*.apk' -print >&2 || true
-    exit 1
-  fi
-done
+# -quit avoids a pipe to head. pipefail turns that SIGPIPE into exit 141.
+# The suffixed presentation APKs end in -swappy.apk and so on, so this name
+# matches only the unpatched export.
+smoke_apk="$(find "$ROOT/dist" -type f -name '*-android-smoke-x86_64.apk' -print -quit)"
+if [[ -z "$smoke_apk" ]]; then
+  echo "Missing the unsuffixed x86_64 smoke APK under $ROOT/dist" >&2
+  find "$ROOT/dist" -type f -name '*.apk' -print >&2 || true
+  exit 1
+fi
 
 adb wait-for-device
 
@@ -82,7 +72,7 @@ print(x, y)
 
 read -r tap_play_x tap_play_y < <(map_tap "$play_x" "$play_y")
 read -r tap_level_x tap_level_y < <(map_tap "$level_x" "$level_y")
-note "Tap 开始 at ${tap_play_x},${tap_play_y} and 第 1 关 at ${tap_level_x},${tap_level_y}"
+note "Fallback taps: 开始 at ${tap_play_x},${tap_play_y} and 第 1 关 at ${tap_level_x},${tap_level_y}"
 
 # The first launch after install can get CONFIG_ASSETS_PATHS (0x80000000) while
 # swangle is still creating the GL context. Godot then hits !_start_success,
@@ -146,8 +136,9 @@ wait_for_menu() {
 
 wait_for_marker() {
   local pattern="$1"
+  local limit="${2:-90}"
   local i
-  for i in $(seq 1 90); do
+  for i in $(seq 1 "$limit"); do
     refresh_log
     if grep -a -q "$pattern" "$out/logcat-live.txt"; then
       return 0
@@ -156,33 +147,6 @@ wait_for_marker() {
   done
   echo "timed out waiting for $pattern" >&2
   return 1
-}
-
-engine_field() {
-  local name="$1"
-  local key="$2"
-  awk -v n="$name" -v key="$key" '
-    index($0, "MENU_ENGINE name=" n " ") {
-      for (i = 1; i <= NF; i++) {
-        if (index($i, key "=") == 1) {
-          print substr($i, length(key) + 2)
-          exit
-        }
-      }
-    }
-  ' "$out/logcat-live.txt"
-}
-
-report_capture() {
-  local kind="$1"
-  local name="$2"
-  local file="$3"
-  local line="missing"
-  if [[ -s "$file" ]]; then
-    line="$(python3 "$ROOT/tools/release/check_menu_screenshot.py" --report "$file" 2>&1 || true)"
-  fi
-  note "${kind} ${name}: ${line}"
-  printf '%s %s %s\n' "$kind" "$name" "$line" >> "$out/ratios.txt"
 }
 
 is_png() {
@@ -205,164 +169,259 @@ capture_screen() {
   is_png "$dest"
 }
 
-# Host-side composited frame. The emulator writes the PNG on the machine that
-# runs it, not on the guest. screencap stays the strict check.
-capture_emu() {
-  local dest="$1"
-  local dir="$2"
-  mkdir -p "$dir"
-  if adb emu screenrecord screenshot "$dir" > "$dir/cmd.txt" 2>&1; then
-    :
-  fi
-  local png=""
-  png="$(find "$dir" -type f -name '*.png' -print -quit)"
-  if [[ -n "$png" ]] && is_png "$png"; then
-    cp "$png" "$dest"
-    return 0
-  fi
-  if adb emu screenrecord screenshot "$dest" > "$dir/cmd-file.txt" 2>&1 && is_png "$dest"; then
-    return 0
-  fi
-  note "emu screenshot for $(basename "$dest") failed: $(tr '\n' ' ' < "$dir/cmd.txt" | head -c 240)"
-  return 1
+apply_layout_tap() {
+  local kind="$1"
+  local fallback_x="$2"
+  local fallback_y="$3"
+  local center
+  center="$(python3 - "$out/logcat-live.txt" "$kind" "$fallback_x" "$fallback_y" << 'PY'
+import re
+import sys
+path, kind, fallback_x, fallback_y = sys.argv[1:]
+text = open(path, encoding="utf-8", errors="replace").read()
+if kind == "play":
+    match = re.search(r"play_x=([0-9.]+) play_y=([0-9.]+) play_w=([0-9.]+) play_h=([0-9.]+)", text)
+else:
+    match = re.search(r"level_x=([0-9.]+) level_y=([0-9.]+) level_w=([0-9.]+) level_h=([0-9.]+)", text)
+if match is None:
+    print(fallback_x, fallback_y, "fallback")
+    raise SystemExit(0)
+x, y, w, h = (float(part) for part in match.groups())
+if w < 8.0 or h < 8.0:
+    print(fallback_x, fallback_y, "fallback")
+else:
+    print(x + w / 2.0, y + h / 2.0, "layout")
+PY
+)"
+  local dx dy source
+  read -r dx dy source <<<"$center"
+  local tx ty
+  read -r tx ty < <(map_tap "$dx" "$dy")
+  note "Tap ${kind} (${source} ${dx},${dy}) at ${tx},${ty}"
+  adb shell input tap "$tx" "$ty"
 }
 
-install_apk() {
-  local apk="$1"
-  note "Installing $(basename "$apk")"
-  adb shell am force-stop "$package" || true
-  if ! adb install -r "$apk"; then
-    note "ABI list: $(adb shell getprop ro.product.cpu.abilist | tr -d '\r')"
-    return 1
-  fi
-  return 0
-}
+note "Installing $(basename "$smoke_apk")"
+adb shell am force-stop "$package" || true
+if ! adb install -r "$smoke_apk"; then
+  note "ABI list: $(adb shell getprop ro.product.cpu.abilist | tr -d '\r')"
+  exit 1
+fi
 
-: > "$out/ratios.txt"
-: > "$out/logcat.txt"
-baseline_ready=0
-baseline_screencap_ok=0
+device_abi="$(adb shell getprop ro.product.cpu.abi | tr -d '\r')"
+adb shell dumpsys package "$package" | tr -d '\r' > "$out/package-dump.txt"
+package_abi="$(awk '/primaryCpuAbi/{print; exit}' "$out/package-dump.txt")"
+rm -f "$out/package-dump.txt"
+note "device abi: ${device_abi} package abi: ${package_abi:-missing}"
+printf 'device abi: %s\npackage abi: %s\n' "$device_abi" "${package_abi:-missing}" > "$out/abi.txt"
+if [[ "$package_abi" != *x86_64* || "$package_abi" == *arm64* ]]; then
+  echo "Smoke APK is not running as x86_64 (${package_abi:-missing}). ARM translation would hide the canvas." >&2
+  exit 1
+fi
+
+menu_ready=0
+menu_screencap_ok=0
 script_error=0
+safe_ok=0
+level_ok=0
 
-for variant in "${variants[@]}"; do
-  apk="$(variant_apk "$variant")"
-  if ! install_apk "$apk"; then
-    printf 'variant %s install=failed\n' "$variant" >> "$out/ratios.txt"
-    continue
-  fi
-  if [[ "$variant" == "baseline" ]]; then
-    device_abi="$(adb shell getprop ro.product.cpu.abi | tr -d '\r')"
-    adb shell dumpsys package "$package" | tr -d '\r' > "$out/package-dump.txt"
-    package_abi="$(awk '/primaryCpuAbi/{print; exit}' "$out/package-dump.txt")"
-    rm -f "$out/package-dump.txt"
-    note "device abi: ${device_abi} package abi: ${package_abi:-missing}"
-    printf 'device abi: %s\npackage abi: %s\n' "$device_abi" "${package_abi:-missing}" > "$out/abi.txt"
-    if [[ "$package_abi" != *x86_64* || "$package_abi" == *arm64* ]]; then
-      echo "Smoke APK is not running as x86_64 (${package_abi:-missing}). ARM translation would hide the canvas." >&2
-      exit 1
-    fi
-  fi
+wait_for_menu
+if [[ "$ready" -ne 1 ]]; then
+  note "MENU_READY missing"
+else
+  menu_ready=1
+fi
 
-  wait_for_menu
-  if [[ "$ready" -ne 1 ]]; then
-    note "${variant}: MENU_READY missing"
-    printf 'variant %s menu_ready=missing\n' "$variant" >> "$out/ratios.txt"
-  elif [[ "$variant" == "baseline" ]]; then
-    baseline_ready=1
-  fi
+if [[ "$menu_ready" -eq 1 ]]; then
+  wait_for_marker "MENU_ENGINE name=edge " || true
+  wait_for_marker "MENU_SAFE " 15 || true
+  wait_for_marker "MENU_TOP " 15 || true
+fi
 
-  if [[ "$ready" -ne 1 ]]; then
-    printf 'engine %s missing\n' "$variant" >> "$out/ratios.txt"
-  elif ! wait_for_marker "MENU_ENGINE name=${variant} "; then
-    printf 'engine %s missing\n' "$variant" >> "$out/ratios.txt"
-  else
-    ratio="$(engine_field "$variant" ratio)"
-    play="$(engine_field "$variant" play)"
-    note "engine ${variant}: ratio=${ratio:-missing} play=${play:-missing}"
-    printf 'engine %s ratio=%s play=%s\n' "$variant" "${ratio:-missing}" "${play:-missing}" >> "$out/ratios.txt"
-  fi
-  if grep -a 'MENU_PRESENT\|MENU_SETTINGS\|MENU_CMDLINE' "$out/logcat-live.txt" | tail -n 3; then
-    grep -a 'MENU_SETTINGS\|MENU_CMDLINE' "$out/logcat-live.txt" | tail -n 2 >> "$out/ratios.txt" || true
-  fi
+capture_screen "$out/edge-menu.png" || true
+if [[ -s "$out/edge-menu.png" ]]; then
+  python3 "$ROOT/tools/release/check_menu_screenshot.py" --report "$out/edge-menu.png" | tee "$out/edge-menu.txt" || true
+fi
+if python3 "$ROOT/tools/release/check_menu_screenshot.py" "$out/edge-menu.png"; then
+  note "edge-menu.png shows the menu"
+  menu_screencap_ok=1
+else
+  note "edge-menu.png did not show the menu"
+fi
 
-  capture_screen "$out/${variant}-screencap.png" || true
-  report_capture screencap "$variant" "$out/${variant}-screencap.png"
-  if python3 "$ROOT/tools/release/check_menu_screenshot.py" "$out/${variant}-screencap.png"; then
-    note "${variant}: screencap shows the menu"
-    if [[ "$variant" == "baseline" ]]; then
-      baseline_screencap_ok=1
-    fi
+if [[ "$menu_ready" -eq 1 ]]; then
+  if wait_for_marker "MENU_CANVAS_DONE"; then
+    note "canvas probe finished"
   fi
-  capture_emu "$out/${variant}-emu.png" "$out/emu-${variant}" || true
-  report_capture emu "$variant" "$out/${variant}-emu.png"
+  apply_layout_tap play "$play_x" "$play_y"
+  if ! wait_for_marker "MENU_SELECT " 8; then
+    note "level select did not open; tapping 开始 again"
+    apply_layout_tap play "$play_x" "$play_y"
+    wait_for_marker "MENU_SELECT " 8 || true
+  fi
+  sleep 1
+  apply_layout_tap level "$level_x" "$level_y"
+  note "waiting 15s for level 1"
+  sleep 15
+fi
 
-  if [[ "$variant" == "baseline" && "$ready" -eq 1 ]]; then
-    cp "$out/baseline-screencap.png" "$out/menu.png" || true
-    if wait_for_marker "MENU_CANVAS_DONE"; then
-      note "baseline canvas probe finished"
-    fi
-    adb shell input tap "$tap_play_x" "$tap_play_y"
-    sleep 2
-    adb shell input tap "$tap_level_x" "$tap_level_y"
-    sleep 15
-    capture_screen "$out/level1.png" || true
-  elif [[ "$variant" == "baseline" ]]; then
-    cp "$out/baseline-screencap.png" "$out/menu.png" 2>/dev/null || true
-  fi
-
-  refresh_log
-  cp "$out/logcat-live.txt" "$out/logcat-${variant}.txt" || true
-  {
-    echo "---- ${variant} ----"
-    cat "$out/logcat-${variant}.txt"
-  } >> "$out/logcat.txt"
-  if grep -a -E 'SCRIPT ERROR' "$out/logcat-${variant}.txt"; then
-    echo "${variant} logcat contains SCRIPT ERROR" >&2
-    script_error=1
-  fi
-  if grep -a -E 'FATAL|Fatal signal|Force quitting Godot' "$out/logcat-${variant}.txt"; then
-    echo "${variant} logcat contains a native abort" >&2
-    printf 'variant %s native_abort=1\n' "$variant" >> "$out/ratios.txt"
-  fi
-  adb shell am force-stop "$package" || true
-done
-
-adb logcat -d -b crash -v time | tr -d '\r' > "$out/crash.txt" || true
+capture_screen "$out/edge-level1.png" || true
+refresh_log
+cp "$out/logcat-live.txt" "$out/logcat.txt" || true
 
 {
-  echo "variant screencap_ratio emu_ratio engine_ratio"
-  for variant in "${variants[@]}"; do
-    screen_ratio="$(awk -v n="$variant" '$1=="screencap" && $2==n { if (match($0, /menu_ratio=[0-9.]+/)) { print substr($0, RSTART+11, RLENGTH-11); exit } }' "$out/ratios.txt")"
-    emu_ratio="$(awk -v n="$variant" '$1=="emu" && $2==n { if (match($0, /menu_ratio=[0-9.]+/)) { print substr($0, RSTART+11, RLENGTH-11); exit } }' "$out/ratios.txt")"
-    engine_ratio="$(awk -v n="$variant" '$1=="engine" && $2==n { if (match($0, /ratio=[0-9.]+/)) { print substr($0, RSTART+6, RLENGTH-6); exit } }' "$out/ratios.txt")"
-    printf '%s %s %s %s\n' "$variant" "${screen_ratio:-missing}" "${emu_ratio:-missing}" "${engine_ratio:-missing}"
-  done
-} | tee "$out/table.txt" | tee -a "$out/ratios.txt"
+  echo "---- logcat priority E ----"
+  adb logcat -d -b main -b crash -v time '*:E' || true
+  echo "---- app lines ----"
+  grep -a -E 'SCRIPT ERROR|ERROR:|Fatal signal|AndroidRuntime|Exception|Force quitting Godot' "$out/logcat-live.txt" || true
+} > "$out/logcat-errors.txt"
+
+python3 - "$out/logcat-live.txt" "$out/safe-area.txt" << 'PY'
+import re
+import sys
+from pathlib import Path
+
+log_path, dest = sys.argv[1], sys.argv[2]
+text = Path(log_path).read_text(encoding="utf-8", errors="replace") if Path(log_path).exists() else ""
+
+def last(pattern: str):
+    found = re.findall(pattern, text)
+    return found[-1] if found else None
+
+safe = last(r"MENU_SAFE safe_x=(-?\d+) safe_y=(-?\d+) safe_w=(-?\d+) safe_h=(-?\d+) cutouts=(\d+) window=(\d+)x(\d+) screen=(\d+)x(\d+)")
+top = last(r"MENU_TOP name=(\S+) y=([0-9.]+) h=([0-9.]+) x=([0-9.]+) w=([0-9.]+)")
+title = last(r"MENU_TITLE name=(\S+) y=([0-9.]+) h=([0-9.]+)")
+cutouts = re.findall(r"cutout\d+=(-?\d+),(-?\d+),(-?\d+),(-?\d+)", text)
+lines = []
+if safe is None:
+    lines.append("safe=missing")
+else:
+    keys = ("safe_x", "safe_y", "safe_w", "safe_h", "cutouts", "window_w", "window_h", "screen_w", "screen_h")
+    for key, value in zip(keys, safe):
+        lines.append(f"{key}={value}")
+if top is None:
+    lines.append("top=missing")
+else:
+    lines.append(f"top_name={top[0]}")
+    lines.append(f"top_y={top[1]}")
+    lines.append(f"top_h={top[2]}")
+    lines.append(f"top_x={top[3]}")
+    lines.append(f"top_w={top[4]}")
+if title is None:
+    lines.append("title=missing")
+else:
+    lines.append(f"title_name={title[0]}")
+    lines.append(f"title_y={title[1]}")
+    lines.append(f"title_h={title[2]}")
+for index, rect in enumerate(cutouts):
+    lines.append("cutout%d=%s" % (index, ",".join(rect)))
+
+under = "missing"
+window_matches = "missing"
+if safe is not None:
+    window_w, window_h = int(safe[5]), int(safe[6])
+    screen_w, screen_h = int(safe[7]), int(safe[8])
+    if window_w <= 0 or screen_w <= 0:
+        window_matches = "unknown"
+    elif window_w == screen_w and window_h == screen_h:
+        window_matches = "yes"
+    else:
+        window_matches = "no"
+if safe is not None and top is not None:
+    safe_y = int(safe[1])
+    safe_h = int(safe[3])
+    top_y = float(top[1])
+    top_x = float(top[3])
+    top_w = float(top[4])
+    top_h = float(top[2])
+    # Viewport y and the safe-area y are the same pixels when the window fills the screen.
+    if safe_h <= 0 or window_matches != "yes":
+        under = "unknown"
+    else:
+        # y grows downward. A control whose top is above safe_y is in the status-bar inset.
+        overlaps_inset = top_y < safe_y
+        overlaps_cutout = False
+        for left, top_px, width, height in cutouts:
+            cx, cy, cw, ch = (int(part) for part in (left, top_px, width, height))
+            if top_x < cx + cw and top_x + top_w > cx and top_y < cy + ch and top_y + top_h > cy:
+                overlaps_cutout = True
+        under = "yes" if overlaps_inset or overlaps_cutout else "no"
+lines.append(f"window_matches_screen={window_matches}")
+lines.append("compare=viewport_y_against_safe_area_screen_y")
+lines.append(f"menu_under_status_bar_or_cutout={under}")
+Path(dest).write_text("\n".join(lines) + "\n", encoding="utf-8")
+print("\n".join(lines))
+PY
+
+if grep -a -q 'MENU_SAFE safe_x=' "$out/logcat-live.txt" && grep -a -q 'MENU_TOP name=' "$out/logcat-live.txt"; then
+  safe_ok=1
+fi
+
+if [[ -s "$out/edge-level1.png" ]] && python3 "$ROOT/tools/release/check_menu_screenshot.py" "$out/edge-level1.png"; then
+  note "edge-level1.png is still the main menu"
+elif [[ ! -s "$out/edge-level1.png" ]]; then
+  note "edge-level1.png is missing"
+else
+  note "edge-level1.png is not the main menu"
+fi
+
+census_ok=0
+if python3 - "$out/logcat-live.txt" << 'PY'
+import re
+import sys
+text = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+rows = re.findall(r"LEVEL1_CENSUS soldiers=(\d+) walkers=(\d+) gates=(\d+) time=([0-9.]+)", text)
+if not rows:
+    print("LEVEL1_CENSUS missing")
+    raise SystemExit(1)
+soldiers, walkers, gates, when = rows[-1]
+print(f"LEVEL1_CENSUS last soldiers={soldiers} walkers={walkers} gates={gates} time={when}")
+raise SystemExit(0 if int(soldiers) > 0 and int(walkers) > 0 and int(gates) > 0 else 1)
+PY
+then
+  census_ok=1
+fi
+
+# Gameplay must replace the menu, and the census is the spawn count behind that frame.
+if [[ "$census_ok" -eq 1 ]] && is_png "$out/edge-level1.png" && ! python3 "$ROOT/tools/release/check_menu_screenshot.py" "$out/edge-level1.png"; then
+  level_ok=1
+fi
+
+if grep -a -E 'SCRIPT ERROR' "$out/logcat-live.txt"; then
+  echo "logcat contains SCRIPT ERROR" >&2
+  script_error=1
+fi
+
+adb logcat -d -b crash -v time | tr -d '\r' > "$out/crash.txt" || true
+adb shell am force-stop "$package" || true
 
 status=0
-if [[ "$baseline_ready" -ne 1 ]]; then
-  echo "MENU_READY was not printed for the baseline smoke APK" >&2
+if [[ "$menu_ready" -ne 1 ]]; then
+  echo "MENU_READY was not printed for the shipped-preset smoke APK" >&2
   status=1
 fi
-if ! grep -a -q 'engine baseline ratio=' "$out/ratios.txt"; then
-  echo "baseline engine menu_ratio was not printed" >&2
+if ! grep -a -q 'MENU_ENGINE name=edge ' "$out/logcat-live.txt"; then
+  echo "edge engine menu capture was not printed" >&2
   status=1
 fi
-# The baseline smoke APK uses the phone preset. A patched variant passing is
-# not enough: the package that ships has to show the menu in screencap.
-if [[ "$baseline_screencap_ok" -ne 1 ]]; then
-  echo "baseline screencap did not show the menu" >&2
-  if ! python3 "$ROOT/tools/release/check_menu_screenshot.py" "$out/baseline-screencap.png"; then
-    :
-  fi
+if [[ "$menu_screencap_ok" -ne 1 ]]; then
+  echo "edge-menu.png did not show the menu" >&2
+  python3 "$ROOT/tools/release/check_menu_screenshot.py" "$out/edge-menu.png" || true
+  status=1
+fi
+if [[ "$safe_ok" -ne 1 ]]; then
+  echo "MENU_SAFE or MENU_TOP was not printed" >&2
+  status=1
+fi
+if [[ "$level_ok" -ne 1 ]]; then
+  echo "edge-level1.png did not show a started level (menu still up, or soldiers/walkers/gates missing)" >&2
   status=1
 fi
 if [[ "$script_error" -ne 0 ]]; then
-  echo "a variant log contains SCRIPT ERROR" >&2
+  echo "logcat contains SCRIPT ERROR" >&2
   status=1
 fi
 if grep -a -E 'zombieblaster|godot|Godot' "$out/crash.txt"; then
   echo "crash buffer names the app (recorded; screencap is still the pass/fail check)" >&2
-  printf 'crash_buffer names the app\n' >> "$out/ratios.txt"
 fi
 exit "$status"
