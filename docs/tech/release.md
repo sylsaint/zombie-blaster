@@ -110,7 +110,7 @@ edge 的 screencap 和 emu 截图都是主菜单（开始按钮在视口中心 5
 
 swappy、gles、threads 往 `project.binary` 追加的键在设备上解码失败（`Error decoding property: ''`），logcat 里的有效值仍是默认。这三档没有真正改到运行中的设置。vsync 的 `vsync_mode` 键同样没解码成功，但 `_cl_` 里的 `--disable-vsync` 进了原生层，screencap 仍是 0.0000。
 
-正式包的 Android 预设因此改成 `screen/immersive_mode=false`、`screen/edge_to_edge=true`。`project.godot` 不动，渲染方式仍是 `gl_compatibility`，架构仍是 arm64-v8a。Profile 预设不改。模拟器 job 安装的 x86_64 smoke APK 用的就是这套屏幕选项，不再用沉浸模式开着的旧 baseline。严格检查认的是这张 screencap（`edge-menu.png`），阈值仍是 `menu_ratio` 0.01。
+正式包的 Android 预设因此改成 `screen/immersive_mode=false`、`screen/edge_to_edge=true`。`project.godot` 不动，渲染方式仍是 `gl_compatibility`，架构仍是 arm64-v8a。Profile 预设用同一套屏幕选项。模拟器 job 安装的 x86_64 smoke APK 用的就是这套屏幕选项，不再用沉浸模式开着的旧 baseline。严格检查认的是这张 screencap（`edge-menu.png`），阈值仍是 `menu_ratio` 0.01。
 
 查过 Godot 4.7 的 issue，没有一条对得上「release 模板在 Adreno 上只画 3D、不画 2D，debug 模板正常」。能对上 Adreno 的报告是 Vulkan / Mobile 渲染器的花屏或几何丢失（例如 [#115217](https://github.com/godotengine/godot/issues/115217)、[#120299](https://github.com/godotengine/godot/issues/120299)）。本工程桌面和手机都是 Compatibility（`gl_compatibility`），shader baker 也关着。字体和 text server 在 pck 里，debug 和 release 是同一份，所以不是资源被裁掉。
 
