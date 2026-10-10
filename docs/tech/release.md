@@ -174,7 +174,7 @@ Job 跑在 `macos-latest`（镜像自带 Xcode）。先用 release 模板导出 
 
 ## arm64 启动排查
 
-`.github/workflows/arm64-launch.yml` 不创建 Release，也不改正式包。它在 `macos-15`（Apple Silicon）上用 `reactivecircus/android-emulator-runner` 起 `google_apis` / `arm64-v8a` 模拟器，API 35 和 API 36 各一台。GPU 参数是 `-gpu host`。这不是 Adreno，跑过也不说明小米 15 Pro 不会闪退。
+`.github/workflows/arm64-launch.yml` 不创建 Release，也不改正式包。它在 `macos-15`（Apple Silicon）上用 `reactivecircus/android-emulator-runner` 起 `google_apis` / `arm64-v8a` 模拟器，API 35 和 API 36 各一台。GitHub 的 macOS runner 本身是虚拟机，嵌套 HVF 会报 `HV_UNSUPPORTED`，所以模拟器带 `-accel off`（软件 CPU）。GPU 参数仍是 `-gpu host`。这不是 Adreno，跑过也不说明小米 15 Pro 不会闪退。
 
 两段场景装的是 GitHub Release 上的原包，不是这次重新导出的包：
 

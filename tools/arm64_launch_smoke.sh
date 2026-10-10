@@ -169,7 +169,8 @@ wait_session() {
   local i pid seen=0 stable=0 ready=0 died=0 flake=0
   : > "$dir/poll-crash.txt"
   : > "$dir/poll-godot.txt"
-  for i in $(seq 1 40); do
+  # TCG (-accel off) boots and compiles shaders slowly. A fatal signal still returns immediately.
+  for i in $(seq 1 160); do
     adb logcat -d -b crash -v time > "$dir/poll-crash.txt" || true
     adb logcat -d -v time -s godot:V Godot:V AndroidRuntime:E libc:F DEBUG:I > "$dir/poll-godot.txt" || true
     if [[ -n "$marker" ]] && grep -a -F -q "$marker" "$dir/poll-godot.txt"; then
@@ -195,11 +196,14 @@ wait_session() {
       fi
       break
     fi
-    if [[ -z "$marker" && "$stable" -ge 6 ]]; then
+    if [[ -z "$marker" && "$stable" -ge 40 ]]; then
       ready=1
       break
     fi
-    sleep 2
+    if (( i % 20 == 0 )); then
+      note "waiting for ${pkg} loop=${i} pid=${pid:-missing} seen=${seen}"
+    fi
+    sleep 3
   done
   printf 'ready=%s died=%s flake=%s stable=%s\n' "$ready" "$died" "$flake" "$stable" > "$dir/wait.txt"
 }
