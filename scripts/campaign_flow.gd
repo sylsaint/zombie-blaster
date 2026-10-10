@@ -209,7 +209,8 @@ func _run_exported_smoke() -> void:
 	var walkers := 0
 	var soldiers := 0
 	var i := 0
-	while i < 80:
+	# Level 1's first walker wave is at 20 m. At 4 m/s that is 5 s, so 4 s stops on the opening gate.
+	while i < 140:
 		clock.advance(0.05)
 		host._process(0.05)
 		i += 1
