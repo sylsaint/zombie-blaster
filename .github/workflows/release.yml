@@ -8,6 +8,10 @@ on:
     paths:
       - ".github/workflows/release.yml"
       - "export_presets.cfg"
+      - "tools/release/**"
+      - "tools/smoke_exported_menu.sh"
+      - "tools/emulator_menu_smoke.sh"
+      - "docs/tech/release.md"
   workflow_dispatch:
     inputs:
       artifact_tag:
@@ -72,6 +76,9 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: ./tools/release/export_android.sh
 
+      - name: Boot the exported pack and check the menu
+        run: ./tools/smoke_exported_menu.sh
+
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
@@ -84,6 +91,67 @@ jobs:
         with:
           name: android-profile-apk
           path: build/profile/*.apk
+          if-no-files-found: error
+
+      - name: Upload emulator smoke APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-emulator-apk
+          path: build/smoke/*.apk
+          if-no-files-found: error
+
+  emulator:
+    name: Android emulator
+    needs: android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          set -euo pipefail
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          if [[ ! -w /dev/kvm ]]; then
+            sudo chmod 666 /dev/kvm
+          fi
+          ls -l /dev/kvm
+
+      - name: Download emulator smoke APK
+        uses: actions/download-artifact@v4
+        with:
+          name: android-emulator-apk
+          path: dist
+
+      - name: Boot emulator and check the x86_64 smoke menu
+        uses: reactivecircus/android-emulator-runner@v2.34.0
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          cores: 2
+          ram-size: 4096M
+          disable-animations: true
+          emulator-boot-timeout: 600
+          # SwiftShader GLES cannot link Godot's canvas shader. swangle links it.
+          # The script installs the unsuffixed x86_64 smoke APK. That package
+          # uses the phone screen preset (edge_to_edge, immersive off). The
+          # strict check is the menu screencap. The script restarts if the
+          # first launch dies on CONFIG_ASSETS_PATHS.
+          emulator-options: -no-window -gpu swangle_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
+          script: ./tools/emulator_menu_smoke.sh
+
+      - name: Upload emulator screenshots and logcat
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-emulator-smoke
+          path: |
+            build/emulator/*.png
+            build/emulator/*.txt
           if-no-files-found: error
 
   ios:
@@ -129,7 +197,7 @@ jobs:
     name: GitHub Release
     # always() so a failed or skipped iOS job still publishes the APKs.
     # Tag pushes only: pull_request and workflow_dispatch must not create a Release.
-    # android-profile-apk is a separate artifact and is not downloaded here.
+    # android-profile-apk and android-emulator-apk are separate artifacts and are not downloaded here.
     if: always() && needs.android.result == 'success' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: [android, ios]
     runs-on: ubuntu-24.04

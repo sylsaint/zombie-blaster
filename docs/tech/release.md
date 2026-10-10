@@ -7,7 +7,7 @@ Godot 版本钉在 `tools/godot.version`（当前 4.7.2 stable）。流水线是
 | 触发 | 做什么 |
 | --- | --- |
 | 推送 `v*` 标签，例如 `v0.1.0` | Android 和 iOS 都出包，并挂到**同名** GitHub Release。这是唯一会创建 Release 的路径。另外上传 profile APK artifact，不挂到 Release |
-| 改 `.github/workflows/release.yml` 或 `export_presets.cfg` 的 pull request | 打 Android release / debug APK，再打 profile APK。都只上传 artifact。不跑 iOS，不创建 Release |
+| 改 `.github/workflows/release.yml`、`export_presets.cfg`、`tools/release/**`、`tools/smoke_exported_menu.sh`、`tools/emulator_menu_smoke.sh` 或 `docs/tech/release.md` 的 pull request | 打 arm64 的 Android release / debug APK，去掉 release 模板里的 baseline profile，无头启动导出的 pck 确认主菜单和第 1 关，再另打一份只给 CI 用的 x86_64 smoke APK，在 API 34 模拟器里安装**这一份**并截主菜单和第 1 关。都只上传 artifact。不跑 iOS，不创建 Release |
 | Actions 里手动 `workflow_dispatch` | Android、profile 和 iOS 都出包，只上传 artifact，**不**创建 Release。可选输入 `artifact_tag` 用来拼文件名；留空时用 `manual-<短 SHA>` |
 
 推送到 `master`（或其它分支）**不会**跑这条流水线。没有 `push.branches`。
@@ -16,9 +16,10 @@ Godot 版本钉在 `tools/godot.version`（当前 4.7.2 stable）。流水线是
 
 文件名：
 
-- `zombie-blaster-<tag>-android-release.apk`（artifact `android-apks`，标签构建会挂到 Release）
-- `zombie-blaster-<tag>-android-debug.apk`（同上）
-- `zombie-blaster-<tag>-android-profile.apk`（artifact `android-profile-apk`，只上传，**不**进 Release）
+- `zombie-blaster-<tag>-android-release.apk`（artifact `android-apks`，标签构建会挂到 Release。只有 arm64-v8a）
+- `zombie-blaster-<tag>-android-debug.apk`（同上，只有 arm64-v8a）
+- `zombie-blaster-<tag>-android-profile.apk`（artifact `android-profile-apk`，只上传，**不**进 Release。只有 arm64-v8a）
+- `zombie-blaster-<tag>-android-smoke-x86_64.apk`（artifact `android-emulator-apk`，只给模拟器 job 用，**不**进 `android-apks`，也**不**进 Release）。屏幕选项和正式包相同：`screen/edge_to_edge=true`，`screen/immersive_mode=false`。同一 artifact 里还有六份呈现对照包，文件名在这后面加 `-swappy`、`-vsync`、`-gles`、`-threads`、`-nosafe`、`-edge`。模拟器 job 不安装这六份
 - 有 iOS 签名 Secrets：`zombie-blaster-<tag>-ios.ipa`
 - 没有 iOS 签名 Secrets：`zombie-blaster-<tag>-ios-xcode-unsigned.zip`
 
@@ -42,9 +43,78 @@ Job 跑在 `ubuntu-24.04`：
 1. 按 `tools/godot.version` 安装 Godot 编辑器，用 `--headless` 导出，并安装同一版本的 export templates。编辑器和模板缓存在 Actions cache 里。
 2. 安装 Temurin JDK 17 和 Android SDK。`android-actions/setup-android` 只装 `platform-tools`：cmdline-tools 16 已经删掉旧的 `tools` 包，动作的默认值还会去装它，job 会在导出前失败。接下来的步骤再装 target SDK 36 对应的 `build-tools`；36 装不上时退回 35。
 3. `--export-release` 打 release 模板的 APK。真机性能只认这个包。再 `--export-debug` 打一个 debug 模板的包，用来排查。这两个包共用预设 `Android`，启动器名字是 **高速打僵尸**。预设 `Android Profile` 也用 `--export-release`（不用 debug 模板），包名 `com.zombieblaster.game.profile`，启动器名字是 **高速打僵尸 Profile**（和正式包在手机上能分开），feature tag `profile`。装上就进压测场景。步骤在 [../qa/device-test.md](../qa/device-test.md)。
-4. 架构只有 **arm64-v8a**。要 32 位时再把预设里的 `architectures/armeabi-v7a` 改成 true。
+4. 提交进仓库的预设只有 **arm64-v8a**。正式包、debug 包和 profile 包都是这一份原生库，体积和真机拿到的包一致。要 32 位时再把预设里的 `architectures/armeabi-v7a` 改成 true。模拟器另打一份只含 **x86_64** 的 release 包：导出设置与正式包相同，工作副本里临时关掉 `architectures/arm64-v8a`、打开 `architectures/x86_64`，脚本结束会把预设还原。这份包不进 `build/release/`。x86_64 系统镜像翻译 arm64 时 3D 车道还在，Godot 的 canvas 不出现，debug 模板也一样，所以那次模拟器结果说明不了真机上的菜单问题。
 5. `export_filter` 是 `all_resources`，所以 `data/levels/`（`level_01`–`level_03`）和 `assets/`（模型、贴图、vfx）会打进 APK。脚本在导出后检查这些路径还在；缺了就失败。`build/` 里放了 `.gdignore`，导出目录不会再被扫回去。
 6. `gradle_build/use_gradle_build` 保持关闭，产物是 APK。上架 Play 的 AAB 以后再开 Gradle。
+7. release、profile 和 x86_64 smoke 三个包在签名前会删掉 `assets/dexopt/baseline.prof` 和 `baseline.profm`，再 `zipalign -P 16`（不能和 `-p` 一起用）并重新签名。debug 包保持 debug 模板原样。原因见下一节。这份删除还没有在 arm64 真机上确认过。
+8. 导出之后 `tools/smoke_exported_menu.sh` 用同一套 Android 排除规则打一个 pck，无头启动，确认主菜单的「开始」可见，并且第 1 关在 7 秒游戏时间里画出士兵和行走僵尸。第一波僵尸在 20 米，4 米/秒要 5 秒才走到。这个检查看的是包里的项目，不是手机上的 `libgodot_android.so`。
+9. Android job 成功后，`emulator` job 在 GitHub 托管的 `ubuntu-24.04` 上用 udev 规则打开 KVM，再用 `reactivecircus/android-emulator-runner` 启动 API 34、`google_apis`、`x86_64` 的模拟器（Pixel 2，1080×1920）。它只安装 artifact `android-emulator-apk` 里**不带后缀**的 x86_64 smoke APK，不安装 swappy / vsync / gles / threads / nosafe / edge 那六份对照包，也不是 `android-apks` 里的正式包。导出时会核对这份 smoke 包的 `assets/_cl_`：含 `--edge_to_edge`，不含 `--fullscreen`，去掉 `--smoke-canvas` 和 `--smoke-present=edge` 之后和 arm64 正式包的启动参数一致。安装后 `primaryCpuAbi` 必须是 x86_64，否则 job 失败，避免又走 ARM 翻译。模拟器 GPU 用 `swangle_indirect`，不用 SwiftShader GLES：后者只给 261 个 fragment uniform，Godot 的 `CanvasShaderGLES3` 链接失败，菜单不会画出来。不要在启动前改 `wm size` / `wm density`。安装后的第一次启动还可能收到 `CONFIG_ASSETS_PATHS`，Godot 会在 `!_start_success` 时强制退出；脚本发现进程退出后会 `force-stop`，最多再启动两次。等到 `MENU_READY`、`MENU_ENGINE name=edge`、`MENU_SAFE` 和 `MENU_TOP` 之后，`adb exec-out screencap` 存成 `edge-menu.png`。颜色检查只认这张 screencap，阈值不放宽。探针结束后点击「开始」和「第 1 关」，约 15 秒后再截 `edge-level1.png`。这张图不能仍是主菜单，并且 logcat 里最后一条 `LEVEL1_CENSUS` 的士兵、僵尸、门都要大于 0。`MENU_SAFE` 的 safe_y 和 `MENU_TOP` 的 y 写进 `safe-area.txt`，用来看菜单有没有画进状态栏或挖孔；画进去会记下来，但不放宽颜色检查。应用 logcat 里有 `SCRIPT ERROR` 时 job 失败。错误行在 `logcat-errors.txt`。这些 png 和 txt 上传为 artifact `android-emulator-smoke`。
+
+## 正式包只有 3D、没有菜单
+
+v0.1.0 的 release APK 在小米 15 Pro（Android 16，Adreno 830）上只画出 3D 车道，主菜单和其它 2D/UI 不出现。同一套资源打出来的 debug 包，以及所有 debug 模板包，菜单都在。
+
+两边的 `project.binary` 和资源文件一致。APK 之间对得上的差别只有两处：
+
+- release 模板的 `libgodot_android.so`（debug 模板是另一份 so）
+- release 模板多出来的 `assets/dexopt/baseline.prof` 和 `baseline.profm`
+
+Godot 4.7 的 Android 模板用 Android Gradle Plugin 8.6 编出来，release 变体自带这份 baseline profile。非 Gradle 导出没有开关可以关掉它，预设里也没有对应项。ART 只给**不可调试**的安装应用这份 profile；debug 包是 debuggable，所以根本不会装上它。这和「只有 release 包丢菜单」对得上，但还没有在 arm64 真机上确认。
+
+`tools/release/export_android.sh` 在 `--export-release` 之后删掉这些 profile 条目和旧签名，按 16 KB 页对齐重新打包，再用同一次导出的 keystore 签名。正式包仍然用 release 模板的 so，不把 debug so 换进去。debug 包不改。x86_64 smoke 包同样删掉 profile。在真机确认之前，不要把这次删除写成已经修好菜单。
+
+GitHub 上的 x86_64 模拟器不能代替这次确认。同一轮里，debug 模板和已经去掉 baseline profile 的 arm64 release 模板，在 ARM 翻译下都只画出 3D，`MENU_READY` 和按钮布局也一样。所以那次模拟器结果说明不了小米真机上的菜单问题。
+
+只含 x86_64 的 release 库在同一套 swangle 模拟器上结果相同：`primaryCpuAbi=x86_64`，没有 canvas shader 链接错误，`MENU_READY` 和「开始」按钮的矩形都对，点击也能进入第 1 关，但 `adb exec-out screencap` 仍然只有 3D（按钮中心是地面色，menu_ratio 为 0）。缺画面不是 ARM 翻译。颜色检查不放宽。这仍然说明不了小米真机上的菜单问题。
+
+smoke APK 的工作副本额外带上 `--smoke-canvas`（正式预设的 `command_line/extra_args` 仍是空的）。`MENU_READY` 之后等两帧已经画完，把 `get_viewport().get_texture().get_image()` 存到 `user://menu_engine.png`，并把同一套菜单颜色比例打到 logcat。接着关掉 3D 车道和 `WorldEnvironment` 再截一次，然后在 layer 100 上放一个不走主题的纯色 `ColorRect` 加 `Label` 再截一次。screencap 和引擎图像的 `menu_ratio` 都写进 artifact。这是在分清「Godot 没把 canvas 画进视口」和「模拟器截图没截到」，不是修复。
+
+主场景的 3D 在根视口里，不在 `SubViewport`。`project.godot` 没有改这些项，有效值是引擎默认：`hdr_2d=false`，`transparent_background=false`，`scaling_3d/mode=0`（bilinear），`scaling_3d/scale=1`，`msaa_2d=0`，`msaa_3d=0`，`use_debanding=false`。
+
+x86_64 smoke 包在 swangle 上的测量：Godot 把菜单画进了视口纹理，`adb exec-out screencap` 没有截到。release 包不可调试，`run-as` 拿不到文件，`adb root` 拉下来的 PNG 和 logcat 里的比例一致。
+
+| 变体 | 引擎 `menu_ratio` | screencap `menu_ratio` |
+| --- | --- | --- |
+| 主菜单 | 0.0379（按钮像素 255,199,97） | 0.0000（按钮位置是地面色 127,99,48） |
+| 关掉 3D 车道和 WorldEnvironment | 0.0379（按钮像素仍是 255,199,97） | 0.0000 |
+| layer 100 的纯色 ColorRect | 0.9963（整屏 255,221,161） | 0.0000 |
+
+所以模拟器上缺的是送上屏幕的那一帧，不是 Godot 没画 canvas。视口里有菜单、截图里只有 3D，和小米上的现象是同一类。颜色检查不放宽。
+
+## 和 v0.1.0、诊断包的差别
+
+`project.godot` 和 `v0.1.0` 相同。手机上出过菜单的 `notheme` / `nosafe` 不是另一套提交，而是 `origin/cursor/diag-apks` 的 `tools/release/export_diag.sh` 在导出时改了工作副本：
+
+| 包 | 相对 v0.1.0 实际改了什么 |
+| --- | --- |
+| notheme | 只把 `project.godot` 的 `gui/theme/custom="res://assets/ui/game_theme.tres"` 换成空字符串。Android 预设的 `screen/immersive_mode` 仍是 true，`screen/edge_to_edge` 仍是 false |
+| nosafe | 只把 Android 预设里第一处 `screen/edge_to_edge=false` 改成 true。`screen/immersive_mode` 仍是 true，`project.godot` 不动 |
+
+上一轮视口纹理里的主题菜单比例已经是 0.0379，所以清空主题解释不了「画进视口但送不出去」。
+
+## 呈现对照
+
+[Run 38006367502](https://github.com/sylsaint/zombie-blaster/actions/runs/38006367502) 用同一份 x86_64 release 库打了七个包。baseline 是当时的导出结果（沉浸开，没有 edge-to-edge）。另外六个只改 `assets/_cl_`，或者往 `assets/project.binary` 末尾追加键。颜色检查不放宽。引擎比例都是视口里的菜单。
+
+| 变体 | screencap | emu screenshot | 引擎 |
+| --- | --- | --- | --- |
+| baseline | 0.0000 | 0.0000 | 0.0379 |
+| swappy | 0.0000 | 0.0000 | 0.0379 |
+| vsync | 0.0000 | 0.0000 | 0.0379 |
+| gles | 0.0000 | 0.0000 | 0.0379 |
+| threads | 0.0000 | 0.0000 | 0.0379 |
+| nosafe | 0.0000 | 0.0000 | 0.0379 |
+| edge | 0.0379 | 0.0379 | 0.0379 |
+
+edge 的 screencap 和 emu 截图都是主菜单（开始按钮在视口中心 540,1698，像素 255,199,97）。它的启动参数是 `--edge_to_edge`，没有 `--fullscreen`。nosafe 同时带 `--edge_to_edge` 和 `--fullscreen`，screencap 仍是 0.0000。所以在这台模拟器上，单开 edge-to-edge 不够，要关掉沉浸模式。
+
+swappy、gles、threads 往 `project.binary` 追加的键在设备上解码失败（`Error decoding property: ''`），logcat 里的有效值仍是默认。这三档没有真正改到运行中的设置。vsync 的 `vsync_mode` 键同样没解码成功，但 `_cl_` 里的 `--disable-vsync` 进了原生层，screencap 仍是 0.0000。
+
+正式包的 Android 预设因此改成 `screen/immersive_mode=false`、`screen/edge_to_edge=true`。`project.godot` 不动，渲染方式仍是 `gl_compatibility`，架构仍是 arm64-v8a。Profile 预设不改。模拟器 job 安装的 x86_64 smoke APK 用的就是这套屏幕选项，不再用沉浸模式开着的旧 baseline。严格检查认的是这张 screencap（`edge-menu.png`），阈值仍是 `menu_ratio` 0.01。
+
+查过 Godot 4.7 的 issue，没有一条对得上「release 模板在 Adreno 上只画 3D、不画 2D，debug 模板正常」。能对上 Adreno 的报告是 Vulkan / Mobile 渲染器的花屏或几何丢失（例如 [#115217](https://github.com/godotengine/godot/issues/115217)、[#120299](https://github.com/godotengine/godot/issues/120299)）。本工程桌面和手机都是 Compatibility（`gl_compatibility`），shader baker 也关着。字体和 text server 在 pck 里，debug 和 release 是同一份，所以不是资源被裁掉。
+
+如果关掉沉浸模式并打开 edge-to-edge 之后，真机仍然只有 3D，剩下的差别就是 release 的 `libgodot_android.so`（优化和裁剪过的原生库）。那就要换自定义 release 模板，不是再改 pck。baseline profile 的删除还是留着，它仍然没有单独在 arm64 真机上确认过。
 
 签名：
 
@@ -98,7 +168,7 @@ Job 跑在 `macos-latest`（镜像自带 Xcode）。先用 release 模板导出 
 
 有了 Apple Developer 账号之后，把上面四个 Secret 配齐即可，不用改流水线。
 
-发布 job 用 `needs: [android, ios]`，条件是 `always() && needs.android.result == 'success'`，并且只在 `v*` 标签推送时跑。iOS 失败或没有产物时，Release 仍然挂上 APK；IPA / 未签名 zip 有才附上（`fail_on_unmatched_files: false`）。pull request 不跑 iOS，也不创建 Release。`workflow_dispatch` 会跑 iOS，但不创建 Release。profile APK 在单独的 artifact `android-profile-apk` 里，发布 job 不下载它。
+发布 job 用 `needs: [android, ios]`，条件是 `always() && needs.android.result == 'success'`，并且只在 `v*` 标签推送时跑。iOS 失败或没有产物时，Release 仍然挂上 APK；IPA / 未签名 zip 有才附上（`fail_on_unmatched_files: false`）。pull request 不跑 iOS，也不创建 Release。`workflow_dispatch` 会跑 iOS，但不创建 Release。profile APK 在 `android-profile-apk`，x86_64 smoke APK 在 `android-emulator-apk`。发布 job 只下载 `android-apks`，这两份都不会挂到 Release。
 
 包名和 bundle id 都是 `com.zombieblaster.game`（Profile 包是 `com.zombieblaster.game.profile`）。iOS 最低版本 15.0（Godot 4.7 模板的下限），设备家族是 iPhone。iOS 显示名和 Bundle display name（`INFOPLIST_KEY_CFBundleDisplayName`）取自 `project.godot` 的 `application/config/name`，是 **高速打僵尸**。Godot 4.7 的 iOS 预设没有单独的显示名字段，bundle id 不跟着显示名改。
 
