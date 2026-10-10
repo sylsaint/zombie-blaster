@@ -199,12 +199,14 @@ func test_level1_idle_and_add_gates_report_distance() -> void:
 	print("LEVEL1_IDLE %s" % _format_trace(idle))
 	print("LEVEL1_ADD %s" % _format_trace(adds))
 	var gate_d: float = _opening_gate(level).distance
-	assert_true(bool(idle["past_gate"]), "zero input died at %.2f m, before the first gate at %.1f m" % [idle["distance"], gate_d])
-	assert_gt(float(idle["distance"]), gate_d)
+	var second := _gate_at(level, 1)
+	assert_gt(float(idle["distance"]), second.distance, "idle died at %.2f m, before the 48 m gate" % float(idle["distance"]))
+	assert_gt(_gate_after(idle, second.distance), 0, "idle did not survive the 48 m gate (left %d)" % _gate_after(idle, second.distance))
 	# Drag aims at the gate mesh, not the rail. ±3 m is outside the walker line.
 	assert_almost_eq(_gate_x(adds, gate_d), _add_span_center(_opening_gate(level)), 0.08, "add route was not on the gate center")
-	assert_gt(_gate_rows(adds).size(), 0)
-	assert_gt(_wave_rows(adds).size(), 0)
+	var elite_d := level.finale_distance()
+	assert_gte(float(adds["distance"]), elite_d - 0.05, "add gates died at %.2f m" % float(adds["distance"]))
+	assert_gte(int(adds["count"]), 15, "add gates reached %.0f m with %d soldiers" % [elite_d, int(adds["count"])])
 
 
 func _assert_opening(level: LevelData) -> void:
@@ -224,7 +226,9 @@ func _assert_opening(level: LevelData) -> void:
 	assert_not_null(right)
 	assert_not_null(left)
 	assert_eq(right.kind, GateRules.ADD, "x = 0 is the right gate, so that side adds soldiers")
-	assert_almost_eq(right.amount, float(level.add_gate_amount()), 0.001)
+	assert_almost_eq(right.amount, 10.0, 0.001, "level-1 add gates are +10")
+	_assert_every_add_is_ten(level)
+	_assert_gate_sides(_gate_near(level, 95.0), GateRules.WEAPON, GateRules.ADD, "95 m")
 	assert_eq(left.kind, GateRules.WEAPON)
 	assert_almost_eq(left.amount, 1.0, 0.001)
 	var first_wave: LevelEvent = null
@@ -247,8 +251,47 @@ func _assert_opening(level: LevelData) -> void:
 	assert_almost_eq(second.distance, 48.0, 0.001, "second add gate sits before the 60 m wave")
 
 
+func _assert_every_add_is_ten(level: LevelData) -> void:
+	for event in level.sorted_events():
+		if event.kind != "gate_group":
+			continue
+		for spec in event.gates:
+			var item := spec as GateSpec
+			if item != null and item.kind == GateRules.ADD:
+				assert_almost_eq(item.amount, 10.0, 0.001, "add gate at %.0f m" % event.distance)
+
+
+func _assert_gate_sides(event: LevelEvent, left_kind: int, right_kind: int, label: String) -> void:
+	assert_not_null(event, "%s gate group" % label)
+	var left: GateSpec = null
+	var right: GateSpec = null
+	for spec in event.gates:
+		var item := spec as GateSpec
+		if item == null:
+			continue
+		if item.side == "left":
+			left = item
+		elif item.side == "right":
+			right = item
+	assert_not_null(left, "%s left gate" % label)
+	assert_not_null(right, "%s right gate" % label)
+	assert_eq(left.kind, left_kind, "%s left gate" % label)
+	assert_eq(right.kind, right_kind, "%s right gate" % label)
+	if right_kind == GateRules.ADD:
+		assert_almost_eq(right.amount, 10.0, 0.001)
+	if left_kind == GateRules.WEAPON:
+		assert_almost_eq(left.amount, 1.0, 0.001)
+
+
 func _opening_gate(level: LevelData) -> LevelEvent:
 	return _gate_at(level, 0)
+
+
+func _gate_near(level: LevelData, distance: float) -> LevelEvent:
+	for event in level.sorted_events():
+		if event.kind == "gate_group" and absf(event.distance - distance) <= 0.05:
+			return event
+	return null
 
 
 func _gate_at(level: LevelData, index: int) -> LevelEvent:
@@ -374,19 +417,18 @@ func _format_trace(run: Dictionary) -> String:
 	return "state=%s n=%d wpn=%d gates%s waves%s" % [run["state"], run["count"], run["weapon"], gates, waves]
 
 
+func _gate_after(run: Dictionary, distance: float) -> int:
+	for row in run["gates"]:
+		if absf(float(row["d"]) - distance) <= 0.05:
+			return int(row["after"])
+	return -1
+
+
 func _gate_x(run: Dictionary, distance: float) -> float:
 	for row in run["gates"]:
 		if absf(float(row["d"]) - distance) <= 0.05:
 			return float(row["x"])
 	return -999.0
-
-
-func _gate_rows(run: Dictionary) -> Array:
-	return run["gates"]
-
-
-func _wave_rows(run: Dictionary) -> Array:
-	return run["waves"]
 
 
 func _enemy_instances(crowd: CrowdView) -> int:

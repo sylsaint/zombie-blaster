@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="LevelData" load_steps=30 format=3]
+[gd_resource type="Resource" script_class="LevelData" load_steps=33 format=3]
 
 [ext_resource type="Script" path="res://scripts/level_data.gd" id="1_level"]
 [ext_resource type="Script" path="res://scripts/gate_spec.gd" id="2_gate"]
@@ -22,7 +22,7 @@ side = "left"
 [sub_resource type="Resource" id="g3"]
 script = ExtResource("2_gate")
 kind = 1
-amount = 6.0000
+amount = 10.0000
 side = "right"
 
 [sub_resource type="Resource" id="e4"]
@@ -39,7 +39,7 @@ script = ExtResource("3_event")
 distance = 60.0000
 kind = "wave"
 enemy_id = "enm_walker_a"
-count = 14
+count = 8
 formation = "line"
 gates = Array[Resource]([])
 
@@ -48,9 +48,30 @@ script = ExtResource("3_event")
 distance = 72.0000
 kind = "wave"
 enemy_id = "enm_walker_a"
-count = 10
+count = 6
 formation = "wedge"
 gates = Array[Resource]([])
+
+[sub_resource type="Resource" id="g27"]
+script = ExtResource("2_gate")
+kind = 4
+amount = 1.0000
+side = "left"
+
+[sub_resource type="Resource" id="g28"]
+script = ExtResource("2_gate")
+kind = 1
+amount = 10.0000
+side = "right"
+
+[sub_resource type="Resource" id="e29"]
+script = ExtResource("3_event")
+distance = 95.0000
+kind = "gate_group"
+enemy_id = ""
+count = 0
+formation = "line"
+gates = Array[Resource]([SubResource("g27"), SubResource("g28")])
 
 [sub_resource type="Resource" id="g7"]
 script = ExtResource("2_gate")
@@ -61,7 +82,7 @@ side = "left"
 [sub_resource type="Resource" id="g8"]
 script = ExtResource("2_gate")
 kind = 1
-amount = 6.0000
+amount = 10.0000
 side = "right"
 
 [sub_resource type="Resource" id="e9"]
@@ -78,7 +99,7 @@ script = ExtResource("3_event")
 distance = 110.0000
 kind = "wave"
 enemy_id = "enm_walker_a"
-count = 20
+count = 12
 formation = "line"
 gates = Array[Resource]([])
 
@@ -87,14 +108,14 @@ script = ExtResource("3_event")
 distance = 120.0000
 kind = "wave"
 enemy_id = "enm_walker_a"
-count = 16
+count = 10
 formation = "wedge"
 gates = Array[Resource]([])
 
 [sub_resource type="Resource" id="g12"]
 script = ExtResource("2_gate")
 kind = 1
-amount = 6.0000
+amount = 10.0000
 side = "left"
 
 [sub_resource type="Resource" id="g13"]
@@ -117,7 +138,7 @@ script = ExtResource("3_event")
 distance = 168.0000
 kind = "wave"
 enemy_id = "enm_walker_a"
-count = 20
+count = 12
 formation = "line"
 gates = Array[Resource]([])
 
@@ -126,7 +147,7 @@ script = ExtResource("3_event")
 distance = 180.0000
 kind = "wave"
 enemy_id = "enm_walker_a"
-count = 16
+count = 10
 formation = "wedge"
 gates = Array[Resource]([])
 
@@ -139,7 +160,7 @@ side = "left"
 [sub_resource type="Resource" id="g18"]
 script = ExtResource("2_gate")
 kind = 1
-amount = 6.0000
+amount = 10.0000
 side = "right"
 
 [sub_resource type="Resource" id="e19"]
@@ -156,7 +177,7 @@ script = ExtResource("3_event")
 distance = 224.0000
 kind = "wave"
 enemy_id = "enm_walker_a"
-count = 50
+count = 30
 formation = "line"
 gates = Array[Resource]([])
 
@@ -165,7 +186,7 @@ script = ExtResource("3_event")
 distance = 236.0000
 kind = "wave"
 enemy_id = "enm_walker_a"
-count = 40
+count = 24
 formation = "line"
 gates = Array[Resource]([])
 
@@ -174,14 +195,14 @@ script = ExtResource("3_event")
 distance = 248.0000
 kind = "wave"
 enemy_id = "enm_walker_a"
-count = 10
+count = 6
 formation = "wedge"
 gates = Array[Resource]([])
 
 [sub_resource type="Resource" id="g23"]
 script = ExtResource("2_gate")
 kind = 1
-amount = 6.0000
+amount = 10.0000
 side = "left"
 
 [sub_resource type="Resource" id="g24"]
@@ -214,8 +235,8 @@ level_index = 1
 chapter = 1
 title = "第 1 关"
 hp_multiplier = 1.0000
-grunt_total = 211
-gate_group_count = 5
+grunt_total = 133
+gate_group_count = 6
 advance_elite_count = 0
 elite_hp = 4800.0000
 finale = "elite"
@@ -231,4 +252,4 @@ three_star_chest_coin_multiplier = 2.0
 three_star_chest_parts = 5
 three_star_chest_paid_separately = true
 fail_coin_ratio = 0.3
-events = Array[Resource]([SubResource("e1"), SubResource("e4"), SubResource("e5"), SubResource("e6"), SubResource("e9"), SubResource("e10"), SubResource("e11"), SubResource("e14"), SubResource("e15"), SubResource("e16"), SubResource("e19"), SubResource("e20"), SubResource("e21"), SubResource("e22"), SubResource("e25"), SubResource("e26")])
+events = Array[Resource]([SubResource("e1"), SubResource("e4"), SubResource("e5"), SubResource("e6"), SubResource("e9"), SubResource("e29"), SubResource("e10"), SubResource("e11"), SubResource("e14"), SubResource("e15"), SubResource("e16"), SubResource("e19"), SubResource("e20"), SubResource("e21"), SubResource("e22"), SubResource("e25"), SubResource("e26")])
