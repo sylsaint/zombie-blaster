@@ -4,9 +4,9 @@ name: Arm64 launch
 # Published scenarios install the v0.1.0 and v0.1.1 Release APKs as uploaded.
 # Control scenarios install separate arm64 packages built by this workflow.
 # The emulator is arm64-v8a on an Apple Silicon runner. GitHub-hosted macOS
-# is a VM and nested HVF returns HV_UNSUPPORTED, so the emulator uses
-# -accel off. The GPU flag is the host GPU, not Adreno, so a clean run here
-# does not clear the Xiaomi 15 Pro crash.
+# has no nested HVF. Emulator 37.2.12 still initializes HVF when -accel off
+# is set, then exits HV_UNSUPPORTED. The boot timeout is short so that
+# failure is the log, not an hour of adb retries. This is not an Adreno run.
 
 on:
   pull_request:
@@ -77,7 +77,7 @@ jobs:
   published:
     name: Published APK API ${{ matrix.api }}
     runs-on: macos-15
-    timeout-minutes: 180
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -117,10 +117,9 @@ jobs:
           cores: 2
           ram-size: 3072M
           disable-animations: true
-          emulator-boot-timeout: 3600
+          emulator-boot-timeout: 180
           # Custom options replace the action defaults, so -no-window stays here.
-          # -accel off avoids HV_UNSUPPORTED. Nested HVF is not available on
-          # GitHub-hosted macOS. host is the Mac GPU, not Adreno.
+          # -accel off does not stop emulator 37.2.12 from calling HVF on this runner.
           emulator-options: -no-window -gpu host -accel off -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: ./tools/arm64_launch_smoke.sh
 
@@ -136,7 +135,7 @@ jobs:
     name: Control APK API ${{ matrix.api }}
     needs: variants
     runs-on: macos-15
-    timeout-minutes: 180
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -169,7 +168,7 @@ jobs:
           cores: 2
           ram-size: 3072M
           disable-animations: true
-          emulator-boot-timeout: 3600
+          emulator-boot-timeout: 180
           emulator-options: -no-window -gpu host -accel off -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: ./tools/arm64_launch_smoke.sh
 
