@@ -47,7 +47,13 @@ func _ready() -> void:
 	_wire()
 	store = SaveStore.new()
 	store.path = save_path
-	profile = store.load_profile()
+	if _cmdline_has("--skip-save"):
+		# Launch-crash control. Do not open user://save.json or its backup.
+		profile = PlayerProfile.new()
+		store = null
+		print("SAVE_SKIPPED")
+	else:
+		profile = store.load_profile()
 	_show_menu()
 	_arm_level1_shot()
 	_arm_exported_smoke()

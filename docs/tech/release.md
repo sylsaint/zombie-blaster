@@ -172,6 +172,30 @@ Job 跑在 `macos-latest`（镜像自带 Xcode）。先用 release 模板导出 
 
 包名和 bundle id 都是 `com.zombieblaster.game`（Profile 包是 `com.zombieblaster.game.profile`）。iOS 最低版本 15.0（Godot 4.7 模板的下限），设备家族是 iPhone。iOS 显示名和 Bundle display name（`INFOPLIST_KEY_CFBundleDisplayName`）取自 `project.godot` 的 `application/config/name`，是 **高速打僵尸**。Godot 4.7 的 iOS 预设没有单独的显示名字段，bundle id 不跟着显示名改。
 
+## arm64 启动排查
+
+`.github/workflows/arm64-launch.yml` 不创建 Release，也不改正式包。它在 `macos-15`（Apple Silicon）上用 `reactivecircus/android-emulator-runner` 请求 `google_apis` / `arm64-v8a` 模拟器，API 35 和 API 36 各一台。GitHub 的 macOS runner 本身是虚拟机，没有嵌套 Hypervisor.framework。模拟器 37.2.12 即使加上 `-accel off` 仍去初始化 HVF，然后退出：
+
+```
+HVF error: HV_UNSUPPORTED
+qemu-system-aarch64-headless: failed to initialize HVF: Invalid argument
+```
+
+所以这个 job 目前装不上 APK，也拿不到 logcat。正式包没在这里跑起来。这不是 Adreno，也不能说明小米 15 Pro 的闪退原因。
+
+两段场景装的是 GitHub Release 上的原包，不是这次重新导出的包：
+
+- `published`：全新安装 `v0.1.1`；再全新安装 `v0.1.0`，进主菜单后点「开始」、退出，然后 `adb install -r` 升级到 `v0.1.1` 再启动
+- `variants`：三份对照包，包名分开，可以同时装在一台机器上。由 `tools/release/export_launch_variants.sh` 用 release 模板打出，去掉 baseline profile，只含 arm64-v8a
+
+| 文件名后缀 | 包名 | 和 v0.1.1 的差别 |
+| --- | --- | --- |
+| `android-nosquad` | `com.zombieblaster.game.nosquad` | `--menu-no-squad`：主菜单不建 CrowdView，不加载 walker VAT |
+| `android-immersive` | `com.zombieblaster.game.immersive` | `immersive_mode=true`、`edge_to_edge=false`，主菜单士兵仍在 |
+| `android-nosave` | `com.zombieblaster.game.nosave` | `--skip-save`：不读 `user://save.json`，用一份新档 |
+
+进程崩溃本身不让 job 失败。失败只来自安装或日志没写下来。每个场景都会留下全量 logcat、`logcat -b crash`、截图，以及能拉到的 tombstone。默认游戏行为不变：没有这两个参数时，主菜单仍会摆士兵，存档仍会读。
+
 ## 不打进包里的东西
 
 正式 Android 和 iOS 的 `exclude_filter` 是 `tests/*, addons/gut/*, scenes/debug/*`。主场景和 `scripts/` 里的玩法代码不引用 `res://tests/` 或 `res://scenes/debug/`。`Android Profile` 留下 `scenes/debug/stress_test.tscn`，仍然排除 `tests/*`、`addons/gut/*`、`docs/*`、`tools/*`。压力场景的无头跑法还是 `tools/smoke_stress.sh`。

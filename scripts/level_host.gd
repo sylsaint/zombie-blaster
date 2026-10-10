@@ -20,6 +20,7 @@ var gate_groups: Array = []
 var _running: bool = false
 var _menu_lane: bool = false
 var _menu_present_queued: bool = false
+var _menu_no_squad_logged: bool = false
 
 
 func _ready() -> void:
@@ -32,6 +33,14 @@ func running() -> bool:
 
 
 func present_menu_lane() -> void:
+	# Launch-crash control. CrowdView.setup loads the walker RGBA16F VAT and
+	# compiles the vertex shader that texelFetch-es it. Skipping here leaves
+	# that texture and those materials unloaded for the whole menu.
+	if _cmdline_has("--menu-no-squad"):
+		if not _menu_no_squad_logged:
+			_menu_no_squad_logged = true
+			print("MENU_NO_SQUAD")
+		return
 	var parent := get_parent()
 	if parent == null or parent.get_node_or_null("Player") == null:
 		return
@@ -151,6 +160,16 @@ func _present_gates(level: LevelData) -> void:
 	gate_groups = groups_from_level(level)
 	if gates != null:
 		gates.build(gate_groups)
+
+
+func _cmdline_has(needle: String) -> bool:
+	for arg in OS.get_cmdline_user_args():
+		if arg.contains(needle):
+			return true
+	for arg in OS.get_cmdline_args():
+		if arg.contains(needle):
+			return true
+	return false
 
 
 func _sync_menu_squad() -> void:
