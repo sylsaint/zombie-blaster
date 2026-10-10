@@ -235,7 +235,7 @@ func _spawn_from(arch: EnemyArchetype, px: float, pz: float, hit_points: float, 
 		return -1
 	return sim.enemies.spawn(
 		arch.kind,
-		px,
+		LaneMotion.clamp_body_x(px, LaneMotion.body_reach(arch.radius, arch.species)),
 		pz,
 		hit_points,
 		arch.speed,
@@ -260,7 +260,7 @@ func _spawn_grunts(kind: int, form: int, count: int) -> void:
 	if arch == null:
 		return
 	var n := mini(count, _spawn_x.size())
-	_fill_formation(n, form == 1)
+	_fill_formation(n, form == 1, LaneMotion.body_reach(arch.radius, arch.species))
 	var base_z := sim.squad.position.z - SPAWN_AHEAD
 	var hp := arch.base_hp * level.hp_multiplier
 	var i := 0
@@ -269,18 +269,19 @@ func _spawn_grunts(kind: int, form: int, count: int) -> void:
 		i += 1
 
 
-func _fill_formation(n: int, wedge: bool) -> void:
+func _fill_formation(n: int, wedge: bool, radius: float) -> void:
 	if n <= 0:
 		return
 	if n == 1:
 		_spawn_x[0] = 0.0
 		_spawn_zoff[0] = 0.0
 		return
-	var span := 4.6
+	var limit := LaneMotion.body_limit(radius)
+	var span := minf(4.6, limit * 2.0)
 	var i := 0
 	while i < n:
 		var t := float(i) / float(n - 1)
-		_spawn_x[i] = lerpf(-span * 0.5, span * 0.5, t)
+		_spawn_x[i] = LaneMotion.clamp_body_x(lerpf(-span * 0.5, span * 0.5, t), radius)
 		if wedge:
 			_spawn_zoff[i] = (1.0 - absf(t - 0.5) * 2.0) * 3.0
 		else:
@@ -293,7 +294,9 @@ func _spawn_elite(event: LevelEvent, finale: bool) -> void:
 	var i := 0
 	while i < n and _elite_n < ELITE_SLOTS:
 		var t := 0.5 if n == 1 else float(i) / float(n - 1)
-		var px := lerpf(-1.4, 1.4, t)
+		var elite_radius := _elite.radius if _elite != null else EnemyPool.ELITE_RADIUS
+		var elite_species := _elite.species if _elite != null else EnemyPool.Species.ELITE
+		var px := LaneMotion.clamp_body_x(lerpf(-1.4, 1.4, t), LaneMotion.body_reach(elite_radius, elite_species))
 		var id := _spawn_from(_elite, px, sim.squad.position.z - 10.0, level.elite_hp, _elite.color_variant if _elite != null else 0.85)
 		if id < 0:
 			return

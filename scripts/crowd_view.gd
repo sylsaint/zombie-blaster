@@ -233,6 +233,41 @@ func body_triangles() -> int:
 	return total
 
 
+func clear_draws() -> void:
+	for node in [grunt_mm, walker_lod_mm, runner_mm, runner_lod_mm, elite_mm, boss_mm, blob_mm, bullet_mm, squad_body_mm, squad_weapon_mm, warning_mm, gem_mm, bar_mm, casualty_mm]:
+		if node != null and node.multimesh != null:
+			node.multimesh.visible_instance_count = 0
+
+
+## Menu stand-in. Same body and pistol MultiMeshes the fight uses.
+func show_idle_squad(points: PackedVector3Array) -> void:
+	var n := mini(points.size(), SQUAD_CAP)
+	var i := 0
+	while i < n:
+		var o := i * 12
+		var px := points[i].x
+		var pz := points[i].z
+		_write_origin(_buf_squad, o, px, pz)
+		_write_origin(_buf_weapon, o, px, pz)
+		var blob := i * 12
+		_buf_blob[blob + 0] = 0.7
+		_buf_blob[blob + 1] = 0.0
+		_buf_blob[blob + 2] = 0.0
+		_buf_blob[blob + 3] = px
+		_buf_blob[blob + 4] = 0.0
+		_buf_blob[blob + 5] = 1.0
+		_buf_blob[blob + 6] = 0.0
+		_buf_blob[blob + 7] = 0.04
+		_buf_blob[blob + 8] = 0.0
+		_buf_blob[blob + 9] = 0.0
+		_buf_blob[blob + 10] = 0.7
+		_buf_blob[blob + 11] = pz
+		i += 1
+	_commit(squad_body_mm, _buf_squad, n)
+	_commit(squad_weapon_mm, _buf_weapon, n)
+	_commit(blob_mm, _buf_blob, n)
+
+
 func sync(sim: CombatSim) -> void:
 	var t0 := Time.get_ticks_usec()
 	var tw := Time.get_ticks_usec()

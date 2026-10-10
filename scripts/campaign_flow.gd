@@ -19,6 +19,11 @@ var results_gameplay_time: float = -1.0
 var _current_level: int = 1
 var _presented: bool = false
 var _wired: bool = false
+var _shot_path: String = ""
+var _shot_after: float = 6.0
+var _shot_phase: int = 0
+var _menu_shot_path: String = ""
+var _menu_shot_frames: int = 0
 
 
 func _ready() -> void:
@@ -38,9 +43,11 @@ func _ready() -> void:
 	store.path = save_path
 	profile = store.load_profile()
 	_show_menu()
+	_arm_level1_shot()
 
 
 func _process(_delta: float) -> void:
+	_tick_menu_shot()
 	if host == null or host.session == null:
 		return
 	var session := host.session
@@ -49,6 +56,7 @@ func _process(_delta: float) -> void:
 		zero_gameplay_time = now
 	if session.result != null and not _presented:
 		_present(session.result, now)
+	_tick_level1_shot()
 
 
 func begin_level(level_index: int) -> void:
@@ -78,6 +86,83 @@ func _present(result: RunResult, now: float) -> void:
 	if results_view != null:
 		results_view.present(view)
 	_refresh_meta()
+
+
+func _arm_level1_shot() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--level1-shot="):
+			_shot_path = arg.trim_prefix("--level1-shot=")
+		elif arg.begins_with("--menu-shot="):
+			_menu_shot_path = arg.trim_prefix("--menu-shot=")
+	if _shot_path == "":
+		return
+	call_deferred("_play_level1_for_shot")
+
+
+func _tick_menu_shot() -> void:
+	if _menu_shot_path == "":
+		return
+	_menu_shot_frames += 1
+	if _menu_shot_frames < 8:
+		return
+	_save_viewport_png(_menu_shot_path, "MENU_SHOT")
+	_menu_shot_path = ""
+	get_tree().quit()
+
+
+func _play_level1_for_shot() -> void:
+	if menu_view != null:
+		var play := menu_view.get_node_or_null("%Play") as BaseButton
+		if play != null:
+			play.pressed.emit()
+	if select_view != null:
+		var level_button := select_view.get_node_or_null("%Level1") as BaseButton
+		if level_button != null:
+			level_button.pressed.emit()
+	_pin_shot_lane()
+
+
+func _pin_shot_lane() -> void:
+	if host == null or host.session == null or host.session.sim == null:
+		return
+	# Left of center, on the level-1 add gate, with both gates still in frame.
+	host.session.sim.squad.target_x = -1.6
+
+
+func _tick_level1_shot() -> void:
+	if _shot_path == "" or _shot_phase >= 2:
+		return
+	_pin_shot_lane()
+	if _shot_phase == 0:
+		if _gameplay_time() < _shot_after:
+			return
+		visible = false
+		_shot_phase = 1
+		return
+	_save_level1_shot()
+	_shot_phase = 2
+	get_tree().quit()
+
+
+func _save_level1_shot() -> void:
+	_save_viewport_png(_shot_path, "LEVEL1_SHOT")
+
+
+func _save_viewport_png(path: String, tag: String) -> void:
+	var viewport := get_viewport()
+	var texture := viewport.get_texture() if viewport != null else null
+	var image: Image = texture.get_image() if texture != null else null
+	if image == null:
+		push_error("%s viewport was empty" % tag)
+		return
+	if path.begins_with("res://"):
+		path = ProjectSettings.globalize_path(path)
+	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+	var err := image.save_png(path)
+	if err != OK:
+		push_error("Could not save %s: %s" % [tag, error_string(err)])
+		return
+	print("%s %s" % [tag, path])
 
 
 func _gameplay_time() -> float:
@@ -121,6 +206,8 @@ func _on_next() -> void:
 
 
 func _show_menu() -> void:
+	if host != null:
+		host.present_menu_lane()
 	if menu_view != null:
 		menu_view.visible = true
 	if select_view != null:

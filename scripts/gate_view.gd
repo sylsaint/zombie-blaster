@@ -3,6 +3,8 @@ extends Node3D
 ## A handful of MeshInstance3D gates. Not part of the crowd batch.
 
 
+const LABEL_FONT := preload("res://assets/ui/fonts/NotoSansSC-Medium.otf")
+
 var _spans: Array[GateSpan] = []
 var _materials: Array[StandardMaterial3D] = []
 var _labels: Array[Label3D] = []
@@ -56,6 +58,7 @@ func _add_span(group: GateGroup, span: GateSpan) -> void:
 	add_child(mesh_node)
 	var label := Label3D.new()
 	label.text = GateRules.label_for(span)
+	label.font = LABEL_FONT
 	label.position = mesh_node.position + Vector3(0.0, 1.35, 0.0)
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.font_size = 64
