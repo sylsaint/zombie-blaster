@@ -33,9 +33,11 @@ func running() -> bool:
 
 func present_menu_lane() -> void:
 	var parent := get_parent()
+	if parent == null or parent.get_node_or_null("Player") == null:
+		return
 	# Main is still entering the tree during the first _ready. Adding the
 	# crowd then is refused, so the menu lane is built on the next idle frame.
-	if parent != null and not parent.is_node_ready():
+	if not parent.is_node_ready():
 		if not _menu_present_queued:
 			_menu_present_queued = true
 			present_menu_lane.call_deferred()
