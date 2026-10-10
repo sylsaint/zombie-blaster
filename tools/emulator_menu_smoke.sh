@@ -241,7 +241,7 @@ install_apk() {
 : > "$out/ratios.txt"
 : > "$out/logcat.txt"
 baseline_ready=0
-any_screencap_ok=0
+baseline_screencap_ok=0
 script_error=0
 
 for variant in "${variants[@]}"; do
@@ -288,8 +288,10 @@ for variant in "${variants[@]}"; do
   capture_screen "$out/${variant}-screencap.png" || true
   report_capture screencap "$variant" "$out/${variant}-screencap.png"
   if python3 "$ROOT/tools/release/check_menu_screenshot.py" "$out/${variant}-screencap.png"; then
-    any_screencap_ok=1
     note "${variant}: screencap shows the menu"
+    if [[ "$variant" == "baseline" ]]; then
+      baseline_screencap_ok=1
+    fi
   fi
   capture_emu "$out/${variant}-emu.png" "$out/emu-${variant}" || true
   report_capture emu "$variant" "$out/${variant}-emu.png"
@@ -330,9 +332,9 @@ adb logcat -d -b crash -v time | tr -d '\r' > "$out/crash.txt" || true
 {
   echo "variant screencap_ratio emu_ratio engine_ratio"
   for variant in "${variants[@]}"; do
-    screen_ratio="$(awk -v n="$variant" '$1=="screencap" && $2==n { for (i=1;i<=NF;i++) if (index($i,"menu_ratio=")==1) { print substr($i,12); exit } }' "$out/ratios.txt")"
-    emu_ratio="$(awk -v n="$variant" '$1=="emu" && $2==n { for (i=1;i<=NF;i++) if (index($i,"menu_ratio=")==1) { print substr($i,12); exit } }' "$out/ratios.txt")"
-    engine_ratio="$(awk -v n="$variant" '$1=="engine" && $2==n { for (i=1;i<=NF;i++) if (index($i,"ratio=")==1) { print substr($i,7); exit } }' "$out/ratios.txt")"
+    screen_ratio="$(awk -v n="$variant" '$1=="screencap" && $2==n { if (match($0, /menu_ratio=[0-9.]+/)) { print substr($0, RSTART+11, RLENGTH-11); exit } }' "$out/ratios.txt")"
+    emu_ratio="$(awk -v n="$variant" '$1=="emu" && $2==n { if (match($0, /menu_ratio=[0-9.]+/)) { print substr($0, RSTART+11, RLENGTH-11); exit } }' "$out/ratios.txt")"
+    engine_ratio="$(awk -v n="$variant" '$1=="engine" && $2==n { if (match($0, /ratio=[0-9.]+/)) { print substr($0, RSTART+6, RLENGTH-6); exit } }' "$out/ratios.txt")"
     printf '%s %s %s %s\n' "$variant" "${screen_ratio:-missing}" "${emu_ratio:-missing}" "${engine_ratio:-missing}"
   done
 } | tee "$out/table.txt" | tee -a "$out/ratios.txt"
@@ -346,8 +348,13 @@ if ! grep -a -q 'engine baseline ratio=' "$out/ratios.txt"; then
   echo "baseline engine menu_ratio was not printed" >&2
   status=1
 fi
-if [[ "$any_screencap_ok" -ne 1 ]]; then
-  echo "no presentation variant showed the menu in screencap" >&2
+# The baseline smoke APK uses the phone preset. A patched variant passing is
+# not enough: the package that ships has to show the menu in screencap.
+if [[ "$baseline_screencap_ok" -ne 1 ]]; then
+  echo "baseline screencap did not show the menu" >&2
+  if ! python3 "$ROOT/tools/release/check_menu_screenshot.py" "$out/baseline-screencap.png"; then
+    :
+  fi
   status=1
 fi
 if [[ "$script_error" -ne 0 ]]; then

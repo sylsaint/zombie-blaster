@@ -48,7 +48,7 @@ Job 跑在 `ubuntu-24.04`：
 6. `gradle_build/use_gradle_build` 保持关闭，产物是 APK。上架 Play 的 AAB 以后再开 Gradle。
 7. release、profile 和 x86_64 smoke 三个包在签名前会删掉 `assets/dexopt/baseline.prof` 和 `baseline.profm`，再 `zipalign -P 16`（不能和 `-p` 一起用）并重新签名。debug 包保持 debug 模板原样。原因见下一节。这份删除还没有在 arm64 真机上确认过。
 8. 导出之后 `tools/smoke_exported_menu.sh` 用同一套 Android 排除规则打一个 pck，无头启动，确认主菜单的「开始」可见，并且第 1 关在 4 秒游戏时间里画出士兵和行走僵尸。这个检查看的是包里的项目，不是手机上的 `libgodot_android.so`。
-9. Android job 成功后，`emulator` job 在 GitHub 托管的 `ubuntu-24.04` 上用 udev 规则打开 KVM，再用 `reactivecircus/android-emulator-runner` 启动 API 34、`google_apis`、`x86_64` 的模拟器（Pixel 2，1080×1920）。它安装的是 artifact `android-emulator-apk` 里的 **x86_64 smoke APK**，不是 `android-apks` 里的正式包。同一份原生库有七个包：baseline，加上只改呈现设置的 swappy / vsync / gles / threads / nosafe / edge。安装后 `primaryCpuAbi` 必须是 x86_64，否则 job 失败，避免又走 ARM 翻译。模拟器 GPU 用 `swangle_indirect`，不用 SwiftShader GLES：后者只给 261 个 fragment uniform，Godot 的 `CanvasShaderGLES3` 链接失败，菜单不会画出来。不要在启动前改 `wm size` / `wm density`。安装后的第一次启动还可能收到 `CONFIG_ASSETS_PATHS`，Godot 会在 `!_start_success` 时强制退出；脚本发现进程退出后会 `force-stop`，最多再启动两次。每个包等 logcat 里的 `MENU_READY` 和自己的 `MENU_ENGINE`，然后对主菜单做 `adb exec-out screencap` 和主机上的 `adb emu screenrecord screenshot`。颜色检查只认 screencap，阈值不放宽。七个包都量完才决定成败。baseline 再按 1080×1920 布局把「开始」(540, 1698) 和「第 1 关」(540, 376) 换算后点击。应用 logcat 里有 `SCRIPT ERROR` 时 job 失败。截图、`ratios.txt` 和 `table.txt` 上传为 artifact `android-emulator-smoke`。
+9. Android job 成功后，`emulator` job 在 GitHub 托管的 `ubuntu-24.04` 上用 udev 规则打开 KVM，再用 `reactivecircus/android-emulator-runner` 启动 API 34、`google_apis`、`x86_64` 的模拟器（Pixel 2，1080×1920）。它安装的是 artifact `android-emulator-apk` 里的 **x86_64 smoke APK**，不是 `android-apks` 里的正式包。同一份原生库有七个包：baseline，加上只改呈现设置的 swappy / vsync / gles / threads / nosafe / edge。安装后 `primaryCpuAbi` 必须是 x86_64，否则 job 失败，避免又走 ARM 翻译。模拟器 GPU 用 `swangle_indirect`，不用 SwiftShader GLES：后者只给 261 个 fragment uniform，Godot 的 `CanvasShaderGLES3` 链接失败，菜单不会画出来。不要在启动前改 `wm size` / `wm density`。安装后的第一次启动还可能收到 `CONFIG_ASSETS_PATHS`，Godot 会在 `!_start_success` 时强制退出；脚本发现进程退出后会 `force-stop`，最多再启动两次。每个包等 logcat 里的 `MENU_READY` 和自己的 `MENU_ENGINE`，然后对主菜单做 `adb exec-out screencap` 和主机上的 `adb emu screenrecord screenshot`。颜色检查只认 screencap，阈值不放宽。七个包都量完，成败只看 baseline 的 screencap，因为 baseline 用的是正式包那套屏幕选项。baseline 再按 1080×1920 布局把「开始」(540, 1698) 和「第 1 关」(540, 376) 换算后点击。应用 logcat 里有 `SCRIPT ERROR` 时 job 失败。截图、`ratios.txt` 和 `table.txt` 上传为 artifact `android-emulator-smoke`。
 
 ## 正式包只有 3D、没有菜单
 
@@ -83,34 +83,38 @@ x86_64 smoke 包在 swangle 上的测量：Godot 把菜单画进了视口纹理�
 
 ## 和 v0.1.0、诊断包的差别
 
-`v0.1.0` 和当前分支的 `project.godot`、`export_presets.cfg` 没有差别。手机上出过菜单的 `notheme` / `nosafe` 不是另一套提交，而是 `origin/cursor/diag-apks` 的 `tools/release/export_diag.sh` 在导出时改了工作副本：
+`project.godot` 和 `v0.1.0` 相同。手机上出过菜单的 `notheme` / `nosafe` 不是另一套提交，而是 `origin/cursor/diag-apks` 的 `tools/release/export_diag.sh` 在导出时改了工作副本：
 
 | 包 | 相对 v0.1.0 实际改了什么 |
 | --- | --- |
 | notheme | 只把 `project.godot` 的 `gui/theme/custom="res://assets/ui/game_theme.tres"` 换成空字符串。Android 预设的 `screen/immersive_mode` 仍是 true，`screen/edge_to_edge` 仍是 false |
 | nosafe | 只把 Android 预设里第一处 `screen/edge_to_edge=false` 改成 true。`screen/immersive_mode` 仍是 true，`project.godot` 不动 |
 
-上一轮视口纹理里的主题菜单比例已经是 0.0379，所以清空主题解释不了「画进视口但送不出去」。nosafe 是手机上见过菜单的那一档，这一轮用 `--edge_to_edge` 原样再测一次。
+上一轮视口纹理里的主题菜单比例已经是 0.0379，所以清空主题解释不了「画进视口但送不出去」。
 
 ## 呈现对照
 
-七个包共用同一份 x86_64 release 库。baseline 是导出结果。另外六个是导出后改 `assets/project.binary` 或 `assets/_cl_` 的副本，不重新导出资源。正式包的预设和 `project.godot` 不动，在某一档的 **screencap** 出现菜单之前也不改。
+[Run 38006367502](https://github.com/sylsaint/zombie-blaster/actions/runs/38006367502) 用同一份 x86_64 release 库打了七个包。baseline 是当时的导出结果（沉浸开，没有 edge-to-edge）。另外六个只改 `assets/_cl_`，或者往 `assets/project.binary` 末尾追加键。颜色检查不放宽。引擎比例都是视口里的菜单。
 
-| 变体 | 改什么 |
-| --- | --- |
-| baseline | 引擎默认。`thread_model` 已是 1（Single-Safe）。frame pacing 开，vsync 开，沉浸开（`--fullscreen`），没有 `--edge_to_edge` |
-| swappy | `display/window/frame_pacing/android/enable_frame_pacing=false`。Godot 4.7.2 只在 Vulkan 的 RenderingDevice 里读这一项，Compatibility 不调用 Swappy。仍测 |
-| vsync | `display/window/vsync/vsync_mode=0`，并在 `_cl_` 里加上 `--disable-vsync` |
-| gles | `rendering/gl_compatibility/driver` 和 `driver.android` 写成 `opengl3_es`，`fallback_to_angle`、`fallback_to_gles`、`fallback_to_native` 都关掉。不改 `nvidia_disable_threaded_optimization`，渲染方式仍是 `gl_compatibility`。Android 的显示服务只在驱动名等于 `opengl3` 时初始化 GLES；编辑器里 `driver.android` 的枚举也只有 `opengl3`。这一档仍按要求强制 `opengl3_es` |
-| threads | `rendering/driver/threads/thread_model=2`（Separate）。默认已经是 Single-Safe，不再单独做一档 |
-| nosafe | `_cl_` 加上 `--edge_to_edge`，保留 `--fullscreen`。这就是手机上那份 nosafe |
-| edge | 加上 `--edge_to_edge`，去掉 `--fullscreen`（沉浸关，edge_to_edge 开） |
+| 变体 | screencap | emu screenshot | 引擎 |
+| --- | --- | --- | --- |
+| baseline | 0.0000 | 0.0000 | 0.0379 |
+| swappy | 0.0000 | 0.0000 | 0.0379 |
+| vsync | 0.0000 | 0.0000 | 0.0379 |
+| gles | 0.0000 | 0.0000 | 0.0379 |
+| threads | 0.0000 | 0.0000 | 0.0379 |
+| nosafe | 0.0000 | 0.0000 | 0.0379 |
+| edge | 0.0379 | 0.0379 | 0.0379 |
 
-每个包的 screencap 比例和 `adb emu screenrecord screenshot` 比例写在 artifact 的 `table.txt`。数字出来之前这里不填。screencap 过了 `menu_ratio` 0.01 的那一档才是要写进正式包的修改。
+edge 的 screencap 和 emu 截图都是主菜单（开始按钮在视口中心 540,1698，像素 255,199,97）。它的启动参数是 `--edge_to_edge`，没有 `--fullscreen`。nosafe 同时带 `--edge_to_edge` 和 `--fullscreen`，screencap 仍是 0.0000。所以在这台模拟器上，单开 edge-to-edge 不够，要关掉沉浸模式。
+
+swappy、gles、threads 往 `project.binary` 追加的键在设备上解码失败（`Error decoding property: ''`），logcat 里的有效值仍是默认。这三档没有真正改到运行中的设置。vsync 的 `vsync_mode` 键同样没解码成功，但 `_cl_` 里的 `--disable-vsync` 进了原生层，screencap 仍是 0.0000。
+
+正式包的 Android 预设因此改成 `screen/immersive_mode=false`、`screen/edge_to_edge=true`。`project.godot` 不动，渲染方式仍是 `gl_compatibility`，架构仍是 arm64-v8a。Profile 预设不改。模拟器 job 只认 baseline（和正式包同一套屏幕选项）的 screencap，阈值仍是 `menu_ratio` 0.01。
 
 查过 Godot 4.7 的 issue，没有一条对得上「release 模板在 Adreno 上只画 3D、不画 2D，debug 模板正常」。能对上 Adreno 的报告是 Vulkan / Mobile 渲染器的花屏或几何丢失（例如 [#115217](https://github.com/godotengine/godot/issues/115217)、[#120299](https://github.com/godotengine/godot/issues/120299)）。本工程桌面和手机都是 Compatibility（`gl_compatibility`），shader baker 也关着。字体和 text server 在 pck 里，debug 和 release 是同一份，所以不是资源被裁掉。
 
-如果去掉 profile 之后真机仍然只有 3D，剩下的差别就是 release 的 `libgodot_android.so`（优化和裁剪过的原生库）。那就要换自定义 release 模板，不是再改 pck。
+如果关掉沉浸模式并打开 edge-to-edge 之后，真机仍然只有 3D，剩下的差别就是 release 的 `libgodot_android.so`（优化和裁剪过的原生库）。那就要换自定义 release 模板，不是再改 pck。baseline profile 的删除还是留着，它仍然没有单独在 arm64 真机上确认过。
 
 签名：
 

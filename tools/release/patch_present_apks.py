@@ -150,7 +150,9 @@ def command_line_for(name: str, args: list[str]) -> list[str]:
     if name == "edge":
         updated = [arg for arg in updated if arg != "--fullscreen"]
     if name == "nosafe" and "--fullscreen" not in updated:
-        raise SystemExit("nosafe variant lost --fullscreen; that is not the phone build")
+        # The phone preset turns immersive mode off. nosafe is the contrast
+        # that keeps --fullscreen and adds --edge_to_edge.
+        updated.append("--fullscreen")
     if name == "edge" and "--fullscreen" in updated:
         raise SystemExit("edge variant still has --fullscreen")
     return updated
@@ -261,6 +263,11 @@ def _self_test() -> None:
     assert swappy.count("--smoke-present=swappy") == 1
     assert "--smoke-present=baseline" not in swappy
     assert "--fullscreen" in swappy
+    phone = ["--", "--smoke-canvas", "--edge_to_edge", "--background_color", "#000000"]
+    nosafe_phone = command_line_for("nosafe", phone)
+    assert "--fullscreen" in nosafe_phone and "--edge_to_edge" in nosafe_phone
+    edge_phone = command_line_for("edge", phone)
+    assert "--fullscreen" not in edge_phone and "--edge_to_edge" in edge_phone
     print("patch_present_apks self-test ok")
 
 
